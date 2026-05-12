@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Register — StudyFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <script>if(localStorage.getItem('sfDarkMode')==='1')document.documentElement.setAttribute('data-theme','dark');</script>
+</head>
+<body class="auth-body">
+
+<div class="auth-wrap">
+
+  <!-- Brand -->
+  <div class="auth-brand">
+    <div class="auth-logo">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="StudyFlow" class="auth-logo-img" />
+    </div>
+    <div class="auth-brand-name">StudyFlow</div>
+    <div class="auth-brand-sub">Smart Study Planner</div>
+  </div>
+
+  <div class="auth-card">
+    <h1 class="auth-title">Create your account</h1>
+    <p class="auth-sub">Free forever · No credit card needed</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}" style="margin-bottom:16px">
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="this.parentElement.remove()">✕</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('register') }}" id="regForm">
+
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" name="username" class="form-input"
+               value="{{ username }}"
+               placeholder="e.g. ved_patel"
+               minlength="3" maxlength="40"
+               autocomplete="username" required autofocus/>
+        <div class="form-hint">At least 3 characters. Letters, numbers, underscores.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-input"
+               value="{{ email }}"
+               placeholder="you@example.com"
+               autocomplete="email" required/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="auth-pw-wrap">
+          <input type="password" name="password" id="regPw" class="form-input"
+                 placeholder="Min 6 characters"
+                 minlength="6"
+                 autocomplete="new-password"
+                 oninput="checkStrength(this.value)" required/>
+          <button type="button" class="auth-pw-toggle" onclick="togglePw('regPw',this)">👁</button>
+        </div>
+        <!-- Password strength bar -->
+        <div class="pw-strength-wrap">
+          <div class="pw-strength-bar" id="pwBar"></div>
+        </div>
+        <div class="form-hint" id="pwHint">At least 6 characters</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <div class="auth-pw-wrap">
+          <input type="password" name="confirm_password" id="regPwC" class="form-input"
+                 placeholder="Repeat password"
+                 autocomplete="new-password" required/>
+          <button type="button" class="auth-pw-toggle" onclick="togglePw('regPwC',this)">👁</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary auth-submit">Create Account →</button>
+    </form>
+
+    <p class="auth-switch">
+      Already have an account?
+      <a href="{{ url_for('login') }}">Log in →</a>
+    </p>
+  </div>
+
+</div>
+
+<script>
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function checkStrength(val) {
+  const bar  = document.getElementById('pwBar');
+  const hint = document.getElementById('pwHint');
+  let score  = 0;
+  if (val.length >= 6)  score++;
+  if (val.length >= 10) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+  const colors = ['', '#f43f5e', '#f59e0b', '#06b6d4', '#10b981', '#6366f1'];
+  bar.style.width = `${score * 20}%`;
+  bar.style.background = colors[score] || '#f43f5e';
+  hint.textContent = score > 0 ? labels[score] : 'At least 6 characters';
+  hint.style.color  = colors[score] || 'var(--t3)';
+}
+
+document.getElementById('regForm').addEventListener('submit', function(e) {
+  const pw  = document.getElementById('regPw').value;
+  const pwc = document.getElementById('regPwC').value;
+  if (pw !== pwc) {
+    e.preventDefault();
+    document.getElementById('pwHint').textContent = '⚠ Passwords do not match';
+    document.getElementById('pwHint').style.color = '#f43f5e';
+    document.getElementById('regPwC').focus();
+  }
+});
+</script>
+</body>
+</html>

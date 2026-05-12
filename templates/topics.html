@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% block title %}{{ subject.name }} — Topics{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <a href="{{ url_for('subjects') }}" class="back-link">← All Subjects</a>
+    <h1 class="page-title">
+      <span class="subject-pill" style="background:{{ subject.color }}">
+        {{ subject.name[0].upper() }}
+      </span>
+      {{ subject.name }}
+    </h1>
+    <p class="page-sub">
+      {{ topics|length }} topic(s) &nbsp;·&nbsp;
+      {{ topics|selectattr('is_completed')|list|length }} completed &nbsp;·&nbsp;
+      {{ topics|rejectattr('is_completed')|list|length }} pending
+    </p>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('addTopicModal')">
+    + Add Topic
+  </button>
+</div>
+
+{% if topics %}
+
+{# ── Progress mini-bar for this subject ─────────────────── #}
+{% set done_count = topics|selectattr('is_completed')|list|length %}
+{% set total_count = topics|length %}
+{% set pct = ((done_count / total_count) * 100)|int if total_count > 0 else 0 %}
+<div class="card anim d1" style="margin-bottom:22px;padding:18px 24px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <span style="font-weight:700;font-size:14px;color:var(--t1)">Subject Progress</span>
+    <span class="badge badge-primary">{{ pct }}%</span>
+  </div>
+  <div class="progress-track" style="height:10px;margin-bottom:0">
+    <div class="progress-fill" data-width="{{ pct }}"
+         style="width:{{ pct }}%;background:linear-gradient(90deg,{{ subject.color }},{{ subject.color }}cc)">
+    </div>
+  </div>
+</div>
+
+<div class="table-card anim d2">
+  <!-- Search & Filter Bar -->
+  <div class="sf-toolbar">
+    <div class="sf-search-wrap">
+      <span class="sf-search-icon">🔍</span>
+      <input type="text" id="topicSearch" class="sf-search-input" placeholder="Search topics…" oninput="filterTopics()" />
+      <button class="sf-clear-btn" id="topicSearchClear" onclick="clearTopicSearch()" style="display:none">✕</button>
+    </div>
+    <div class="sf-filters">
+      <button class="sf-filter-btn active" data-filter="all"     onclick="setTopicFilter('all',this)">All</button>
+      <button class="sf-filter-btn"        data-filter="pending" onclick="setTopicFilter('pending',this)">⏳ Pending</button>
+      <button class="sf-filter-btn"        data-filter="done"    onclick="setTopicFilter('done',this)">✅ Done</button>
+      <button class="sf-filter-btn"        data-filter="overdue" onclick="setTopicFilter('overdue',this)">🔴 Overdue</button>
+    </div>
+    <div class="sf-count" id="topicCount"></div>
+  </div>
+  <table class="topics-table">
+    <thead>
+      <tr>
+        <th>Topic</th>
+        <th>Deadline</th>
+        <th>Difficulty</th>
+        <th>Est. Hours</th>
+        <th>Daily Hrs</th>
+        <th>Status</th>
+        <th>Notes</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in topics %}
+      <tr class="topic-row {% if t.is_completed %}row-done{% endif %}"
+          id="topic-row-{{ t.id }}"
+          data-name="{{ t.name | lower }}"
+          data-status="{% if t.is_completed %}done{% else %}pending{% endif %}"
+          data-deadline="{{ t.deadline }}"
+          data-today="{{ today }}">
+
+        <td>
+          <span class="topic-name {% if t.is_completed %}strikethrough{% endif %}"
+                id="topic-name-{{ t.id }}">
+            {{ t.name }}
+          </span>
+        </td>
+
+        <td>
+          <span class="deadline-chip
+            {% if t.deadline < today and not t.is_completed %}chip-overdue
+            {% elif t.deadline == today %}chip-today
+            {% else %}chip-future{% endif %}">
+            {{ t.deadline }}
+          </span>
+          <div class="deadline-countdown" data-deadline="{{ t.deadline }}" style="margin-top:3px"></div>
+        </td>
+
+        <td>
+          <div class="difficulty-display">
+            {% for i in range(1,6) %}
+              <span class="star {% if i <= t.difficulty %}star-on{% endif %}">★</span>
+            {% endfor %}
+          </div>
+        </td>
+
+        <td><span class="hours-chip">{{ t.estimated_hours }}h</span></td>
+        <td><span class="hours-chip hours-daily">{{ t.daily_available_hours }}h/day</span></td>
+
+        <td>
+          <span class="status-badge {% if t.is_completed %}status-done{% else %}status-pending{% endif %}"
+                id="status-{{ t.id }}">
+            {% if t.is_completed %}✓ Done{% else %}Pending{% endif %}
+          </span>
+        </td>
+
+        <td class="notes-preview-cell" id="notes-cell-{{ t.id }}">
+          {% set parsed_links = t.links | default('[]') %}
+          {% if t.notes %}
+            <span class="notes-snippet">{{ t.notes[:60] }}{% if t.notes|length > 60 %}…{% endif %}</span>
+          {% endif %}
+          {% if parsed_links and parsed_links != '[]' %}
+            <span class="links-badge">🔗</span>
+          {% endif %}
+          {% if not t.notes and (not parsed_links or parsed_links == '[]') %}
+            <span class="notes-empty">—</span>
+          {% endif %}
+        </td>
+
+        <td class="actions-cell">
+          <button class="btn btn-sm {% if t.is_completed %}btn-undo{% else %}btn-toggle{% endif %}"
+                  id="toggle-btn-{{ t.id }}"
+                  onclick="toggleTopic({{ t.id }})">
+            {% if t.is_completed %}Undo{% else %}Complete{% endif %}
+          </button>
+          <button class="btn-notes-open"
+                  onclick="openNotesModal({{ t.id }}, '{{ t.name | replace("'", "\\'") }}')"
+                  title="Notes & Links">
+            📝
+          </button>
+          <button class="btn-ai-tips"
+                  onclick="loadTopicTips({{ t.id }}, this)">
+            <span class="ai-sparkle">✨</span> AI Tips
+          </button>
+          <form method="POST" action="{{ url_for('delete_topic', topic_id=t.id) }}"
+                onsubmit="return confirm('Delete \'{{ t.name }}\'?')" style="display:inline">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty-full anim">
+  <span class="empty-full-icon">📝</span>
+  <h2>No topics yet</h2>
+  <p>Add your first topic to start building a smart study schedule.<br>
+     Set the deadline, difficulty, and hours — we'll handle the rest.</p>
+  <button class="btn btn-primary" onclick="openModal('addTopicModal')">+ Add Topic</button>
+</div>
+{% endif %}
+
+<!-- ══ Add Topic Modal ════════════════════════════════════ -->
+<div id="addTopicModal" class="modal-overlay"
+     onclick="closeModalOutside(event,'addTopicModal')">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h3>Add Topic to <em>{{ subject.name }}</em></h3>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" class="btn-ai-autofill" id="aiAutofillBtn"
+                onclick="aiAutofillTopic()"
+                title="Let AI fill difficulty, hours, and deadline">
+          ✨ AI Auto-Fill
+        </button>
+        <button class="modal-close" onclick="closeModal('addTopicModal')">✕</button>
+      </div>
+    </div>
+    <form method="POST" action="{{ url_for('add_topic', subject_id=subject.id) }}"
+          id="addTopicForm">
+      <!-- Hidden subject name for AI context -->
+      <input type="hidden" id="subjectNameHidden" value="{{ subject.name }}" />
+      <div class="form-row">
+        <div class="form-group form-grow">
+          <label class="form-label">Topic Name *</label>
+          <input type="text" name="name" id="topicNameInput" class="form-input"
+                 placeholder="e.g. Binary Search Trees" required autofocus
+                 onblur="aiSuggestDifficulty(this.value)" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deadline / Exam Date *</label>
+          <input type="date" name="deadline" id="deadlineInput" class="form-input"
+                 min="{{ today }}" required />
+        </div>
+      </div>
+      <!-- AI Auto-fill reason strip (hidden until AI fills) -->
+      <div id="autofillReason" class="autofill-reason-strip" style="display:none"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">
+            Difficulty (1–5 ★)
+            <span id="aiDiffBadge" class="ai-diff-badge" style="display:none"></span>
+          </label>
+          <div class="star-selector" id="starSelector">
+            {% for i in range(1,6) %}
+            <span class="star-sel" data-val="{{ i }}"
+                  onclick="setDifficulty({{ i }})">★</span>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="difficulty" id="difficultyInput" value="3" />
+          <div id="aiDiffReason" class="ai-diff-reason" style="display:none"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estimated Hours *</label>
+          <input type="number" name="estimated_hours" id="estimatedHoursInput"
+                 class="form-input"
+                 min="0.5" max="200" step="0.5" value="4" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Daily Available Hours *</label>
+          <input type="number" name="daily_hours" class="form-input"
+                 min="0.5" max="16" step="0.5" value="4" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost"
+                onclick="closeModal('addTopicModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Topic</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══ Notes & Links Modal ═════════════════════════════════ -->
+<div id="notesModal" class="modal-overlay" onclick="closeModalOutside(event,'notesModal')">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h3>📝 Notes &amp; Links — <em id="notesModalTitle"></em></h3>
+      <button class="modal-close" onclick="closeModal('notesModal')">✕</button>
+    </div>
+    <div style="padding:20px 24px">
+      <div class="form-group" style="margin-bottom:18px">
+        <label class="form-label">📓 Study Notes</label>
+        <textarea id="notesTextarea" class="form-input" rows="5"
+                  placeholder="Key concepts, formulas, things to remember…"
+                  style="resize:vertical;font-family:inherit;line-height:1.6"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔗 Resource Links</label>
+        <p style="font-size:12px;color:var(--t2);margin-bottom:10px">
+          YouTube videos, PDFs, articles — one per row
+        </p>
+        <div id="linksList" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button type="button" class="btn btn-ghost"
+                style="margin-top:10px;font-size:13px" onclick="addLinkRow()">+ Add Link</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('notesModal')">Cancel</button>
+      <button type="button" class="btn btn-primary" id="notesSaveBtn" onclick="saveNotes()">
+        💾 Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ AI Quiz Modal (Step 18 / Phase 7 fix) ════════════ -->
+<div id="quizModal" class="modal-overlay" onclick="closeModalOutside(event,'quizModal')">
+  <div class="modal modal-wide quiz-modal">
+    <div class="modal-header">
+      <h3>🧠 Quick Quiz — <em id="quizTopicName"></em></h3>
+      <button class="modal-close" onclick="closeModal('quizModal');quizCleanup()">✕</button>
+    </div>
+    <!-- Scrollable question area with fixed max-height -->
+    <div id="quizBody" class="quiz-scroll-body"></div>
+    <!-- Always-visible footer -->
+    <div class="modal-footer quiz-modal-footer" id="quizFooter" style="display:none">
+      <button class="btn btn-ghost" onclick="closeModal('quizModal');quizCleanup()">Skip</button>
+      <button class="btn btn-primary" id="quizSubmitBtn" onclick="quizSubmit()">
+        Submit Answers
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

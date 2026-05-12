@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}StudyFlow{% endblock %} — Smart Study Planner</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <!-- Apply dark mode BEFORE paint to avoid flash -->
+  <script>
+    if (localStorage.getItem('sfDarkMode') === '1') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  </script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════════ -->
+<nav class="sidebar">
+
+  <div class="sidebar-brand">
+    <div class="brand-logo">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="StudyFlow Logo" class="brand-logo-img" />
+    </div>
+    <div class="brand-text">
+      <span class="brand-name">StudyFlow</span>
+      <span class="brand-sub">Smart Planner</span>
+    </div>
+  </div>
+
+  <span class="nav-section-label">Main Menu</span>
+
+  <ul class="nav-links">
+    <li>
+      <a href="{{ url_for('dashboard') }}"
+         class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">🏠</span>
+        <span>Dashboard</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('reviews') }}"
+         class="nav-item {% if request.endpoint == 'reviews' %}active{% endif %}">
+        <span class="nav-icon">🔁</span>
+        <span>Reviews</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('analytics') }}"
+         class="nav-item {% if request.endpoint == 'analytics' %}active{% endif %}">
+        <span class="nav-icon">📊</span>
+        <span>Analytics</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('practice') }}"
+         class="nav-item {% if request.endpoint == 'practice' %}active{% endif %}">
+        <span class="nav-icon">📝</span>
+        <span>Practice</span>
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('settings') }}"
+         class="nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
+        <span class="nav-icon">⚙️</span>
+        <span>Settings</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <!-- AI Status Indicator -->
+    <div class="sidebar-ai-status" id="sidebarAiStatus" title="Groq AI status">
+      <span class="ai-status-dot" id="aiStatusDot"></span>
+      <span class="ai-status-label" id="aiStatusLabel">AI loading…</span>
+    </div>
+    <!-- Dark Mode Toggle -->
+    <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">
+      <span class="dm-icon-sun">☀️</span>
+      <span class="dm-label">Light Mode</span>
+      <div class="dm-switch">
+        <div class="dm-thumb"></div>
+      </div>
+    </button>
+    {% if current_user.is_authenticated %}
+    <div class="sidebar-user">
+      <div class="user-avatar">🎓</div>
+      <div style="flex:1;min-width:0">
+        <div class="user-name">{{ current_user.username }}</div>
+        <div class="user-role">{{ current_user.email }}</div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="logout-btn" title="Log out">⏻</a>
+    </div>
+    {% endif %}
+  </div>
+
+</nav>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════════════════ -->
+<main class="main-content">
+
+  {# Flash messages #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="this.parentElement.remove()">✕</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+  // Sidebar AI Status Indicator
+  (function() {
+    const dot   = document.getElementById('aiStatusDot');
+    const label = document.getElementById('aiStatusLabel');
+    if (!dot || !label) return;
+
+    async function checkAiStatus() {
+      try {
+        const res  = await fetch('/api/ai/status');
+        const data = await res.json();
+        if (data.online) {
+          dot.style.background   = '#10b981';
+          dot.style.boxShadow    = '0 0 6px #10b981';
+          // Show short model name e.g. "llama-3.1-8b"
+          const short = (data.fast_model || 'groq').replace('-instant','').replace('-versatile','');
+          label.textContent = '✦ ' + short;
+          label.title = `Fast: ${data.fast_model}\nHeavy: ${data.heavy_model}`;
+        } else {
+          dot.style.background = '#f43f5e';
+          dot.style.boxShadow  = 'none';
+          label.textContent    = '⚠ AI offline';
+          label.title          = data.error || 'Groq API unavailable';
+        }
+      } catch (_) {
+        dot.style.background = '#94a3b8';
+        label.textContent    = 'AI unknown';
+      }
+    }
+
+    checkAiStatus();
+    setInterval(checkAiStatus, 60000); // re-check every minute
+  })();
+</script>
+<style>
+  .sidebar-ai-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    margin: 0 8px 4px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.05);
+    cursor: default;
+    min-height: 30px;
+  }
+  .ai-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex-shrink: 0;
+    transition: background .3s, box-shadow .3s;
+  }
+  .ai-status-label {
+    font-size: 11.5px;
+    color: var(--t2, #94a3b8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+</body>
+</html>

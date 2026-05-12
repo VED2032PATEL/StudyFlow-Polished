@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Subjects{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">📖 Subjects</h1>
+    <p class="page-sub">Organise your subjects and track progress per topic group</p>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('addSubjectModal')">
+    + Add Subject
+  </button>
+</div>
+
+{% if subjects %}
+<div class="subjects-grid">
+  {% for s in subjects %}
+  {% set pct = ((s.completed_topics or 0) / s.total_topics * 100)|int if s.total_topics else 0 %}
+  <div class="subject-card anim" style="--subject-color:{{ s.color }};animation-delay:{{ loop.index0 * 0.07 }}s">
+    <div class="subject-card-top"></div>
+    <div class="subject-card-body">
+
+      <div class="subject-card-header">
+        <div class="subject-badge" style="background:{{ s.color }}">
+          {{ s.name[0].upper() }}
+        </div>
+        <form method="POST" action="{{ url_for('delete_subject', subject_id=s.id) }}"
+              onsubmit="return confirm('Delete \'{{ s.name }}\' and all its topics?')">
+          <button type="submit" class="btn-icon btn-danger-ghost" title="Delete subject">✕</button>
+        </form>
+      </div>
+
+      <h3 class="subject-card-name">{{ s.name }}</h3>
+
+      <div class="subject-card-stats">
+        <span><strong>{{ s.total_topics or 0 }}</strong> topics</span>
+        <span class="dot-sep">•</span>
+        <span><strong>{{ s.completed_topics or 0 }}</strong> done</span>
+        {% if s.total_topics and s.total_topics > 0 %}
+          <span class="dot-sep">•</span>
+          <span class="badge badge-primary" style="padding:2px 8px;font-size:11px">{{ pct }}%</span>
+        {% endif %}
+      </div>
+
+      <div class="subject-progress">
+        <div class="subject-progress-fill"
+             data-width="{{ pct }}"
+             style="width:{{ pct }}%;background:{{ s.color }}">
+        </div>
+      </div>
+
+      <a href="{{ url_for('topics', subject_id=s.id) }}" class="btn btn-outline subject-btn">
+        View Topics →
+      </a>
+
+      <!-- Step 17: AI Readiness Badge (loaded asynchronously) -->
+      <div class="readiness-badge-wrap" id="readiness-{{ s.id }}"
+           data-subject-id="{{ s.id }}">
+        <div class="readiness-loading">
+          <span class="readiness-dot"></span> AI scoring…
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-full anim">
+  <span class="empty-full-icon">📚</span>
+  <h2>No subjects yet</h2>
+  <p>Start by adding your first subject — it only takes a second.</p>
+  <button class="btn btn-primary" onclick="openModal('addSubjectModal')">+ Add Subject</button>
+</div>
+{% endif %}
+
+<!-- ══ Add Subject Modal ══════════════════════════════════ -->
+<div id="addSubjectModal" class="modal-overlay"
+     onclick="closeModalOutside(event,'addSubjectModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add New Subject</h3>
+      <button class="modal-close" onclick="closeModal('addSubjectModal')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('add_subject') }}">
+      <div class="form-group">
+        <label class="form-label">Subject Name *</label>
+        <input type="text" name="name" class="form-input"
+               placeholder="e.g. Data Structures &amp; Algorithms"
+               required autofocus />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject Colour</label>
+        <div class="color-options">
+          {% for color in ['#6366f1','#0ea5e9','#10b981','#f59e0b','#f43f5e','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4'] %}
+          <label class="color-opt">
+            <input type="radio" name="color" value="{{ color }}"
+                   {% if loop.first %}checked{% endif %} />
+            <span class="color-swatch" style="background:{{ color }}"></span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost"
+                onclick="closeModal('addSubjectModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Subject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* Step 17 — load AI readiness for every subject card on page load */
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.readiness-badge-wrap[data-subject-id]').forEach(wrap => {
+    const sid = wrap.dataset.subjectId;
+    fetch(`/api/ai/readiness/${sid}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          wrap.innerHTML = '';
+          return;
+        }
+        const pct = data.score;
+        wrap.innerHTML = `
+          <div class="readiness-badge" style="--r-color:${data.color}">
+            <div class="readiness-ring-wrap">
+              <svg class="readiness-ring" viewBox="0 0 40 40">
+                <circle class="rr-bg" cx="20" cy="20" r="16"/>
+                <circle class="rr-fill" cx="20" cy="20" r="16"
+                        stroke="${data.color}"
+                        stroke-dasharray="${(pct/100*100.5).toFixed(1)} 100.5"
+                        stroke-dashoffset="0"/>
+              </svg>
+              <span class="readiness-score">${pct}</span>
+            </div>
+            <div class="readiness-info">
+              <div class="readiness-label" style="color:${data.color}">${data.label}</div>
+              <div class="readiness-tip">${data.tip || 'AI Exam Readiness'}</div>
+            </div>
+          </div>`;
+      })
+      .catch(() => { wrap.innerHTML = ''; });
+  });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}Study Schedule{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">🗓️ Study Schedule</h1>
+    <p class="page-sub">
+      Auto-generated · priority ordered · revision days included
+    </p>
+  </div>
+  <div class="btn-group">
+    <form method="POST" action="{{ url_for('generate_schedule') }}" style="display:inline">
+      <button type="submit" class="btn btn-primary">⚡ Generate Schedule</button>
+    </form>
+    {% if grouped_schedule %}
+    <button class="btn btn-ghost" onclick="openModal('pomodoroModal')" title="Start a focus session">
+      🍅 Pomodoro
+    </button>
+    <button class="btn btn-ghost" onclick="exportSchedulePDF()" title="Export to PDF">
+      📄 Export PDF
+    </button>
+    <form method="POST" action="{{ url_for('clear_schedule') }}" style="display:inline"
+          onsubmit="return confirm('Clear the entire schedule?')">
+      <button type="submit" class="btn btn-ghost">🗑 Clear</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if grouped_schedule %}
+
+<!-- ── AI Schedule Insights ─────────────────────────────── -->
+<div id="ai-insights-mount" class="anim d1"></div>
+
+{# ── Compute summary numbers ──────────────────────────── #}
+{% set ns = namespace(total_sessions=0, study_hrs=0.0, rev_sessions=0, days=0) %}
+{% for date_str, entries in grouped_schedule %}
+  {% set ns.days = ns.days + 1 %}
+  {% for e in entries %}
+    {% set ns.total_sessions = ns.total_sessions + 1 %}
+    {% if e.entry_type == 'revision' %}
+      {% set ns.rev_sessions = ns.rev_sessions + 1 %}
+    {% else %}
+      {% set ns.study_hrs = ns.study_hrs + e.hours %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+
+{# ── Summary chips ────────────────────────────────────── #}
+<div class="sched-summary anim d1">
+  <div class="sched-stat">
+    <div>
+      <div class="sched-stat-num">{{ ns.days }}</div>
+      <div class="sched-stat-label">Study Days</div>
+    </div>
+  </div>
+  <div class="sched-stat">
+    <div>
+      <div class="sched-stat-num">{{ ns.total_sessions - ns.rev_sessions }}</div>
+      <div class="sched-stat-label">Study Sessions</div>
+    </div>
+  </div>
+  <div class="sched-stat">
+    <div>
+      <div class="sched-stat-num">{{ ns.study_hrs | round(1) }}h</div>
+      <div class="sched-stat-label">Total Study Hours</div>
+    </div>
+  </div>
+  <div class="sched-stat">
+    <div>
+      <div class="sched-stat-num">{{ ns.rev_sessions }}</div>
+      <div class="sched-stat-label">Revision Sessions</div>
+    </div>
+  </div>
+</div>
+
+{# ── Legend ───────────────────────────────────────────── #}
+<div class="legend-row anim d2">
+  <div class="legend-item">
+    <span class="legend-dot dot-study"></span> Study Session
+  </div>
+  <div class="legend-item">
+    <span class="legend-dot dot-revision"></span> Revision Session
+  </div>
+  <div class="legend-item">
+    <span class="legend-dot dot-done"></span> Completed Topic
+  </div>
+</div>
+
+{# ── Schedule Table ───────────────────────────────────── #}
+{% set months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+
+<div class="table-card anim d3">
+  <!-- Search & Filter Bar -->
+  <div class="sf-toolbar">
+    <div class="sf-search-wrap">
+      <span class="sf-search-icon">🔍</span>
+      <input type="text" id="schedSearch" class="sf-search-input" placeholder="Search topics or subjects…" oninput="filterSchedule()" />
+      <button class="sf-clear-btn" id="schedSearchClear" onclick="clearSchedSearch()" style="display:none">✕</button>
+    </div>
+    <div class="sf-filters">
+      <button class="sf-filter-btn active" data-filter="all"      onclick="setSchedFilter('all',this)">All</button>
+      <button class="sf-filter-btn"        data-filter="today"    onclick="setSchedFilter('today',this)">📅 Today</button>
+      <button class="sf-filter-btn"        data-filter="study"    onclick="setSchedFilter('study',this)">📖 Study</button>
+      <button class="sf-filter-btn"        data-filter="revision" onclick="setSchedFilter('revision',this)">🔁 Revision</button>
+      <button class="sf-filter-btn"        data-filter="upcoming" onclick="setSchedFilter('upcoming',this)">⏭ Upcoming</button>
+    </div>
+    <div class="sf-count" id="schedCount"></div>
+  </div>
+  <table class="schedule-table">
+    <thead>
+      <tr>
+        <th style="width:32px"></th>
+        <th>Date</th>
+        <th>Subject</th>
+        <th>Topic</th>
+        <th>Hours</th>
+        <th>Type</th>
+        <th>Deadline</th>
+        <th>Difficulty</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for date_str, entries in grouped_schedule %}
+        {% for entry in entries %}
+        <tr class="sched-row
+            {% if entry.is_completed %}sched-completed{% endif %}
+            {% if entry.entry_type == 'revision' %}sched-revision{% endif %}
+            {% if date_str == today %}sched-today{% endif %}"
+            data-topic="{{ entry.topic_name | lower }}"
+            data-subject="{{ entry.subject_name | lower }}"
+            data-type="{{ entry.entry_type }}"
+            data-date="{{ date_str }}"
+            data-today="{{ today }}"
+            data-entry-id="{{ entry.id }}"
+            id="srow-{{ entry.id }}">
+
+          {# Drag handle — always first cell #}
+          <td class="drag-handle-cell">
+            <span class="drag-handle" title="Drag to reschedule">⠿</span>
+          </td>
+
+          {# Date cell spans all rows for this date #}
+          {% if loop.first %}
+          <td rowspan="{{ entries|length }}"
+              class="date-cell
+              {% if date_str < today %}date-past
+              {% elif date_str == today %}date-today
+              {% else %}date-future{% endif %}">
+            <div class="date-block">
+              <div class="date-day-num">{{ date_str.split('-')[2] }}</div>
+              <div class="date-month">
+                {{ months[date_str.split('-')[1]|int] }}
+                '{{ date_str.split('-')[0][2:] }}
+              </div>
+              {% if date_str == today %}
+                <div class="today-badge">Today</div>
+              {% endif %}
+            </div>
+          </td>
+          {% endif %}
+
+          <td>
+            <span class="subject-tag"
+                  style="background:{{ entry.subject_color }}22;
+                         color:{{ entry.subject_color }};
+                         border:1.5px solid {{ entry.subject_color }}55">
+              {{ entry.subject_name }}
+            </span>
+          </td>
+
+          <td class="{% if entry.is_completed %}strikethrough text-muted{% endif %}">
+            <strong style="font-size:13.5px">{{ entry.topic_name }}</strong>
+          </td>
+
+          <td><span class="hours-chip">{{ entry.hours }}h</span></td>
+
+          <td>
+            {% if entry.entry_type == 'revision' %}
+              <span class="type-badge type-revision">🔁 Revision</span>
+            {% else %}
+              <span class="type-badge type-study">📖 Study</span>
+            {% endif %}
+          </td>
+
+          <td>
+            <span class="deadline-chip
+              {% if entry.deadline < today and not entry.is_completed %}chip-overdue
+              {% elif entry.deadline == today %}chip-today
+              {% else %}chip-future{% endif %}">
+              {{ entry.deadline }}
+            </span>
+            <div class="deadline-countdown" data-deadline="{{ entry.deadline }}" style="margin-top:3px"></div>
+          </td>
+
+          <td>
+            <div class="difficulty-display">
+              {% for i in range(1,6) %}
+                <span class="star {% if i <= entry.difficulty %}star-on{% endif %}">★</span>
+              {% endfor %}
+            </div>
+          </td>
+
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+{# ── Empty state ──────────────────────────────────────── #}
+<div class="empty-full anim">
+  <span class="empty-full-icon">🗓️</span>
+  <h2>No schedule generated yet</h2>
+  <p>
+    Add your subjects &amp; topics first, then hit<br>
+    <strong>⚡ Generate Schedule</strong> to auto-plan everything.
+  </p>
+  <div class="empty-actions">
+    <a href="{{ url_for('subjects') }}" class="btn btn-ghost">📖 Manage Subjects</a>
+    <form method="POST" action="{{ url_for('generate_schedule') }}" style="display:inline">
+      <button type="submit" class="btn btn-primary">⚡ Generate Schedule</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══ Pomodoro Timer Modal ════════════════════════════════ -->
+<div id="pomodoroModal" class="modal-overlay" onclick="closeModalOutside(event,'pomodoroModal')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3>🍅 Pomodoro Focus Timer</h3>
+      <button class="modal-close" onclick="pomodoroStop();closeModal('pomodoroModal')">✕</button>
+    </div>
+    <div class="pomodoro-body">
+      <!-- Mode tabs -->
+      <div class="pomo-tabs">
+        <button class="pomo-tab active" data-mins="25" onclick="pomoSetMode(25,'Focus',this)">Focus 25m</button>
+        <button class="pomo-tab" data-mins="5"  onclick="pomoSetMode(5,'Short Break',this)">Short Break 5m</button>
+        <button class="pomo-tab" data-mins="15" onclick="pomoSetMode(15,'Long Break',this)">Long Break 15m</button>
+      </div>
+      <!-- Clock face -->
+      <div class="pomo-clock-wrap">
+        <svg class="pomo-ring" viewBox="0 0 120 120">
+          <circle class="pomo-ring-bg" cx="60" cy="60" r="52"/>
+          <circle class="pomo-ring-fill" id="pomoRingFill" cx="60" cy="60" r="52"
+                  stroke-dasharray="326.7" stroke-dashoffset="0"/>
+        </svg>
+        <div class="pomo-time" id="pomoDisplay">25:00</div>
+        <div class="pomo-mode-label" id="pomoModeLabel">Focus</div>
+      </div>
+      <!-- Session topic selector -->
+      <div style="margin:0 24px 16px">
+        <label class="form-label" style="margin-bottom:6px">📖 Studying</label>
+        <select id="pomoTopicSelect" class="form-input" style="font-size:13px">
+          <option value="">— pick a topic (optional) —</option>
+          {% if grouped_schedule %}
+            {% set seen = [] %}
+            {% for date_str, entries in grouped_schedule %}
+              {% for e in entries %}
+                {% if e.topic_name not in seen %}
+                  <option value="{{ e.topic_name }}">{{ e.subject_name }} · {{ e.topic_name }}</option>
+                  {% if seen.append(e.topic_name) %}{% endif %}
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          {% endif %}
+        </select>
+      </div>
+      <!-- Controls -->
+      <div class="pomo-controls">
+        <button class="pomo-btn pomo-btn-start" id="pomoStartBtn" onclick="pomoToggle()">▶ Start</button>
+        <button class="pomo-btn pomo-btn-reset" onclick="pomoReset()">↺ Reset</button>
+      </div>
+      <!-- Session log -->
+      <div class="pomo-log" id="pomoLog"></div>
+    </div>
+  </div>
+</div>
+
+<!-- jsPDF CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Step 15: SortableJS for drag-and-drop schedule editing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+(function initDragDrop() {
+  const tbody = document.querySelector('.schedule-table tbody');
+  if (!tbody) return;
+
+  // Date picker overlay for dropping
+  let draggedEntryId = null;
+
+  // We use a date-column click approach: drag a row, then click
+  // a date cell to reassign it. SortableJS handles the visual drag.
+  Sortable.create(tbody, {
+    animation: 150,
+    handle: '.drag-handle',
+    ghostClass: 'sched-drag-ghost',
+    chosenClass: 'sched-drag-chosen',
+    onStart(evt) {
+      draggedEntryId = evt.item.dataset.entryId;
+    },
+    onEnd(evt) {
+      if (evt.oldIndex === evt.newIndex) return;
+
+      // Find the date cell of the row now above this one
+      const allRows = Array.from(tbody.querySelectorAll('tr.sched-row'));
+      const myIndex = allRows.indexOf(evt.item);
+
+      // Walk upwards to find the nearest row with a visible date cell
+      let newDate = null;
+      for (let i = myIndex; i >= 0; i--) {
+        const dateTd = allRows[i].querySelector('.date-cell');
+        if (dateTd) {
+          newDate = allRows[i].dataset.date;
+          break;
+        }
+        newDate = allRows[i].dataset.date;
+      }
+      if (!newDate) newDate = evt.item.dataset.date;
+
+      // Persist to server
+      fetch('/api/schedule/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_id: draggedEntryId, new_date: newDate })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'moved') {
+          evt.item.dataset.date = newDate;
+          // Update the date display cell if it's showing
+          const dateTd = evt.item.querySelector('.date-cell');
+          if (dateTd) {
+            const parts = newDate.split('-');
+            const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                            'Jul','Aug','Sep','Oct','Nov','Dec'];
+            dateTd.querySelector('.date-day-num').textContent = parseInt(parts[2]);
+          }
+          showDragToast(`📅 Moved to ${newDate}`);
+        }
+      })
+      .catch(() => showDragToast('❌ Could not save — try again', true));
+
+      draggedEntryId = null;
+    }
+  });
+
+  function showDragToast(msg, isErr = false) {
+    const t = document.createElement('div');
+    t.className = 'drag-toast' + (isErr ? ' drag-toast-err' : '');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('drag-toast-show'));
+    setTimeout(() => { t.classList.remove('drag-toast-show');
+                       setTimeout(() => t.remove(), 300); }, 2500);
+  }
+})();
+</script>
+
+{% endblock %}

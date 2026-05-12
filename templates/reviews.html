@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Reviews{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">🔁 Spaced Repetition Reviews</h1>
+    <p class="page-sub">SM-2 algorithm · topics resurface just before you forget them</p>
+  </div>
+  <div class="btn-group">
+    <a href="{{ url_for('schedule') }}" class="btn btn-ghost">← Schedule</a>
+  </div>
+</div>
+
+{# ── Algorithm explainer strip ─────────────────────────── #}
+<div class="sr-explainer anim d1">
+  <div class="sr-explainer-icon">🧠</div>
+  <div class="sr-explainer-text">
+    <strong>How it works:</strong> When you complete a topic, the SM-2 algorithm calculates
+    the optimal date to review it — just before your brain would forget it. Rate your recall
+    after each review to tune the interval. Higher recall → longer gap next time.
+  </div>
+  <div class="sr-explainer-stats">
+    <div class="sr-stat">
+      <span class="sr-stat-num">{{ due_reviews | length }}</span>
+      <span class="sr-stat-lbl">Due now</span>
+    </div>
+    <div class="sr-stat">
+      <span class="sr-stat-num">{{ all_reviews | length }}</span>
+      <span class="sr-stat-lbl">Total tracked</span>
+    </div>
+  </div>
+</div>
+
+{# ── Due reviews ───────────────────────────────────────── #}
+<div class="section-title anim d2">
+  📌 Due for Review Today
+  {% if due_reviews %}
+  <span class="badge" style="background:var(--rose-bg);color:#f43f5e;margin-left:8px">
+    {{ due_reviews | length }}
+  </span>
+  {% endif %}
+</div>
+
+{% if due_reviews %}
+<div class="reviews-grid anim d2">
+  {% for r in due_reviews %}
+  <div class="review-card" id="rcard-{{ r.topic_id }}">
+    <div class="review-card-header">
+      <div>
+        <div class="review-topic-name">{{ r.topic_name }}</div>
+        <div class="review-subject-name" style="color:{{ r.subject_color }}">
+          {{ r.subject_name }}
+        </div>
+      </div>
+      <div class="review-meta">
+        <div class="review-interval">
+          Every <strong>{{ r.interval_days }}d</strong>
+        </div>
+        <div class="review-ease" title="E-Factor (higher = easier)">
+          E: {{ "%.2f"|format(r.easiness) }}
+        </div>
+      </div>
+    </div>
+
+    <div class="review-diff-bar">
+      {% for i in range(1,6) %}
+        <span class="review-star {% if i <= r.difficulty %}review-star-on{% endif %}">★</span>
+      {% endfor %}
+      <span class="review-n-badge">Rep #{{ r.n + 1 }}</span>
+    </div>
+
+    <div class="review-prompt">
+      How well did you recall this topic?
+    </div>
+
+    <div class="review-quality-btns" data-topic-id="{{ r.topic_id }}">
+      <button class="rq-btn rq-0" onclick="rateReview({{ r.topic_id }}, 0, this)">
+        <span class="rq-icon">😵</span><span class="rq-label">Blackout</span>
+      </button>
+      <button class="rq-btn rq-1" onclick="rateReview({{ r.topic_id }}, 1, this)">
+        <span class="rq-icon">😕</span><span class="rq-label">Wrong</span>
+      </button>
+      <button class="rq-btn rq-2" onclick="rateReview({{ r.topic_id }}, 2, this)">
+        <span class="rq-icon">😐</span><span class="rq-label">Close</span>
+      </button>
+      <button class="rq-btn rq-3" onclick="rateReview({{ r.topic_id }}, 3, this)">
+        <span class="rq-icon">🙂</span><span class="rq-label">Hard</span>
+      </button>
+      <button class="rq-btn rq-4" onclick="rateReview({{ r.topic_id }}, 4, this)">
+        <span class="rq-icon">😊</span><span class="rq-label">Good</span>
+      </button>
+      <button class="rq-btn rq-5" onclick="rateReview({{ r.topic_id }}, 5, this)">
+        <span class="rq-icon">🤩</span><span class="rq-label">Perfect</span>
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state anim d2" style="margin-bottom:24px">
+  <div class="empty-icon">🎉</div>
+  <h3>All caught up!</h3>
+  <p>No reviews due today. Complete topics to start building your review queue.</p>
+</div>
+{% endif %}
+
+{# ── All scheduled reviews ─────────────────────────────── #}
+{% if all_reviews %}
+<div class="section-title anim d3" style="margin-top:8px">📅 All Scheduled Reviews</div>
+<div class="table-card anim d3">
+  <table class="topics-table">
+    <thead>
+      <tr>
+        <th>Topic</th>
+        <th>Subject</th>
+        <th>Next Review</th>
+        <th>Interval</th>
+        <th>E-Factor</th>
+        <th>Reps</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in all_reviews %}
+      <tr>
+        <td><strong>{{ r.topic_name }}</strong></td>
+        <td>
+          <span class="subject-dot" style="background:{{ r.subject_color }}"></span>
+          {{ r.subject_name }}
+        </td>
+        <td>
+          <span class="deadline-chip
+            {% if r.next_review < today %}chip-overdue
+            {% elif r.next_review == today %}chip-today
+            {% else %}chip-future{% endif %}">
+            {{ r.next_review }}
+          </span>
+          <div class="deadline-countdown" data-deadline="{{ r.next_review }}"
+               style="margin-top:3px"></div>
+        </td>
+        <td>{{ r.interval_days }} day{{ 's' if r.interval_days != 1 else '' }}</td>
+        <td>
+          <div class="ease-bar-wrap">
+            <div class="ease-bar-fill"
+                 style="width:{{ [((r.easiness - 1.3) / 2.7) * 100, 100]|min|int }}%"></div>
+          </div>
+          <span style="font-size:11px;color:var(--t2)">{{ "%.2f"|format(r.easiness) }}</span>
+        </td>
+        <td>
+          <span class="badge" style="background:var(--p-bg);color:var(--p1)">
+            {{ r.n }}×
+          </span>
+        </td>
+        <td>
+          {% if r.next_review <= today %}
+            <span class="badge" style="background:var(--rose-bg);color:#f43f5e">Due</span>
+          {% else %}
+            <span class="badge" style="background:var(--emerald-bg);color:#059669">Scheduled</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<script>
+async function rateReview(topicId, quality, btn) {
+  const card = document.getElementById(`rcard-${topicId}`);
+  const btns = card.querySelectorAll('.rq-btn');
+  btns.forEach(b => b.disabled = true);
+  btn.classList.add('rq-selected');
+
+  try {
+    const res  = await fetch(`/api/reviews/${topicId}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quality })
+    });
+    const data = await res.json();
+
+    const labels = ['😵 Blackout','😕 Wrong','😐 Close','🙂 Hard','😊 Good','🤩 Perfect'];
+    card.innerHTML = `
+      <div class="review-done-msg">
+        <div class="review-done-icon">✅</div>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--t1)">Review logged!</div>
+          <div style="font-size:13px;color:var(--t2);margin-top:4px">
+            Rating: <strong>${labels[quality]}</strong> ·
+            Next review in <strong>${data.interval_days} day${data.interval_days!==1?'s':''}</strong>
+            (${data.next_review})
+          </div>
+        </div>
+      </div>`;
+  } catch(e) {
+    btns.forEach(b => b.disabled = false);
+    btn.classList.remove('rq-selected');
+    alert('Could not save — check the server is running.');
+  }
+}
+</script>
+
+{% endblock %}

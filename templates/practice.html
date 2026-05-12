@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% block title %}Practice Session{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">📝 Practice Session</h1>
+    <p class="page-sub">AI-generated 30-question sample paper · MCQ · True/False · Short Answer</p>
+  </div>
+</div>
+
+<!-- ── Generator Form ─────────────────────────────────── -->
+<div class="card anim d1" style="margin-bottom:24px">
+  <div class="card-header" style="margin-bottom:20px">
+    <h2 class="card-title">
+      <span class="card-icon" style="background:var(--p-bg)">🎯</span>
+      Generate Practice Paper
+    </h2>
+  </div>
+
+  <div class="practice-form">
+    <div class="form-group">
+      <label class="form-label">Subject</label>
+      <select id="practiceSubject" class="form-input">
+        <option value="">— General (no subject) —</option>
+        {% for s in subjects %}
+        <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group form-grow">
+      <label class="form-label">Topic *</label>
+      <input type="text" id="practiceTopic" class="form-input"
+             placeholder="e.g. Binary Search Trees, Thermodynamics Laws, SQL Joins…"
+             required />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Difficulty</label>
+      <div class="practice-diff-tabs">
+        <button type="button" class="pdiff-btn active" data-diff="Easy"
+                onclick="setPracticeDiff('Easy', this)">🟢 Easy</button>
+        <button type="button" class="pdiff-btn" data-diff="Medium"
+                onclick="setPracticeDiff('Medium', this)">🟡 Medium</button>
+        <button type="button" class="pdiff-btn" data-diff="Hard"
+                onclick="setPracticeDiff('Hard', this)">🔴 Hard</button>
+      </div>
+      <input type="hidden" id="practiceDiff" value="Easy" />
+    </div>
+
+    <button type="button" class="btn btn-primary practice-generate-btn"
+            id="generateBtn" onclick="generatePaper()">
+      ⚡ Generate Paper
+    </button>
+  </div>
+</div>
+
+<!-- ── Loading State ──────────────────────────────────── -->
+<div id="practiceLoading" style="display:none" class="practice-loading anim">
+  <div class="practice-loading-inner">
+    <div class="practice-loading-dots">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="practice-loading-text" id="loadingText">
+      Generating multiple choice questions…
+    </div>
+    <div class="practice-loading-sub">Asking Groq AI in 3 batches · takes 5–15 seconds</div>
+  </div>
+</div>
+
+<!-- ── Paper Output ───────────────────────────────────── -->
+<div id="practiceOutput" style="display:none">
+
+  <!-- Paper header / controls -->
+  <div class="paper-header anim">
+    <div class="paper-meta">
+      <h2 class="paper-title" id="paperTitle"></h2>
+      <div class="paper-pills">
+        <span class="paper-pill" id="paperPillSubject" style="display:none"></span>
+        <span class="paper-pill" id="paperPillDiff"></span>
+        <span class="paper-pill paper-pill-count" id="paperPillCount"></span>
+      </div>
+    </div>
+    <div class="paper-controls">
+      <label class="sf-toggle answers-toggle" title="Show / hide answers">
+        <input type="checkbox" id="showAnswersToggle"
+               onchange="toggleAnswers(this.checked)" />
+        <span class="sf-toggle-track">
+          <span class="sf-toggle-thumb"></span>
+        </span>
+        <span style="font-size:13px;font-weight:600;color:var(--t2)">Show Answers</span>
+      </label>
+      <button class="btn btn-ghost" onclick="downloadPDF()">📄 Download PDF</button>
+    </div>
+  </div>
+
+  <!-- Questions -->
+  <div class="paper-body card anim d1" id="paperBody"></div>
+
+</div>
+
+<!-- jsPDF CDN for download -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+let _practiceDiff      = 'Easy';
+let _practiceQuestions = [];
+let _practiceInfo      = {};
+let _answersVisible    = false;
+
+const LOADING_MSGS = [
+  'Generating multiple choice questions…',
+  'Writing true/false questions…',
+  'Composing short answer questions…',
+  'Assembling your practice paper…',
+  'Almost done — putting it together…',
+];
+
+function setPracticeDiff(diff, btn) {
+  _practiceDiff = diff;
+  document.getElementById('practiceDiff').value = diff;
+  document.querySelectorAll('.pdiff-btn').forEach(b =>
+    b.classList.toggle('active', b === btn));
+}
+
+async function generatePaper() {
+  const topic   = document.getElementById('practiceTopic').value.trim();
+  const subject = document.getElementById('practiceSubject').value.trim();
+
+  if (!topic) {
+    document.getElementById('practiceTopic').focus();
+    document.getElementById('practiceTopic').style.borderColor = '#f43f5e';
+    setTimeout(() => document.getElementById('practiceTopic').style.borderColor = '', 1500);
+    return;
+  }
+
+  // Show loading
+  document.getElementById('generateBtn').disabled  = true;
+  document.getElementById('practiceOutput').style.display  = 'none';
+  document.getElementById('practiceLoading').style.display = 'flex';
+
+  // Cycle loading messages
+  let msgIdx = 0;
+  const msgEl = document.getElementById('loadingText');
+  const msgTimer = setInterval(() => {
+    msgIdx = (msgIdx + 1) % LOADING_MSGS.length;
+    msgEl.textContent = LOADING_MSGS[msgIdx];
+  }, 4000);
+
+  try {
+    const res  = await fetch('/api/ai/practice-paper', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, subject, difficulty: _practiceDiff })
+    });
+    const data = await res.json();
+    clearInterval(msgTimer);
+
+    if (data.error) {
+      document.getElementById('practiceLoading').style.display = 'none';
+      document.getElementById('generateBtn').disabled = false;
+      // Show inline error instead of alert
+      const errDiv = document.createElement('div');
+      errDiv.className = 'practice-error-banner';
+      errDiv.innerHTML = `
+        <span style="font-size:18px">⚠️</span>
+        <div>
+          <strong>Could not generate paper</strong>
+          <div style="font-size:12px;margin-top:3px;opacity:.8">${data.error}</div>
+          <div style="font-size:12px;margin-top:3px">Check your Groq API key and try again.</div>
+        </div>`;
+      const existing = document.querySelector('.practice-error-banner');
+      if (existing) existing.remove();
+      document.getElementById('practiceOutput').before(errDiv);
+      errDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    _practiceQuestions = data.questions;
+    _practiceInfo      = { topic: data.topic, subject: data.subject,
+                           difficulty: data.difficulty, total: data.total };
+
+    renderPaper();
+
+  } catch (e) {
+    clearInterval(msgTimer);
+    alert('Could not reach the server. Check your connection and try again.');
+  }
+
+  document.getElementById('practiceLoading').style.display = 'none';
+  document.getElementById('generateBtn').disabled = false;
+}
+
+function renderPaper() {
+  // Header pills
+  document.getElementById('paperTitle').textContent =
+    `${_practiceInfo.topic} — Practice Paper`;
+  const pillSub  = document.getElementById('paperPillSubject');
+  const pillDiff = document.getElementById('paperPillDiff');
+  const pillCnt  = document.getElementById('paperPillCount');
+
+  if (_practiceInfo.subject) {
+    pillSub.textContent     = `📚 ${_practiceInfo.subject}`;
+    pillSub.style.display   = 'inline-flex';
+  } else {
+    pillSub.style.display   = 'none';
+  }
+  pillDiff.textContent = _practiceInfo.difficulty;
+  pillCnt.textContent  = `${_practiceInfo.total} Questions`;
+
+  // Build HTML
+  const body      = document.getElementById('paperBody');
+  const mcqs      = _practiceQuestions.filter(q => q.type === 'MCQ');
+  const tfs       = _practiceQuestions.filter(q => q.type === 'TF');
+  const sas       = _practiceQuestions.filter(q => q.type === 'SA');
+
+  let html = '';
+
+  if (mcqs.length) {
+    html += sectionHtml('Section A — Multiple Choice Questions', mcqs.length, 'Choose the best answer.');
+    mcqs.forEach(q => { html += mcqHtml(q); });
+  }
+  if (tfs.length) {
+    html += sectionHtml('Section B — True / False', tfs.length, 'Write True or False.');
+    tfs.forEach(q => { html += tfHtml(q); });
+  }
+  if (sas.length) {
+    html += sectionHtml('Section C — Short Answer', sas.length, 'Answer in 2–3 sentences.');
+    sas.forEach(q => { html += saHtml(q); });
+  }
+
+  body.innerHTML = html;
+  document.getElementById('practiceOutput').style.display = 'block';
+  document.getElementById('showAnswersToggle').checked = false;
+  _answersVisible = false;
+
+  // Scroll to paper
+  setTimeout(() => {
+    document.getElementById('practiceOutput').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function sectionHtml(title, count, instruction) {
+  return `
+    <div class="paper-section">
+      <div class="paper-section-title">
+        ${title}
+        <span class="paper-section-count">${count} questions</span>
+      </div>
+      <div class="paper-section-inst">${instruction}</div>
+    </div>`;
+}
+
+function mcqHtml(q) {
+  const opts = q.options || {};
+  return `
+    <div class="paper-question" data-type="MCQ" data-answer="${q.answer}">
+      <div class="pq-header">
+        <span class="pq-num">Q${q.num}</span>
+        <span class="pq-type-badge pq-mcq">MCQ</span>
+      </div>
+      <div class="pq-text">${escHtml(q.question)}</div>
+      <div class="pq-options">
+        ${Object.entries(opts).map(([k,v]) => `
+          <div class="pq-option">
+            <span class="pq-opt-key">${k}</span>
+            <span class="pq-opt-val">${escHtml(v)}</span>
+          </div>`).join('')}
+      </div>
+      <div class="pq-answer" style="display:none">
+        ✅ Answer: <strong>${q.answer}</strong>
+        ${opts[q.answer] ? ` — ${escHtml(opts[q.answer])}` : ''}
+      </div>
+    </div>`;
+}
+
+function tfHtml(q) {
+  return `
+    <div class="paper-question" data-type="TF" data-answer="${q.answer}">
+      <div class="pq-header">
+        <span class="pq-num">Q${q.num}</span>
+        <span class="pq-type-badge pq-tf">True/False</span>
+      </div>
+      <div class="pq-text">${escHtml(q.question)}</div>
+      <div class="pq-tf-boxes">
+        <span class="pq-tf-box">○ True</span>
+        <span class="pq-tf-box">○ False</span>
+      </div>
+      <div class="pq-answer" style="display:none">
+        ✅ Answer: <strong>${q.answer}</strong>
+      </div>
+    </div>`;
+}
+
+function saHtml(q) {
+  return `
+    <div class="paper-question" data-type="SA" data-answer="${q.answer}">
+      <div class="pq-header">
+        <span class="pq-num">Q${q.num}</span>
+        <span class="pq-type-badge pq-sa">Short Answer</span>
+      </div>
+      <div class="pq-text">${escHtml(q.question)}</div>
+      <div class="pq-answer-box"></div>
+      <div class="pq-answer" style="display:none">
+        <strong>Model Answer:</strong> ${escHtml(q.answer)}
+      </div>
+    </div>`;
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleAnswers(show) {
+  _answersVisible = show;
+  document.querySelectorAll('.pq-answer').forEach(el => {
+    el.style.display = show ? 'block' : 'none';
+  });
+}
+
+/* ── PDF Download ─────────────────────────────────────── */
+function downloadPDF() {
+  if (typeof window.jspdf === 'undefined') {
+    alert('PDF library not loaded yet — wait a moment and try again.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const info = _practiceInfo;
+  const W = doc.internal.pageSize.width;
+
+  // Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(99, 102, 241);
+  doc.text(`${info.topic} — Practice Paper`, 14, 18);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 140);
+  const meta = [
+    info.subject ? `Subject: ${info.subject}` : '',
+    `Difficulty: ${info.difficulty}`,
+    `Total: ${info.total} Questions`,
+    `Generated: ${new Date().toLocaleDateString('en-IN')}`,
+  ].filter(Boolean).join('   |   ');
+  doc.text(meta, 14, 25);
+
+  // Divider
+  doc.setDrawColor(99, 102, 241);
+  doc.setLineWidth(0.5);
+  doc.line(14, 28, W - 14, 28);
+
+  let y = 35;
+  const addText = (txt, x, size, bold) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(size);
+    doc.setTextColor(bold ? 30 : 60, bold ? 30 : 60, bold ? 30 : 60);
+    const lines = doc.splitTextToSize(txt, W - x - 14);
+    lines.forEach(line => {
+      if (y > 275) { doc.addPage(); y = 15; }
+      doc.text(line, x, y);
+      y += size * 0.45;
+    });
+    y += 2;
+  };
+
+  const sections = [
+    { label: 'Section A — Multiple Choice Questions', type: 'MCQ' },
+    { label: 'Section B — True / False',              type: 'TF'  },
+    { label: 'Section C — Short Answer',              type: 'SA'  },
+  ];
+
+  sections.forEach(sec => {
+    const qs = _practiceQuestions.filter(q => q.type === sec.type);
+    if (!qs.length) return;
+
+    if (y > 250) { doc.addPage(); y = 15; }
+    y += 4;
+    doc.setFillColor(99, 102, 241);
+    doc.rect(14, y - 5, W - 28, 9, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(sec.label, 17, y);
+    y += 8;
+
+    qs.forEach(q => {
+      addText(`Q${q.num}. ${q.question}`, 14, 10, false);
+      if (q.type === 'MCQ' && q.options) {
+        Object.entries(q.options).forEach(([k, v]) => {
+          addText(`    ${k}) ${v}`, 14, 9, false);
+        });
+      }
+      if (q.type === 'TF') {
+        addText('    ○ True     ○ False', 14, 9, false);
+      }
+      if (q.type === 'SA') {
+        addText('    _______________________________________________', 14, 9, false);
+        addText('    _______________________________________________', 14, 9, false);
+      }
+      if (_answersVisible) {
+        addText(`    ✓ ${q.answer}`, 14, 9, true);
+      }
+      y += 2;
+    });
+  });
+
+  // Footer
+  const pages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 180);
+    doc.text('StudyFlow Practice Paper', 14, 290);
+    doc.text(`Page ${i} of ${pages}`, W - 30, 290);
+  }
+
+  const fname = `${info.topic.replace(/\s+/g,'_')}_practice_${info.difficulty}.pdf`;
+  doc.save(fname);
+}
+</script>
+
+{% endblock %}

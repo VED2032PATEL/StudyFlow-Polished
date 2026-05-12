@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">📊 Analytics Dashboard</h1>
+    <p class="page-sub">Your complete study performance overview — live from your data</p>
+  </div>
+  <div class="btn-group">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">← Dashboard</a>
+  </div>
+</div>
+
+{# ── Streak Hero ──────────────────────────────────────────── #}
+<div class="analytics-streak-row anim d1">
+  <div class="an-streak-card">
+    <div class="an-streak-icon">🔥</div>
+    <div>
+      <div class="an-streak-num">{{ streak.current }}</div>
+      <div class="an-streak-lbl">Current Streak</div>
+    </div>
+  </div>
+  <div class="an-streak-card an-streak-best">
+    <div class="an-streak-icon">🏆</div>
+    <div>
+      <div class="an-streak-num">{{ streak.best }}</div>
+      <div class="an-streak-lbl">Best Streak</div>
+    </div>
+  </div>
+  <div class="an-streak-card">
+    <div class="an-streak-icon">✅</div>
+    <div>
+      <div class="an-streak-num">{{ data.totals.done or 0 }}</div>
+      <div class="an-streak-lbl">Topics Done</div>
+    </div>
+  </div>
+  <div class="an-streak-card">
+    <div class="an-streak-icon">⏳</div>
+    <div>
+      <div class="an-streak-num">{{ data.totals.pending or 0 }}</div>
+      <div class="an-streak-lbl">Topics Pending</div>
+    </div>
+  </div>
+</div>
+
+{# ── Charts Grid Row 1 ─────────────────────────────────────── #}
+<div class="charts-grid anim d2">
+
+  {# Completion by Subject — Bar Chart #}
+  <div class="chart-card chart-wide">
+    <div class="chart-card-header">
+      <h3 class="chart-title">📚 Completion by Subject</h3>
+      <span class="chart-badge">Bar Chart</span>
+    </div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="chartSubjectBar"></canvas>
+    </div>
+  </div>
+
+  {# Done vs Pending — Doughnut #}
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3 class="chart-title">🎯 Overall Progress</h3>
+      <span class="chart-badge">Doughnut</span>
+    </div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="chartDonut"></canvas>
+    </div>
+  </div>
+
+</div>
+
+{# ── Charts Grid Row 2 ─────────────────────────────────────── #}
+<div class="charts-grid anim d3">
+
+  {# Daily Completions — Line Chart (30 days) #}
+  <div class="chart-card chart-wide">
+    <div class="chart-card-header">
+      <h3 class="chart-title">📈 Daily Completions (Last 30 Days)</h3>
+      <span class="chart-badge">Line Chart</span>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chartDailyLine"></canvas>
+    </div>
+  </div>
+
+  {# Difficulty Distribution — Polar Area #}
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3 class="chart-title">⭐ Difficulty Distribution</h3>
+      <span class="chart-badge">Polar Area</span>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chartDiffPolar"></canvas>
+    </div>
+  </div>
+
+</div>
+
+{# ── Charts Grid Row 3 ─────────────────────────────────────── #}
+<div class="charts-grid anim d4">
+
+  {# Scheduled Hours by Subject — Horizontal Bar #}
+  <div class="chart-card chart-wide">
+    <div class="chart-card-header">
+      <h3 class="chart-title">⏱ Scheduled Study Hours by Subject</h3>
+      <span class="chart-badge">Horizontal Bar</span>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chartHoursBar"></canvas>
+    </div>
+  </div>
+
+  {# Hardest Pending Topics Table #}
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h3 class="chart-title">🔴 Hardest Pending Topics</h3>
+      <span class="chart-badge">Priority List</span>
+    </div>
+    <div class="hard-topics-list">
+      {% if data.hard_pending %}
+        {% for t in data.hard_pending %}
+        <div class="hard-topic-row">
+          <div class="hard-topic-diff">
+            {% for i in range(t.difficulty) %}★{% endfor %}
+          </div>
+          <div class="hard-topic-name">{{ t.name }}</div>
+          <div class="hard-topic-deadline deadline-countdown" data-deadline="{{ t.deadline }}"></div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding:20px">
+          <span class="empty-icon">🎉</span>
+          <p style="color:var(--t2);font-size:13px">All hard topics done!</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{# Chart.js from CDN #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<script>
+/* ── Inject server data ───────────────────────────────── */
+const analyticsData = {{ data_json | safe }};
+
+/* ── Chart.js global defaults ────────────────────────── */
+const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+
+function chartColors() {
+  return {
+    grid:   isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    tick:   isDark() ? '#8892b0' : '#94a3b8',
+    bg:     isDark() ? '#1a1d27' : '#ffffff',
+  };
+}
+
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size   = 12;
+
+const PALETTE = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#f43f5e','#ec4899','#3b82f6'];
+
+/* ── Helper: build gradient fill ─────────────────────── */
+function mkGradient(ctx, color) {
+  const g = ctx.createLinearGradient(0, 0, 0, 300);
+  g.addColorStop(0,   color + 'cc');
+  g.addColorStop(1,   color + '11');
+  return g;
+}
+
+/* ── 1. Subject Completion Bar Chart ─────────────────── */
+(function() {
+  const subjects = analyticsData.by_subject;
+  if (!subjects.length) return;
+  const ctx = document.getElementById('chartSubjectBar').getContext('2d');
+  const c = chartColors();
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: subjects.map(s => s.name),
+      datasets: [
+        {
+          label: 'Completed',
+          data: subjects.map(s => s.done || 0),
+          backgroundColor: subjects.map(s => s.color || '#6366f1'),
+          borderRadius: 6,
+          borderSkipped: false,
+        },
+        {
+          label: 'Pending',
+          data: subjects.map(s => (s.total || 0) - (s.done || 0)),
+          backgroundColor: subjects.map(s => (s.color || '#6366f1') + '33'),
+          borderRadius: 6,
+          borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: c.tick } } },
+      scales: {
+        x: { stacked: true, ticks: { color: c.tick }, grid: { color: c.grid } },
+        y: { stacked: true, ticks: { color: c.tick, stepSize: 1 }, grid: { color: c.grid } }
+      }
+    }
+  });
+})();
+
+/* ── 2. Overall Doughnut ─────────────────────────────── */
+(function() {
+  const { done, pending } = analyticsData.totals;
+  const ctx = document.getElementById('chartDonut').getContext('2d');
+  const c = chartColors();
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Completed', 'Pending'],
+      datasets: [{
+        data: [done || 0, pending || 0],
+        backgroundColor: ['#10b981', '#f43f5e'],
+        borderColor: c.bg,
+        borderWidth: 3,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: c.tick, padding: 16 } },
+      }
+    }
+  });
+})();
+
+/* ── 3. Daily Completions Line Chart ─────────────────── */
+(function() {
+  const raw = analyticsData.daily_completions;
+  if (!raw.length) return;
+  const ctx = document.getElementById('chartDailyLine').getContext('2d');
+  const c = chartColors();
+
+  // Fill gaps in last 30 days
+  const today = new Date();
+  const labels = [], values = [];
+  const lookup = Object.fromEntries(raw.map(r => [r.log_date, r.cnt]));
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    labels.push(key.slice(5));   // MM-DD
+    values.push(lookup[key] || 0);
+  }
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Topics Completed',
+        data: values,
+        borderColor: '#6366f1',
+        backgroundColor: mkGradient(ctx, '#6366f1'),
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#6366f1',
+        pointRadius: 3,
+        pointHoverRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: c.tick } } },
+      scales: {
+        x: { ticks: { color: c.tick, maxTicksLimit: 10 }, grid: { color: c.grid } },
+        y: { ticks: { color: c.tick, stepSize: 1 }, grid: { color: c.grid }, min: 0 }
+      }
+    }
+  });
+})();
+
+/* ── 4. Difficulty Distribution — Polar Area ─────────── */
+(function() {
+  const raw = analyticsData.diff_dist;
+  if (!raw.length) return;
+  const ctx = document.getElementById('chartDiffPolar').getContext('2d');
+  const c = chartColors();
+
+  const DIFF_LABELS = { 1:'★ Easy', 2:'★★ Moderate', 3:'★★★ Medium', 4:'★★★★ Hard', 5:'★★★★★ Expert' };
+  const DIFF_COLORS = ['#10b981','#06b6d4','#f59e0b','#f43f5e','#8b5cf6'];
+
+  new Chart(ctx, {
+    type: 'polarArea',
+    data: {
+      labels: raw.map(r => DIFF_LABELS[r.difficulty] || `Level ${r.difficulty}`),
+      datasets: [{
+        data: raw.map(r => r.cnt),
+        backgroundColor: raw.map((r, i) => DIFF_COLORS[r.difficulty - 1] + 'bb'),
+        borderColor: raw.map((r, i) => DIFF_COLORS[r.difficulty - 1]),
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: c.tick, font: { size: 11 } } } },
+      scales: { r: { ticks: { color: c.tick }, grid: { color: c.grid } } }
+    }
+  });
+})();
+
+/* ── 5. Scheduled Hours Horizontal Bar ───────────────── */
+(function() {
+  const raw = analyticsData.hours_by_subject;
+  if (!raw.length) return;
+  const ctx = document.getElementById('chartHoursBar').getContext('2d');
+  const c = chartColors();
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: raw.map(r => r.name),
+      datasets: [{
+        label: 'Scheduled Hours',
+        data: raw.map(r => r.total_hours),
+        backgroundColor: raw.map(r => r.color || '#6366f1'),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: c.tick }, grid: { color: c.grid } },
+        y: { ticks: { color: c.tick }, grid: { color: c.grid } }
+      }
+    }
+  });
+})();
+</script>
+
+{% endblock %}

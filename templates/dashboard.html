@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">👋 Dashboard</h1>
+    <p class="page-sub">Welcome back — here's your complete study overview</p>
+  </div>
+  <div class="btn-group">
+    <a href="{{ url_for('subjects') }}" class="btn btn-ghost">+ Add Topics</a>
+    <a href="{{ url_for('schedule') }}" class="btn btn-primary">⚡ View Schedule</a>
+  </div>
+</div>
+
+<!-- ── AI Daily Advisor ──────────────────────────────────── -->
+<div id="ai-advisor-mount" class="anim d1"></div>
+
+<!-- ── Stat Cards ─────────────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card stat-blue anim d1">
+    <div class="stat-icon-wrap">📖</div>
+    <div class="stat-number" data-count="{{ stats.total_subjects }}">{{ stats.total_subjects }}</div>
+    <div class="stat-label">Total Subjects</div>
+  </div>
+  <div class="stat-card stat-violet anim d2">
+    <div class="stat-icon-wrap">📋</div>
+    <div class="stat-number" data-count="{{ stats.total_topics }}">{{ stats.total_topics }}</div>
+    <div class="stat-label">Total Topics</div>
+  </div>
+  <div class="stat-card stat-amber anim d3">
+    <div class="stat-icon-wrap">⏳</div>
+    <div class="stat-number" data-count="{{ stats.pending_topics }}">{{ stats.pending_topics }}</div>
+    <div class="stat-label">Pending</div>
+  </div>
+  <div class="stat-card stat-green anim d4">
+    <div class="stat-icon-wrap">✅</div>
+    <div class="stat-number" data-count="{{ stats.completed_topics }}">{{ stats.completed_topics }}</div>
+    <div class="stat-label">Completed</div>
+  </div>
+</div>
+
+<!-- ── Streak + Weekly Report Row ─────────────────────────── -->
+<div class="two-col" style="margin-bottom:0">
+
+  <!-- Streak Card -->
+  <div class="streak-card anim d2">
+    <div class="streak-fire">🔥</div>
+    <div class="streak-info">
+      <div class="streak-number">{{ streak.current }}</div>
+      <div class="streak-label">Day Streak</div>
+      <div class="streak-sub">
+        Best: {{ streak.best }} day{{ 's' if streak.best != 1 else '' }}
+        {% if streak.today_logged %}
+          &nbsp;·&nbsp;<span class="streak-today-badge">✅ Logged today</span>
+        {% else %}
+          &nbsp;·&nbsp;<span style="color:var(--amber)">Complete a topic to keep your streak!</span>
+        {% endif %}
+      </div>
+    </div>
+    <a href="{{ url_for('analytics') }}" class="streak-cta">View Analytics →</a>
+  </div>
+
+  <!-- Weekly Report Card -->
+  <div class="weekly-card anim d3">
+    <div class="card-header" style="margin-bottom:12px">
+      <h2 class="card-title">
+        <span class="card-icon" style="background:var(--emerald-bg)">📅</span>
+        This Week's Report
+      </h2>
+      <span class="badge" style="background:var(--emerald-bg);color:#059669">
+        {{ weekly.active_days }}/7 active days
+      </span>
+    </div>
+
+    <!-- 7-day bar mini chart -->
+    <div class="weekly-bars">
+      {% set days_list = [] %}
+      {% for i in range(6, -1, -1) %}
+        {% set d = (today_date - timedelta(days=i)) %}
+        {% set ds = d.strftime('%Y-%m-%d') %}
+        {% set val = weekly.daily.get(ds, {}).get('completions', 0) %}
+        <div class="weekly-bar-col">
+          <div class="weekly-bar-wrap">
+            <div class="weekly-bar-fill {% if ds == today %}weekly-bar-today{% endif %}"
+                 style="height:{{ [val * 14, 56]|min }}px;min-height:{% if val > 0 %}4{% else %}0{% endif %}px"
+                 title="{{ val }} completion(s) on {{ ds }}">
+            </div>
+          </div>
+          <div class="weekly-bar-label">{{ d.strftime('%a')[0] }}</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="weekly-stats-row">
+      <div class="weekly-stat">
+        <span class="weekly-stat-num">{{ weekly.total_completions }}</span>
+        <span class="weekly-stat-label">topics done</span>
+      </div>
+      <div class="weekly-stat">
+        <span class="weekly-stat-num">{{ weekly.active_days }}</span>
+        <span class="weekly-stat-label">active days</span>
+      </div>
+      <div class="weekly-stat">
+        <span class="weekly-stat-num">
+          {% if weekly.best_day %}{{ weekly.best_day[5:] }}{% else %}—{% endif %}
+        </span>
+        <span class="weekly-stat-label">best day</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Progress ───────────────────────────────────────────── -->
+{% if stats.total_topics > 0 %}
+{% set pct = ((stats.completed_topics / stats.total_topics) * 100) | int %}
+<div class="card progress-card anim d2">
+  <div class="card-header">
+    <h2 class="card-title">
+      <span class="card-icon" style="background:rgba(99,102,241,.10)">📊</span>
+      Overall Progress
+    </h2>
+    <span class="badge badge-primary">{{ pct }}% complete</span>
+  </div>
+  <div class="progress-header-row">
+    <span class="progress-pct">{{ pct }}%</span>
+    <span style="font-size:13px;color:var(--t2);font-weight:500">
+      {{ stats.completed_topics }} of {{ stats.total_topics }} topics done
+    </span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" style="width:{{ pct }}%" data-width="{{ pct }}"></div>
+  </div>
+  <div class="progress-meta">
+    <span>✅ {{ stats.completed_topics }} completed</span>
+    <span>⏳ {{ stats.pending_topics }} still pending</span>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Two-column lower section ──────────────────────────── -->
+<div class="two-col">
+
+  <!-- Upcoming Deadlines -->
+  <div class="card anim d3">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" style="background:var(--amber-bg)">⏰</span>
+        Upcoming Deadlines
+      </h2>
+      <span class="badge badge-amber">Next 14 days</span>
+    </div>
+    {% if stats.upcoming_deadlines %}
+      <div class="deadline-list">
+        {% for d in stats.upcoming_deadlines %}
+        <div class="deadline-item">
+          <div class="deadline-color-bar" style="background:{{ d.color }}"></div>
+          <div class="deadline-info">
+            <div class="deadline-topic">{{ d.topic_name }}</div>
+            <div class="deadline-subject">{{ d.subject_name }}</div>
+          </div>
+          <div class="deadline-right">
+            <div class="deadline-date">{{ d.deadline }}</div>
+            <div class="deadline-countdown" data-deadline="{{ d.deadline }}"></div>
+            <div class="difficulty-stars">
+              {% for i in range(1,6) %}
+                <span class="star {% if i <= d.difficulty %}star-on{% endif %}">★</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-icon">🎉</span>
+        <p style="font-weight:600;color:var(--t2)">No deadlines in the next 14 days!</p>
+        <p style="font-size:12px;margin-top:4px">You're all clear for now.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Subjects Overview -->
+  <div class="card anim d4">
+    <div class="card-header">
+      <h2 class="card-title">
+        <span class="card-icon" style="background:rgba(99,102,241,.10)">📚</span>
+        Subjects Overview
+      </h2>
+      <a href="{{ url_for('subjects') }}" class="btn btn-sm btn-ghost">Manage →</a>
+    </div>
+    {% if subjects %}
+      <div class="subject-overview-list">
+        {% for s in subjects %}
+        <div class="subject-overview-item">
+          <div class="subject-color-circle" style="background:{{ s.color }}">
+            {{ s.name[0].upper() }}
+          </div>
+          <div class="subject-info">
+            <a href="{{ url_for('topics', subject_id=s.id) }}" class="subject-link">
+              {{ s.name }}
+            </a>
+            <div class="subject-progress-mini">
+              <div class="mini-bar">
+                {% if s.total_topics and s.total_topics > 0 %}
+                <div class="mini-fill"
+                     data-width="{{ ((s.completed_topics or 0)/s.total_topics*100)|int }}"
+                     style="width:{{ ((s.completed_topics or 0)/s.total_topics*100)|int }}%;background:{{ s.color }}">
+                </div>
+                {% endif %}
+              </div>
+              <span class="mini-count">{{ s.completed_topics or 0 }}/{{ s.total_topics or 0 }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-icon">📝</span>
+        <p>No subjects yet. <a href="{{ url_for('subjects') }}">Add one now →</a></p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

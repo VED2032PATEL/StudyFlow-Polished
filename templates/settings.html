@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">⚙️ Settings</h1>
+    <p class="page-sub">Personalise your StudyFlow experience</p>
+  </div>
+</div>
+
+<div class="settings-grid">
+
+  <!-- ══ LEFT COLUMN ══════════════════════════════════════ -->
+  <div class="settings-col">
+
+    <!-- Study Preferences -->
+    <div class="settings-card anim d1">
+      <div class="settings-card-header">
+        <div class="settings-card-icon" style="background:var(--p-bg)">📚</div>
+        <div>
+          <h2 class="settings-card-title">Study Preferences</h2>
+          <p class="settings-card-sub">Defaults used when creating topics and schedules</p>
+        </div>
+      </div>
+
+      <form method="POST" action="{{ url_for('settings') }}">
+        <input type="hidden" name="action" value="preferences"/>
+
+        <!-- Daily study hours -->
+        <div class="form-group">
+          <label class="form-label">⏱ Default Daily Study Hours</label>
+          <p class="form-hint" style="margin-bottom:10px">
+            Pre-filled when you add a new topic. Controls schedule generation density.
+          </p>
+          <div class="hours-slider-wrap">
+            <input type="range" name="daily_hours_default" id="hoursSlider"
+                   min="1" max="12" step="0.5"
+                   value="{{ prefs.daily_hours_default }}"
+                   oninput="document.getElementById('hoursVal').textContent=this.value"/>
+            <div class="hours-slider-labels">
+              <span>1h</span><span>6h</span><span>12h</span>
+            </div>
+          </div>
+          <div class="hours-display">
+            <span id="hoursVal">{{ prefs.daily_hours_default }}</span>
+            <span style="font-size:14px;font-weight:500;color:var(--t2)"> hours / day</span>
+          </div>
+        </div>
+
+        <!-- Default difficulty -->
+        <div class="form-group">
+          <label class="form-label">⭐ Default Topic Difficulty</label>
+          <p class="form-hint" style="margin-bottom:10px">Pre-selected when adding a new topic.</p>
+          <div class="diff-picker">
+            {% for i in range(1, 6) %}
+            <label class="diff-option">
+              <input type="radio" name="default_difficulty" value="{{ i }}"
+                     {% if prefs.default_difficulty == i %}checked{% endif %}/>
+              <span class="diff-pill">
+                {{ '★' * i }}<span style="opacity:.4">{{ '★' * (5-i) }}</span>
+                <span class="diff-label-text">
+                  {% if i==1 %}Easy{% elif i==2 %}Moderate{% elif i==3 %}Medium{% elif i==4 %}Hard{% else %}Expert{% endif %}
+                </span>
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Deadline reminder window -->
+        <div class="form-group">
+          <label class="form-label">🔔 Deadline Warning Window</label>
+          <p class="form-hint" style="margin-bottom:10px">
+            Countdown chips turn red when a deadline is within this many days.
+          </p>
+          <div class="segmented-control">
+            {% for days in [1, 2, 3, 5, 7] %}
+            <label class="seg-option">
+              <input type="radio" name="notify_deadline_days" value="{{ days }}"
+                     {% if prefs.notify_deadline_days == days %}checked{% endif %}/>
+              <span class="seg-pill">{{ days }}d</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Show completed topics -->
+        <div class="form-group">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-row-title">Show Completed Topics</div>
+              <div class="toggle-row-sub">Display ✅ done topics in topic lists</div>
+            </div>
+            <label class="sf-toggle">
+              <input type="checkbox" name="show_completed" value="1"
+                     {% if prefs.show_completed %}checked{% endif %}
+                     onchange="this.form.submit()"/>
+              <span class="sf-toggle-track">
+                <span class="sf-toggle-thumb"></span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Theme preference -->
+        <div class="form-group">
+          <label class="form-label">🎨 Colour Theme</label>
+          <div class="theme-picker">
+            <label class="theme-option {% if prefs.theme == 'light' %}active{% endif %}">
+              <input type="radio" name="theme" value="light"
+                     {% if prefs.theme == 'light' %}checked{% endif %}
+                     onchange="applyThemePref('light')"/>
+              <div class="theme-swatch theme-light">
+                <div class="theme-swatch-header"></div>
+                <div class="theme-swatch-body">
+                  <div class="theme-swatch-bar"></div>
+                  <div class="theme-swatch-bar short"></div>
+                </div>
+              </div>
+              <span class="theme-label">☀️ Light</span>
+            </label>
+            <label class="theme-option {% if prefs.theme == 'dark' %}active{% endif %}">
+              <input type="radio" name="theme" value="dark"
+                     {% if prefs.theme == 'dark' %}checked{% endif %}
+                     onchange="applyThemePref('dark')"/>
+              <div class="theme-swatch theme-dark">
+                <div class="theme-swatch-header"></div>
+                <div class="theme-swatch-body">
+                  <div class="theme-swatch-bar"></div>
+                  <div class="theme-swatch-bar short"></div>
+                </div>
+              </div>
+              <span class="theme-label">🌙 Dark</span>
+            </label>
+            <label class="theme-option {% if prefs.theme == 'system' %}active{% endif %}">
+              <input type="radio" name="theme" value="system"
+                     {% if prefs.theme == 'system' %}checked{% endif %}
+                     onchange="applyThemePref('system')"/>
+              <div class="theme-swatch theme-system">
+                <div class="theme-swatch-header"></div>
+                <div class="theme-swatch-body">
+                  <div class="theme-swatch-bar"></div>
+                  <div class="theme-swatch-bar short"></div>
+                </div>
+              </div>
+              <span class="theme-label">💻 System</span>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">
+          💾 Save Preferences
+        </button>
+      </form>
+    </div>
+
+  </div><!-- end left col -->
+
+  <!-- ══ RIGHT COLUMN ═════════════════════════════════════ -->
+  <div class="settings-col">
+
+    <!-- Account Details -->
+    <div class="settings-card anim d2">
+      <div class="settings-card-header">
+        <div class="settings-card-icon" style="background:var(--sky-bg)">👤</div>
+        <div>
+          <h2 class="settings-card-title">Account Details</h2>
+          <p class="settings-card-sub">Update your username or email address</p>
+        </div>
+      </div>
+
+      <!-- User stats strip -->
+      <div class="account-stats">
+        <div class="account-stat">
+          <span class="account-stat-icon">🎓</span>
+          <div class="account-stat-val">{{ user.username }}</div>
+          <div class="account-stat-lbl">Username</div>
+        </div>
+        <div class="account-stat">
+          <span class="account-stat-icon">📅</span>
+          <div class="account-stat-val">{{ user.created_at[:10] }}</div>
+          <div class="account-stat-lbl">Member since</div>
+        </div>
+      </div>
+
+      <form method="POST" action="{{ url_for('settings') }}" style="margin-top:20px">
+        <input type="hidden" name="action" value="account"/>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-input"
+                 value="{{ user.username }}" minlength="3" maxlength="40" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-input"
+                 value="{{ user.email }}" required/>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%">
+          ✏️ Update Account
+        </button>
+      </form>
+    </div>
+
+    <!-- Change Password -->
+    <div class="settings-card anim d3">
+      <div class="settings-card-header">
+        <div class="settings-card-icon" style="background:var(--amber-bg)">🔒</div>
+        <div>
+          <h2 class="settings-card-title">Change Password</h2>
+          <p class="settings-card-sub">Use a strong password — at least 6 characters</p>
+        </div>
+      </div>
+
+      <form method="POST" action="{{ url_for('settings') }}" id="pwForm">
+        <input type="hidden" name="action" value="password"/>
+        <div class="form-group">
+          <label class="form-label">Current Password</label>
+          <div class="auth-pw-wrap">
+            <input type="password" name="current_password" id="curPw"
+                   class="form-input" placeholder="••••••••" required/>
+            <button type="button" class="auth-pw-toggle"
+                    onclick="togglePw('curPw',this)">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <div class="auth-pw-wrap">
+            <input type="password" name="new_password" id="newPw"
+                   class="form-input" placeholder="Min 6 characters"
+                   minlength="6" oninput="checkStrength(this.value)" required/>
+            <button type="button" class="auth-pw-toggle"
+                    onclick="togglePw('newPw',this)">👁</button>
+          </div>
+          <div class="pw-strength-wrap"><div class="pw-strength-bar" id="pwBar"></div></div>
+          <div class="form-hint" id="pwHint">At least 6 characters</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <div class="auth-pw-wrap">
+            <input type="password" name="confirm_password" id="confPw"
+                   class="form-input" placeholder="Repeat new password"
+                   required/>
+            <button type="button" class="auth-pw-toggle"
+                    onclick="togglePw('confPw',this)">👁</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%">
+          🔐 Change Password
+        </button>
+      </form>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="settings-card settings-danger anim d4">
+      <div class="settings-card-header">
+        <div class="settings-card-icon" style="background:var(--rose-bg)">⚠️</div>
+        <div>
+          <h2 class="settings-card-title" style="color:var(--rose)">Danger Zone</h2>
+          <p class="settings-card-sub">These actions cannot be undone</p>
+        </div>
+      </div>
+      <div class="danger-actions">
+        <div class="danger-row">
+          <div>
+            <div class="danger-row-title">Clear All Schedule Data</div>
+            <div class="danger-row-sub">Removes all generated study sessions</div>
+          </div>
+          <form method="POST" action="{{ url_for('clear_schedule') }}"
+                onsubmit="return confirm('Clear your entire schedule?')">
+            <button type="submit" class="btn btn-danger-outline">Clear Schedule</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end right col -->
+
+</div><!-- end settings-grid -->
+
+<script>
+/* Theme picker — live preview */
+function applyThemePref(val) {
+  // Update all theme-option active states
+  document.querySelectorAll('.theme-option').forEach(el => {
+    el.classList.toggle('active', el.querySelector('input').value === val);
+  });
+  // Live-apply theme
+  if (val === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    localStorage.removeItem('sfDarkMode');
+  } else {
+    document.documentElement.setAttribute('data-theme', val);
+    localStorage.setItem('sfDarkMode', val === 'dark' ? '1' : '0');
+  }
+  // Sync the sidebar dark-mode toggle label
+  const label   = document.querySelector('.dm-label');
+  const sunIcon = document.querySelector('.dm-icon-sun');
+  const isDark  = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (label)   label.textContent  = isDark ? 'Dark Mode'  : 'Light Mode';
+  if (sunIcon) sunIcon.textContent = isDark ? '🌙' : '☀️';
+}
+
+/* Password helpers */
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function checkStrength(val) {
+  const bar  = document.getElementById('pwBar');
+  const hint = document.getElementById('pwHint');
+  let score  = 0;
+  if (val.length >= 6)  score++;
+  if (val.length >= 10) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const labels = ['','Weak','Fair','Good','Strong','Very Strong'];
+  const colors = ['','#f43f5e','#f59e0b','#06b6d4','#10b981','#6366f1'];
+  bar.style.width      = `${score * 20}%`;
+  bar.style.background = colors[score] || '#f43f5e';
+  hint.textContent = score > 0 ? labels[score] : 'At least 6 characters';
+  hint.style.color = colors[score] || 'var(--t3)';
+}
+
+document.getElementById('pwForm').addEventListener('submit', function(e) {
+  const np = document.getElementById('newPw').value;
+  const cp = document.getElementById('confPw').value;
+  if (np !== cp) {
+    e.preventDefault();
+    document.getElementById('pwHint').textContent = '⚠ Passwords do not match';
+    document.getElementById('pwHint').style.color = '#f43f5e';
+    document.getElementById('confPw').focus();
+  }
+});
+
+/* Apply saved theme pref from server on page load */
+(function() {
+  const theme = '{{ prefs.theme }}';
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('sfDarkMode', '1');
+  } else if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('sfDarkMode', '0');
+  }
+  // system = leave it to the <head> script
+})();
+</script>
+
+{% endblock %}
