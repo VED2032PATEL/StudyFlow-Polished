@@ -12,6 +12,7 @@ import spaced_rep as sr
 import json as json_lib
 import os
 import logging
+import base64
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,6 +24,7 @@ app = Flask(__name__,
             template_folder=os.path.join(_BASE, "templates"),
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 
 
 def _is_safe_redirect_url(target):
@@ -55,6 +57,7 @@ class User(UserMixin):
         self.id       = row["id"]
         self.username = row["username"]
         self.email    = row["email"]
+        self.avatar_data_url = row.get("avatar_data_url", "")
 
     def get_id(self):
         return str(self.id)
@@ -482,6 +485,31 @@ def settings():
                     row = db.get_user_by_id(uid)
                     login_user(User(row), remember=True)
                     flash("Account updated! ✅", "success")
+
+        elif action == "avatar":
+            remove_avatar = request.form.get("remove_avatar")
+            photo = request.files.get("avatar")
+            if remove_avatar:
+                db.update_avatar(uid, "")
+                row = db.get_user_by_id(uid)
+                login_user(User(row), remember=True)
+                flash("Profile photo removed.", "info")
+            elif not photo or not photo.filename:
+                flash("Choose an image file first.", "error")
+            else:
+                data = photo.read()
+                content_type = (photo.mimetype or "").lower()
+                allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+                if content_type not in allowed_types:
+                    flash("Please upload a JPG, PNG, WebP, or GIF image.", "error")
+                elif len(data) > 1024 * 1024:
+                    flash("Profile photo must be 1 MB or smaller.", "error")
+                else:
+                    encoded = base64.b64encode(data).decode("ascii")
+                    db.update_avatar(uid, f"data:{content_type};base64,{encoded}")
+                    row = db.get_user_by_id(uid)
+                    login_user(User(row), remember=True)
+                    flash("Profile photo updated!", "success")
 
         elif action == "password":
             from werkzeug.security import check_password_hash, generate_password_hash

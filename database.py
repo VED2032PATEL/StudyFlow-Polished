@@ -124,6 +124,7 @@ _MIGRATIONS = [
     ("users",      "notify_deadline_days", "ALTER TABLE users ADD COLUMN notify_deadline_days INTEGER NOT NULL DEFAULT 3"),
     ("users",      "show_completed",       "ALTER TABLE users ADD COLUMN show_completed INTEGER NOT NULL DEFAULT 1"),
     ("users",      "default_difficulty",   "ALTER TABLE users ADD COLUMN default_difficulty INTEGER NOT NULL DEFAULT 3"),
+    ("users",      "avatar_data_url",       "ALTER TABLE users ADD COLUMN avatar_data_url TEXT NOT NULL DEFAULT ''"),
 ]
 
 
@@ -224,6 +225,14 @@ def update_password(user_id, new_hash):
     conn = get_db()
     try:
         conn.execute("UPDATE users SET password_hash=? WHERE id=?", [new_hash, user_id])
+    finally:
+        conn.close()
+
+
+def update_avatar(user_id, avatar_data_url):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE users SET avatar_data_url=? WHERE id=?", [avatar_data_url, user_id])
     finally:
         conn.close()
 
