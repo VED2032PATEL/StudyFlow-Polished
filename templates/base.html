@@ -9,7 +9,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-  <!-- Apply dark mode BEFORE paint to avoid flash -->
   <script>
     if (localStorage.getItem('sfDarkMode') === '1') {
       document.documentElement.setAttribute('data-theme', 'dark');
@@ -18,11 +17,7 @@
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════
-     SIDEBAR
-══════════════════════════════════════════════════ -->
 <nav class="sidebar" id="sidebar">
-
   <div class="sidebar-brand">
     <div class="brand-logo">
       <img src="{{ url_for('static', filename='logo.png') }}" alt="StudyFlow Logo" class="brand-logo-img" />
@@ -74,12 +69,10 @@
   </ul>
 
   <div class="sidebar-footer">
-    <!-- AI Status Indicator -->
     <div class="sidebar-ai-status" id="sidebarAiStatus" title="Groq AI status">
       <span class="ai-status-dot" id="aiStatusDot"></span>
       <span class="ai-status-label" id="aiStatusLabel">AI loading…</span>
     </div>
-    <!-- Dark Mode Toggle -->
     <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">
       <span class="dm-icon-sun">☀️</span>
       <span class="dm-label">Light Mode</span>
@@ -98,18 +91,34 @@
     </div>
     {% endif %}
   </div>
-
 </nav>
 
-<!-- Toggle button — outside sidebar so it stays visible when collapsed -->
-<button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">&#9776;</button>
+<!-- Toggle button fixed to sidebar's right edge -->
+<button id="sidebarToggle" title="Toggle sidebar" style="
+  position:fixed;
+  top:50%;
+  transform:translateY(-50%);
+  left:var(--sb-w);
+  margin-left:-14px;
+  z-index:500;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,.2);
+  background:#3427a3;
+  color:#fff;
+  font-size:13px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 2px 10px rgba(0,0,0,.4);
+  transition:left .3s cubic-bezier(.4,0,.2,1), background .2s;
+  line-height:1;
+  padding:0;
+">&#9776;</button>
 
-<!-- ══════════════════════════════════════════════════
-     MAIN CONTENT
-══════════════════════════════════════════════════ -->
 <main class="main-content" id="mainContent">
-
-  {# Flash messages #}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="flash-container">
@@ -124,87 +133,96 @@
   {% endwith %}
 
   {% block content %}{% endblock %}
-
 </main>
 
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+<style>
+  .sidebar-ai-status {
+    display:flex; align-items:center; gap:7px;
+    padding:7px 14px; margin:0 8px 4px;
+    border-radius:8px; background:rgba(255,255,255,.05);
+    cursor:default; min-height:30px;
+  }
+  .ai-status-dot {
+    width:8px; height:8px; border-radius:50%;
+    background:#94a3b8; flex-shrink:0;
+    transition:background .3s, box-shadow .3s;
+  }
+  .ai-status-label {
+    font-size:11.5px; color:var(--t2,#94a3b8);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* Sidebar slide */
+  .sidebar {
+    transition: transform .3s cubic-bezier(.4,0,.2,1) !important;
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%) !important;
+  }
+  .sidebar.collapsed .sidebar-brand,
+  .sidebar.collapsed .nav-section-label,
+  .sidebar.collapsed .nav-links,
+  .sidebar.collapsed .sidebar-footer {
+    opacity:0; pointer-events:none;
+  }
+
+  /* Main content shift */
+  .main-content {
+    transition: margin-left .3s cubic-bezier(.4,0,.2,1),
+                max-width .3s cubic-bezier(.4,0,.2,1) !important;
+  }
+  .sidebar.collapsed ~ .main-content {
+    margin-left: 0 !important;
+    max-width: 100vw !important;
+  }
+
+  /* Toggle button shift when collapsed */
+  .sidebar.collapsed ~ #sidebarToggle {
+    left: 0 !important;
+    margin-left: 8px !important;
+  }
+</style>
+
 <script>
-  // Sidebar AI Status Indicator
   (function() {
-    const dot   = document.getElementById('aiStatusDot');
+    const dot = document.getElementById('aiStatusDot');
     const label = document.getElementById('aiStatusLabel');
     if (!dot || !label) return;
-
     async function checkAiStatus() {
       try {
-        const res  = await fetch('/api/ai/status');
+        const res = await fetch('/api/ai/status');
         const data = await res.json();
         if (data.online) {
-          dot.style.background   = '#10b981';
-          dot.style.boxShadow    = '0 0 6px #10b981';
-          const short = (data.fast_model || 'groq').replace('-instant','').replace('-versatile','');
+          dot.style.background = '#10b981';
+          dot.style.boxShadow = '0 0 6px #10b981';
+          const short = (data.fast_model||'groq').replace('-instant','').replace('-versatile','');
           label.textContent = '✦ ' + short;
           label.title = `Fast: ${data.fast_model}\nHeavy: ${data.heavy_model}`;
         } else {
           dot.style.background = '#f43f5e';
-          dot.style.boxShadow  = 'none';
-          label.textContent    = '⚠ AI offline';
-          label.title          = data.error || 'Groq API unavailable';
+          dot.style.boxShadow = 'none';
+          label.textContent = '⚠ AI offline';
+          label.title = data.error || 'Groq API unavailable';
         }
-      } catch (_) {
+      } catch(_) {
         dot.style.background = '#94a3b8';
-        label.textContent    = 'AI unknown';
+        label.textContent = 'AI unknown';
       }
     }
-
     checkAiStatus();
     setInterval(checkAiStatus, 60000);
   })();
-</script>
-<style>
-  .sidebar-ai-status {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 7px 14px;
-    margin: 0 8px 4px;
-    border-radius: 8px;
-    background: rgba(255,255,255,.05);
-    cursor: default;
-    min-height: 30px;
-  }
-  .ai-status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #94a3b8;
-    flex-shrink: 0;
-    transition: background .3s, box-shadow .3s;
-  }
-  .ai-status-label {
-    font-size: 11.5px;
-    color: var(--t2, #94a3b8);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-</style>
-<script>
+
   // Sidebar toggle
   const sidebar = document.getElementById('sidebar');
   const toggle  = document.getElementById('sidebarToggle');
 
   function applySidebar(collapsed) {
-    if (collapsed) {
-      sidebar.classList.add('collapsed');
-      document.body.classList.add('sidebar-collapsed');
-    } else {
-      sidebar.classList.remove('collapsed');
-      document.body.classList.remove('sidebar-collapsed');
-    }
+    sidebar.classList.toggle('collapsed', collapsed);
   }
 
-  // Restore saved state on load
   applySidebar(localStorage.getItem('sidebarCollapsed') === 'true');
 
   toggle.addEventListener('click', () => {
