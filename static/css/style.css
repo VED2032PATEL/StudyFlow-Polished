@@ -3489,3 +3489,56 @@ textarea.form-input {
   height: auto;
   padding: 12px 14px;
 }
+/* ═══════════════════════════════════════════════════════════
+   HIDEABLE SIDEBAR
+═══════════════════════════════════════════════════════════ */
+
+.sidebar-toggle {
+  position: absolute;
+  top: 18px;
+  right: -18px;
+  z-index: 1001;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.15);
+  background: var(--sidebar-bg, #1e1b4b);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s, transform .3s;
+  box-shadow: 2px 0 12px rgba(0,0,0,.25);
+}
+.sidebar-toggle:hover {
+  background: var(--p1, #6366f1);
+}
+.sidebar.collapsed .sidebar-toggle {
+  right: -44px;
+  border-radius: 0 10px 10px 0;
+}
+.sidebar {
+  position: relative;
+  transition: width .3s cubic-bezier(.4,0,.2,1),
+              transform .3s cubic-bezier(.4,0,.2,1),
+              min-width .3s cubic-bezier(.4,0,.2,1);
+  overflow: visible !important;
+}
+.sidebar.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  transform: translateX(-100%);
+}
+.sidebar.collapsed > *:not(.sidebar-toggle) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.main-content {
+  transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+}
+.sidebar.collapsed ~ .main-content {
+  margin-left: 0 !important;
+}
