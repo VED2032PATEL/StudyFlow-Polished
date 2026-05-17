@@ -21,7 +21,9 @@
 <!-- ══════════════════════════════════════════════════
      SIDEBAR
 ══════════════════════════════════════════════════ -->
-<nav class="sidebar">
+<nav class="sidebar" id="sidebar">
+
+  <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">&#9776;</button>
 
   <div class="sidebar-brand">
     <div class="brand-logo">
@@ -104,7 +106,7 @@
 <!-- ══════════════════════════════════════════════════
      MAIN CONTENT
 ══════════════════════════════════════════════════ -->
-<main class="main-content">
+<main class="main-content" id="mainContent">
 
   {# Flash messages #}
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -139,7 +141,6 @@
         if (data.online) {
           dot.style.background   = '#10b981';
           dot.style.boxShadow    = '0 0 6px #10b981';
-          // Show short model name e.g. "llama-3.1-8b"
           const short = (data.fast_model || 'groq').replace('-instant','').replace('-versatile','');
           label.textContent = '✦ ' + short;
           label.title = `Fast: ${data.fast_model}\nHeavy: ${data.heavy_model}`;
@@ -156,7 +157,7 @@
     }
 
     checkAiStatus();
-    setInterval(checkAiStatus, 60000); // re-check every minute
+    setInterval(checkAiStatus, 60000);
   })();
 </script>
 <style>
@@ -187,5 +188,19 @@
     text-overflow: ellipsis;
   }
 </style>
+<script>
+  // Sidebar toggle
+  const sidebar = document.getElementById('sidebar');
+  const toggle  = document.getElementById('sidebarToggle');
+
+  if (localStorage.getItem('sidebarCollapsed') === 'true') {
+    sidebar.classList.add('collapsed');
+  }
+
+  toggle.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+  });
+</script>
 </body>
 </html>
