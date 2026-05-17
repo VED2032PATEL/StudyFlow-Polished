@@ -5,6 +5,7 @@ from flask_login import (LoginManager, UserMixin, login_user,
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date, timedelta
 from dotenv import load_dotenv
+from urllib.parse import urlsplit
 import database as db
 import scheduler as sched
 import spaced_rep as sr
@@ -22,6 +23,24 @@ app = Flask(__name__,
             template_folder=os.path.join(_BASE, "templates"),
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
+
+
+def _is_safe_redirect_url(target):
+    """Allow only relative redirects within this app."""
+    if not target:
+        return False
+    ref_url = urlsplit(request.host_url)
+    test_url = urlsplit(target)
+    return not test_url.netloc or (
+        test_url.scheme in ("http", "https") and test_url.netloc == ref_url.netloc
+    )
+
+
+def _redirect_back(default_endpoint="dashboard"):
+    next_page = request.args.get("next")
+    if _is_safe_redirect_url(next_page):
+        return redirect(next_page)
+    return redirect(url_for(default_endpoint))
 
 # ── Flask-Login setup ─────────────────────────────────────────────────────────
 
@@ -111,8 +130,7 @@ def login():
         if row and check_password_hash(row["password_hash"], password):
             login_user(User(row), remember=remember)
             flash(f"Welcome back, {row['username']}! 👋", "success")
-            next_page = request.args.get("next")
-            return redirect(next_page or url_for("dashboard"))
+            return _redirect_back("dashboard")
 
         flash("Incorrect username/email or password.", "error")
     return render_template("login.html", identifier="")
@@ -515,8 +533,8 @@ def api_stats():
 from groq import Groq
 
 GROQ_API_KEY      = os.environ.get("GROQ_API_KEY", "")
-GROQ_FAST_MODEL   = "llama-3.1-8b-instant"    # chat, tips, advisor, autofill
-GROQ_HEAVY_MODEL  = "llama-3.3-70b-versatile"  # quiz, practice paper
+GROQ_FAST_MODEL   = os.environ.get("GROQ_FAST_MODEL", "llama-3.1-8b-instant")
+GROQ_HEAVY_MODEL  = os.environ.get("GROQ_HEAVY_MODEL", "llama-3.3-70b-versatile")
 
 _groq_client: Groq | None = None
 
@@ -531,10 +549,11 @@ def _get_groq_client() -> Groq:
     return _groq_client
 
 
-def call_groq(prompt: str, system: str = "", model: str = GROQ_FAST_MODEL,
+def call_groq(prompt: str, system: str = "", model: str | None = None,
               max_tokens: int = 1024) -> str:
-    """Single-turn generation via Groq (replaces call_ollama)."""
+    """Single-turn generation via Groq."""
     client = _get_groq_client()
+    model = model or GROQ_FAST_MODEL
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -551,15 +570,16 @@ def call_groq(prompt: str, system: str = "", model: str = GROQ_FAST_MODEL,
 
 
 # Keep legacy names so no other call-site in app.py needs changing
-def call_ollama(prompt: str, system: str = "", model: str = GROQ_FAST_MODEL,
+def call_ollama(prompt: str, system: str = "", model: str | None = None,
                 max_tokens: int = 1024) -> str:
     return call_groq(prompt, system, model, max_tokens)
 
 
 def call_groq_chat(messages: list, system: str = "",
-                   model: str = GROQ_FAST_MODEL) -> str:
-    """Multi-turn chat via Groq streaming (replaces call_ollama_chat)."""
+                   model: str | None = None) -> str:
+    """Multi-turn chat via Groq."""
     client = _get_groq_client()
+    model = model or GROQ_FAST_MODEL
     full_messages = []
     if system:
         full_messages.append({"role": "system", "content": system})

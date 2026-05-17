@@ -1,56 +1,62 @@
-# StudyFlow — Smart Study Planner with Ollama AI
+# StudyFlow
 
-## 🤖 4 AI Features (100% Free, Local, No Internet Required)
+StudyFlow is a Flask study planner with authentication, subject/topic tracking, adaptive scheduling, spaced repetition reviews, analytics, and Groq-powered AI study helpers.
+
+## Features
 
 | Feature | Where | What it does |
 |---|---|---|
-| **Floating AI Chat** | Every page (🤖 button) | Ask anything — study tips, concepts, motivation |
-| **Topic AI Tips** | Topics page (✨ AI Tips button) | 5 actionable study tips per topic |
-| **Schedule Insights** | Schedule page (auto-loads) | Workload analysis & improvement suggestions |
-| **Dashboard AI Advisor** | Dashboard (auto-loads) | Personalised daily focus plan |
+| Floating AI Chat | Every page | Ask for study help, concepts, planning, and motivation. |
+| Topic AI Tools | Topics page | Suggest topic difficulty, deadlines, estimated hours, quizzes, and study tips. |
+| Schedule Insights | Schedule page | Analyze workload and suggest improvements. |
+| Dashboard AI Advisor | Dashboard | Generate a concise daily focus plan. |
+| Spaced Repetition | Reviews page | Schedule review sessions with an SM-2 style algorithm. |
 
----
+## Quick Start
 
-## ⚡ Quick Start
+1. Create and activate a virtual environment.
 
-### 1. Install Ollama (one-time)
 ```bash
-# macOS / Linux
-curl -fsSL https://ollama.com/install.sh | sh
-
+python -m venv .venv
 # Windows
-# Download installer from https://ollama.com/download
+.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
 ```
 
-### 2. Pull a model
+2. Install dependencies.
+
 ```bash
-ollama pull llama3.2        # recommended (~2GB, fast)
-# or
-ollama pull mistral         # alternative
+pip install -r requirements.txt
 ```
 
-### 3. Start Ollama
+3. Configure environment variables.
+
 ```bash
-ollama serve
-# Keep this terminal open
+cp .env.example .env
 ```
 
-### 4. Run the app
+Set `SECRET_KEY` and `GROQ_API_KEY` in `.env`. For production with Turso, also set `TURSO_DB_URL` and `TURSO_DB_TOKEN`.
+
+4. Run the app.
+
 ```bash
-pip install flask
 python app.py
-# Open http://localhost:5000
 ```
 
----
+Open `http://localhost:5000`.
 
-## 🔧 Change the AI Model
-Edit `app.py` line:
-```python
-OLLAMA_MODEL = "llama3.2"   # change to any installed model
+## AI Configuration
+
+By default, StudyFlow uses Groq models:
+
+```env
+GROQ_FAST_MODEL=llama-3.1-8b-instant
+GROQ_HEAVY_MODEL=llama-3.3-70b-versatile
 ```
 
-List installed models: `ollama list`
+Override these in `.env` if you want to use different Groq-hosted models.
 
-## 💡 Works Offline
-After setup, everything runs locally — no API keys, no costs, no data leaves your machine.
+## Deployment Notes
+
+The app can run locally with a SQLite file through `libsql-client`. On Vercel or other serverless hosts, configure Turso so your database persists outside the ephemeral filesystem.
