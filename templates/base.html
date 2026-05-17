@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   <script>
     if (localStorage.getItem('sfDarkMode') === '1') {
       document.documentElement.setAttribute('data-theme', 'dark');
@@ -186,6 +187,105 @@
 </style>
 
 <script>
+  function sfIcon(name, size = 18) {
+    return `<i data-lucide="${name}" width="${size}" height="${size}" stroke-width="2"></i>`;
+  }
+
+  function installStudyFlowIcons() {
+    if (!window.lucide) return;
+
+    const navIcons = {
+      Dashboard: 'layout-dashboard',
+      Reviews: 'repeat-2',
+      Analytics: 'chart-no-axes-combined',
+      Practice: 'file-pen-line',
+      Settings: 'settings'
+    };
+    document.querySelectorAll('.nav-item').forEach(item => {
+      const label = item.textContent.trim();
+      const slot = item.querySelector('.nav-icon');
+      if (slot && navIcons[label]) slot.innerHTML = sfIcon(navIcons[label], 17);
+    });
+
+    const statIcons = {
+      'Total Subjects': 'book-open',
+      'Total Topics': 'clipboard-list',
+      Pending: 'hourglass',
+      Completed: 'circle-check'
+    };
+    document.querySelectorAll('.stat-card').forEach(card => {
+      const label = card.querySelector('.stat-label')?.textContent.trim();
+      const slot = card.querySelector('.stat-icon-wrap');
+      if (slot && statIcons[label]) slot.innerHTML = sfIcon(statIcons[label], 22);
+    });
+
+    const titleIcons = [
+      ['Dashboard', 'layout-dashboard'],
+      ['Subjects', 'book-open'],
+      ['Study Schedule', 'calendar-days'],
+      ['Reviews', 'repeat-2'],
+      ['Analytics', 'chart-no-axes-combined'],
+      ['Practice', 'file-pen-line'],
+      ['Settings', 'settings'],
+      ['Overall Progress', 'chart-bar'],
+      ['Upcoming Deadlines', 'clock'],
+      ['Subjects Overview', 'library-big'],
+      ["This Week's Report", 'calendar-check']
+    ];
+    document.querySelectorAll('.page-title, .card-title').forEach(title => {
+      const text = title.textContent.replace(/\s+/g, ' ').trim();
+      const match = titleIcons.find(([label]) => text.includes(label));
+      if (!match) return;
+      const iconSlot = title.querySelector('.card-icon');
+      if (iconSlot) iconSlot.innerHTML = sfIcon(match[1], 17);
+      else title.innerHTML = `<span class="title-icon">${sfIcon(match[1], 21)}</span>${text.replace(/^[^\w]+/, '')}`;
+    });
+
+    const actionIconMap = [
+      ['Add Topics', 'plus'],
+      ['Add Subject', 'plus'],
+      ['Add Topic', 'plus'],
+      ['View Schedule', 'calendar-days'],
+      ['Generate Schedule', 'zap'],
+      ['Pomodoro', 'timer'],
+      ['Export PDF', 'file-down'],
+      ['Clear', 'trash-2'],
+      ['Manage', 'arrow-right'],
+      ['View Analytics', 'arrow-right'],
+      ['View Topics', 'arrow-right']
+    ];
+    document.querySelectorAll('.btn, .streak-cta').forEach(btn => {
+      if (btn.dataset.sfIconified === '1') return;
+      const text = btn.textContent.replace(/\s+/g, ' ').trim();
+      const match = actionIconMap.find(([label]) => text.includes(label));
+      if (!match) return;
+      btn.dataset.sfIconified = '1';
+      btn.innerHTML = `${sfIcon(match[1], 16)}<span>${text.replace(/^[+⚡🍅📄🗑\s]+/, '').replace(/\s*→$/, '')}</span>`;
+    });
+
+    document.querySelectorAll('.sf-search-icon').forEach(slot => {
+      slot.innerHTML = sfIcon('search', 16);
+    });
+    document.querySelectorAll('.flash-close, .modal-close, .sf-clear-btn').forEach(btn => {
+      btn.innerHTML = sfIcon('x', 15);
+    });
+    document.querySelectorAll('.logout-btn').forEach(btn => {
+      btn.innerHTML = sfIcon('log-out', 15);
+    });
+    document.querySelectorAll('.user-avatar').forEach(slot => {
+      slot.innerHTML = sfIcon('graduation-cap', 18);
+    });
+    document.querySelectorAll('.empty-icon, .empty-full-icon').forEach(slot => {
+      slot.innerHTML = sfIcon('inbox', 30);
+    });
+
+    window.lucide.createIcons();
+    document.documentElement.classList.add('lucide-ready');
+  }
+
+  window.addEventListener('DOMContentLoaded', installStudyFlowIcons);
+  window.addEventListener('load', installStudyFlowIcons);
+
   (function() {
     const dot = document.getElementById('aiStatusDot');
     const label = document.getElementById('aiStatusLabel');
