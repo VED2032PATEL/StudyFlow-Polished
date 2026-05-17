@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.user.username }}{% endblock %}
+
+{% block content %}
+
+<div class="profile-hero anim">
+  <div class="profile-hero-left">
+    <div class="profile-avatar-large">
+      {% if profile.user.avatar_data_url %}
+        <img src="{{ profile.user.avatar_data_url }}" alt="{{ profile.user.username }} profile photo"/>
+      {% else %}
+        {{ profile.user.username[0].upper() }}
+      {% endif %}
+    </div>
+    <div>
+      <a href="{{ url_for('people') }}" class="back-link">← People</a>
+      <h1 class="profile-name">{{ profile.user.username }}</h1>
+      <p class="profile-sub">Member since {{ profile.user.created_at[:10] }}</p>
+      <div class="profile-follow-meta">
+        <span>{{ profile.counts.followers }} followers</span>
+        <span>{{ profile.counts.following }} following</span>
+      </div>
+    </div>
+  </div>
+  {% if not profile.is_self %}
+    {% if profile.is_following %}
+    <form method="POST" action="{{ url_for('unfollow_user', user_id=profile.user.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('user_profile', username=profile.user.username) }}"/>
+      <button type="submit" class="btn btn-ghost">Unfollow</button>
+    </form>
+    {% else %}
+    <form method="POST" action="{{ url_for('follow_user', user_id=profile.user.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('user_profile', username=profile.user.username) }}"/>
+      <button type="submit" class="btn btn-primary">Follow</button>
+    </form>
+    {% endif %}
+  {% endif %}
+</div>
+
+<div class="stats-grid profile-stats-grid">
+  <div class="stat-card stat-blue anim d1">
+    <div class="stat-icon-wrap">📋</div>
+    <div class="stat-number">{{ profile.stats.total_topics }}</div>
+    <div class="stat-label">Total Topics</div>
+  </div>
+  <div class="stat-card stat-green anim d2">
+    <div class="stat-icon-wrap">✅</div>
+    <div class="stat-number">{{ profile.stats.completed_topics }}</div>
+    <div class="stat-label">Completed</div>
+  </div>
+  <div class="stat-card stat-amber anim d3">
+    <div class="stat-icon-wrap">⏳</div>
+    <div class="stat-number">{{ profile.stats.pending_topics }}</div>
+    <div class="stat-label">Pending</div>
+  </div>
+  <div class="stat-card stat-violet anim d4">
+    <div class="stat-icon-wrap">🔥</div>
+    <div class="stat-number">{{ profile.streak.current }}</div>
+    <div class="stat-label">Day Streak</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card anim d2">
+    <div class="card-header">
+      <h2 class="card-title">Overall Progress</h2>
+      <span class="badge badge-primary">{{ profile.progress_pct }}%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width:{{ profile.progress_pct }}%"></div>
+    </div>
+    <div class="progress-meta">
+      <span>{{ profile.stats.completed_topics }} completed</span>
+      <span>{{ profile.stats.pending_topics }} pending</span>
+    </div>
+  </div>
+
+  <div class="card anim d3">
+    <div class="card-header">
+      <h2 class="card-title">Upcoming Deadlines</h2>
+      <span class="badge badge-amber">Next 14 days</span>
+    </div>
+    {% if profile.stats.upcoming_deadlines %}
+    <div class="deadline-list">
+      {% for d in profile.stats.upcoming_deadlines %}
+      <div class="deadline-item">
+        <div class="deadline-color-bar" style="background:{{ d.color }}"></div>
+        <div class="deadline-info">
+          <div class="deadline-topic">{{ d.topic_name }}</div>
+          <div class="deadline-subject">{{ d.subject_name }}</div>
+        </div>
+        <div class="deadline-right">
+          <div class="deadline-date">{{ d.deadline }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state compact-empty">
+      <p>No upcoming deadlines.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card anim d4">
+  <div class="card-header">
+    <h2 class="card-title">Subject Progress</h2>
+  </div>
+  {% if profile.subjects %}
+  <div class="public-subject-grid">
+    {% for s in profile.subjects %}
+      {% set pct = ((s.completed_topics or 0) / s.total_topics * 100)|int if s.total_topics else 0 %}
+      <div class="public-subject-row">
+        <div class="subject-color-circle" style="background:{{ s.color }}">{{ s.name[0].upper() }}</div>
+        <div class="subject-info">
+          <div class="subject-link">{{ s.name }}</div>
+          <div class="subject-progress-mini">
+            <div class="mini-bar">
+              <div class="mini-fill" style="width:{{ pct }}%;background:{{ s.color }}"></div>
+            </div>
+            <span class="mini-count">{{ s.completed_topics or 0 }}/{{ s.total_topics or 0 }}</span>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state compact-empty">
+    <p>No public study progress yet.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

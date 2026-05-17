@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}People{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">People</h1>
+    <p class="page-sub">Find classmates by username and follow their study progress</p>
+  </div>
+</div>
+
+<div class="people-search-card anim d1">
+  <form method="GET" action="{{ url_for('people') }}" class="people-search-form">
+    <div class="people-search-field">
+      <span class="people-search-icon" data-lucide="search"></span>
+      <input type="text" name="q" value="{{ query }}" class="form-input"
+             placeholder="Search username..." autocomplete="off"/>
+    </div>
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+</div>
+
+{% if query %}
+<div class="card anim d2">
+  <div class="card-header">
+    <h2 class="card-title">Search Results</h2>
+    <span class="badge badge-primary">{{ results|length }} found</span>
+  </div>
+  {% if results %}
+  <div class="people-list">
+    {% for person in results %}
+    <div class="person-row">
+      <a href="{{ url_for('user_profile', username=person.username) }}" class="person-avatar">
+        {% if person.avatar_data_url %}
+          <img src="{{ person.avatar_data_url }}" alt="{{ person.username }} profile photo"/>
+        {% else %}
+          {{ person.username[0].upper() }}
+        {% endif %}
+      </a>
+      <div class="person-main">
+        <a href="{{ url_for('user_profile', username=person.username) }}" class="person-name">{{ person.username }}</a>
+        <div class="person-meta">{{ person.counts.followers }} followers · {{ person.counts.following }} following</div>
+      </div>
+      {% if person.is_following %}
+      <form method="POST" action="{{ url_for('unfollow_user', user_id=person.id) }}">
+        <input type="hidden" name="next" value="{{ url_for('people', q=query) }}"/>
+        <button type="submit" class="btn btn-ghost btn-sm">Unfollow</button>
+      </form>
+      {% else %}
+      <form method="POST" action="{{ url_for('follow_user', user_id=person.id) }}">
+        <input type="hidden" name="next" value="{{ url_for('people', q=query) }}"/>
+        <button type="submit" class="btn btn-primary btn-sm">Follow</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon">👤</span>
+    <p>No users matched "{{ query }}".</p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="two-col people-columns">
+  <div class="card anim d3">
+    <div class="card-header">
+      <h2 class="card-title">Following</h2>
+      <span class="badge badge-primary">{{ following|length }}</span>
+    </div>
+    {% if following %}
+    <div class="people-mini-list">
+      {% for person in following %}
+      <a href="{{ url_for('user_profile', username=person.username) }}" class="people-mini-row">
+        <span class="people-mini-avatar">
+          {% if person.avatar_data_url %}
+            <img src="{{ person.avatar_data_url }}" alt="{{ person.username }} profile photo"/>
+          {% else %}
+            {{ person.username[0].upper() }}
+          {% endif %}
+        </span>
+        <span>{{ person.username }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state compact-empty">
+      <p>You are not following anyone yet.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card anim d4">
+    <div class="card-header">
+      <h2 class="card-title">Followers</h2>
+      <span class="badge badge-primary">{{ followers|length }}</span>
+    </div>
+    {% if followers %}
+    <div class="people-mini-list">
+      {% for person in followers %}
+      <a href="{{ url_for('user_profile', username=person.username) }}" class="people-mini-row">
+        <span class="people-mini-avatar">
+          {% if person.avatar_data_url %}
+            <img src="{{ person.avatar_data_url }}" alt="{{ person.username }} profile photo"/>
+          {% else %}
+            {{ person.username[0].upper() }}
+          {% endif %}
+        </span>
+        <span>{{ person.username }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state compact-empty">
+      <p>No followers yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

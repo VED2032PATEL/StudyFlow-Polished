@@ -112,6 +112,13 @@ _CREATE = [
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE(topic_id, user_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS follows (
+        follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (follower_id, following_id),
+        CHECK (follower_id != following_id)
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -235,6 +242,123 @@ def update_avatar(user_id, avatar_data_url):
         conn.execute("UPDATE users SET avatar_data_url=? WHERE id=?", [avatar_data_url, user_id])
     finally:
         conn.close()
+
+
+def search_users(query, current_user_id, limit=12):
+    query = (query or "").strip()
+    if not query:
+        return []
+    conn = get_db()
+    try:
+        rows = _rows_to_dicts(conn.execute(
+            """SELECT id,username,email,avatar_data_url,created_at
+               FROM users
+               WHERE id<>? AND username LIKE ? COLLATE NOCASE
+               ORDER BY username LIMIT ?""",
+            [current_user_id, f"%{query}%", limit],
+        ))
+        for row in rows:
+            row["is_following"] = is_following(current_user_id, row["id"])
+            row["counts"] = get_follow_counts(row["id"])
+        return rows
+    finally:
+        conn.close()
+
+
+def follow_user(follower_id, following_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO follows (follower_id,following_id) VALUES (?,?)",
+            [follower_id, following_id],
+        )
+    finally:
+        conn.close()
+
+
+def unfollow_user(follower_id, following_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM follows WHERE follower_id=? AND following_id=?",
+            [follower_id, following_id],
+        )
+    finally:
+        conn.close()
+
+
+def is_following(follower_id, following_id):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "SELECT 1 FROM follows WHERE follower_id=? AND following_id=?",
+            [follower_id, following_id],
+        )
+        return bool(res.rows)
+    finally:
+        conn.close()
+
+
+def get_follow_counts(user_id):
+    conn = get_db()
+    try:
+        followers = conn.execute(
+            "SELECT COUNT(*) FROM follows WHERE following_id=?", [user_id]
+        ).rows[0][0]
+        following = conn.execute(
+            "SELECT COUNT(*) FROM follows WHERE follower_id=?", [user_id]
+        ).rows[0][0]
+        return {"followers": followers, "following": following}
+    finally:
+        conn.close()
+
+
+def get_following(user_id):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.created_at,f.created_at AS followed_at
+               FROM follows f JOIN users u ON u.id=f.following_id
+               WHERE f.follower_id=? ORDER BY f.created_at DESC""",
+            [user_id],
+        ))
+    finally:
+        conn.close()
+
+
+def get_followers(user_id):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.created_at,f.created_at AS followed_at
+               FROM follows f JOIN users u ON u.id=f.follower_id
+               WHERE f.following_id=? ORDER BY f.created_at DESC""",
+            [user_id],
+        ))
+    finally:
+        conn.close()
+
+
+def get_public_profile(username, viewer_id):
+    user = get_user_by_username(username)
+    if not user:
+        return None
+    user_id = user["id"]
+    stats = get_dashboard_stats(user_id)
+    streak = get_streak(user_id)
+    counts = get_follow_counts(user_id)
+    subjects = get_all_subjects(user_id)
+    pct = int((stats["completed_topics"] / stats["total_topics"]) * 100) if stats["total_topics"] else 0
+    return {
+        "user": user,
+        "stats": stats,
+        "streak": streak,
+        "counts": counts,
+        "subjects": subjects[:6],
+        "progress_pct": pct,
+        "is_following": is_following(viewer_id, user_id) if viewer_id != user_id else False,
+        "is_self": viewer_id == user_id,
+    }
 
 
 # ── Subjects ──────────────────────────────────────────────────────────────────

@@ -163,6 +163,63 @@ def dashboard():
                            today_date=date.today(),
                            today=date.today().isoformat(),
                            timedelta=timedelta)
+# Social / People
+
+@app.route("/people")
+@login_required
+def people():
+    query = request.args.get("q", "").strip()
+    results = db.search_users(query, current_user.id) if query else []
+    following = db.get_following(current_user.id)
+    followers = db.get_followers(current_user.id)
+    return render_template("people.html",
+                           query=query,
+                           results=results,
+                           following=following,
+                           followers=followers)
+
+
+@app.route("/users/<username>")
+@login_required
+def user_profile(username):
+    profile = db.get_public_profile(username, current_user.id)
+    if not profile:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    return render_template("profile.html", profile=profile)
+
+
+@app.route("/users/<int:user_id>/follow", methods=["POST"])
+@login_required
+def follow_user(user_id):
+    if user_id == current_user.id:
+        flash("You cannot follow yourself.", "error")
+        return redirect(url_for("people"))
+    target = db.get_user_by_id(user_id)
+    if not target:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    db.follow_user(current_user.id, user_id)
+    flash(f"You are now following {target['username']}.", "success")
+    next_page = request.form.get("next")
+    if _is_safe_redirect_url(next_page):
+        return redirect(next_page)
+    return redirect(url_for("user_profile", username=target["username"]))
+
+
+@app.route("/users/<int:user_id>/unfollow", methods=["POST"])
+@login_required
+def unfollow_user(user_id):
+    target = db.get_user_by_id(user_id)
+    if not target:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    db.unfollow_user(current_user.id, user_id)
+    flash(f"You unfollowed {target['username']}.", "info")
+    next_page = request.form.get("next")
+    if _is_safe_redirect_url(next_page):
+        return redirect(next_page)
+    return redirect(url_for("user_profile", username=target["username"]))
 
 
 # ── Subjects ──────────────────────────────────────────────────────────────────

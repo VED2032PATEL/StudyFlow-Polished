@@ -61,6 +61,13 @@
       </a>
     </li>
     <li>
+      <a href="{{ url_for('people') }}"
+         class="nav-item {% if request.endpoint in ['people', 'user_profile'] %}active{% endif %}">
+        <span class="nav-icon">👥</span>
+        <span>People</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ url_for('settings') }}"
          class="nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
         <span class="nav-icon">⚙️</span>
@@ -205,6 +212,7 @@
       Reviews: 'repeat-2',
       Analytics: 'chart-no-axes-combined',
       Practice: 'file-pen-line',
+      People: 'users',
       Settings: 'settings'
     };
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -232,6 +240,7 @@
       ['Reviews', 'repeat-2'],
       ['Analytics', 'chart-no-axes-combined'],
       ['Practice', 'file-pen-line'],
+      ['People', 'users'],
       ['Settings', 'settings'],
       ['Overall Progress', 'chart-bar'],
       ['Upcoming Deadlines', 'clock'],
