@@ -145,6 +145,25 @@ _CREATE = [
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         PRIMARY KEY (message_id, user_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS call_sessions (
+        id TEXT PRIMARY KEY,
+        caller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK(kind IN ('voice','video')),
+        status TEXT NOT NULL DEFAULT 'ringing',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        answered_at TEXT NOT NULL DEFAULT '',
+        ended_at TEXT NOT NULL DEFAULT '',
+        CHECK (caller_id != receiver_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS call_signals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id TEXT NOT NULL REFERENCES call_sessions(id) ON DELETE CASCADE,
+        sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        signal_type TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -577,6 +596,114 @@ def react_to_message(message_id, user_id, emoji):
                 [message_id, user_id, emoji],
             )
         return True
+    finally:
+        conn.close()
+
+
+# Calls
+
+def create_call(call_id, caller_id, receiver_id, kind):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO call_sessions (id,caller_id,receiver_id,kind,status)
+               VALUES (?,?,?,?, 'ringing')""",
+            [call_id, caller_id, receiver_id, kind],
+        )
+        return get_call(call_id, caller_id)
+    finally:
+        conn.close()
+
+
+def _call_to_dict(row, viewer_id, conn):
+    peer_id = row["receiver_id"] if row["caller_id"] == viewer_id else row["caller_id"]
+    peer = _rows_to_dicts(conn.execute(
+        "SELECT id,username,email,avatar_data_url FROM users WHERE id=?",
+        [peer_id],
+    ))
+    data = dict(row)
+    data["peer"] = peer[0] if peer else None
+    data["is_caller"] = row["caller_id"] == viewer_id
+    return data
+
+
+def get_call(call_id, viewer_id):
+    conn = get_db()
+    try:
+        rows = _rows_to_dicts(conn.execute(
+            """SELECT * FROM call_sessions
+               WHERE id=? AND (caller_id=? OR receiver_id=?)""",
+            [call_id, viewer_id, viewer_id],
+        ))
+        return _call_to_dict(rows[0], viewer_id, conn) if rows else None
+    finally:
+        conn.close()
+
+
+def get_active_calls(user_id):
+    conn = get_db()
+    try:
+        rows = _rows_to_dicts(conn.execute(
+            """SELECT * FROM call_sessions
+               WHERE (caller_id=? OR receiver_id=?)
+                 AND status IN ('ringing','active')
+                 AND created_at >= datetime('now','-2 hours')
+               ORDER BY created_at DESC LIMIT 5""",
+            [user_id, user_id],
+        ))
+        return [_call_to_dict(row, user_id, conn) for row in rows]
+    finally:
+        conn.close()
+
+
+def update_call_status(call_id, user_id, status):
+    call = get_call(call_id, user_id)
+    if not call:
+        return None
+    conn = get_db()
+    try:
+        if status == "active":
+            conn.execute(
+                "UPDATE call_sessions SET status='active',answered_at=datetime('now') WHERE id=?",
+                [call_id],
+            )
+        elif status in ("declined", "ended"):
+            conn.execute(
+                "UPDATE call_sessions SET status=?,ended_at=datetime('now') WHERE id=?",
+                [status, call_id],
+            )
+        return get_call(call_id, user_id)
+    finally:
+        conn.close()
+
+
+def add_call_signal(call_id, sender_id, signal_type, payload):
+    if not get_call(call_id, sender_id):
+        return False
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO call_signals (call_id,sender_id,signal_type,payload)
+               VALUES (?,?,?,?)""",
+            [call_id, sender_id, signal_type, payload],
+        )
+        return True
+    finally:
+        conn.close()
+
+
+def get_call_signals(call_id, user_id, after_id=0):
+    if not get_call(call_id, user_id):
+        return []
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            """SELECT id,sender_id,signal_type,payload,created_at
+               FROM call_signals
+               WHERE call_id=? AND id>? AND sender_id<>?
+               ORDER BY id ASC LIMIT 100""",
+            [call_id, after_id, user_id],
+        ))
     finally:
         conn.close()
 

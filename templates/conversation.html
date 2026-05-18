@@ -112,14 +112,22 @@
       <div>
         <div class="call-modal-kicker">StudyFlow Call</div>
         <h2 id="callModalTitle">Video call</h2>
+        <p id="callStatusText" class="call-status-text">Connecting...</p>
       </div>
       <div class="call-modal-actions">
-        <a href="#" target="_blank" rel="noopener noreferrer" class="chat-call-btn" id="callPopout">Open tab</a>
+        <button type="button" class="chat-call-btn" id="acceptCallBtn" hidden>Accept</button>
+        <button type="button" class="chat-call-btn" id="declineCallBtn" hidden>Decline</button>
         <button type="button" class="call-end-btn" id="endCallBtn">End</button>
       </div>
     </div>
-    <iframe id="callFrame" class="call-frame" allow="camera; microphone; fullscreen; display-capture; autoplay"
-            referrerpolicy="no-referrer" title="StudyFlow call room"></iframe>
+    <div class="call-stage">
+      <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+      <video id="localVideo" class="local-video" autoplay playsinline muted></video>
+      <div class="call-empty-state" id="callEmptyState">
+        <div class="call-empty-avatar">{{ other.username[0].upper() }}</div>
+        <p>Waiting for {{ other.username }}</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -135,13 +143,24 @@ const disappearingLabel = document.getElementById('disappearingLabel');
 const voiceCallBtn = document.getElementById('voiceCallBtn');
 const videoCallBtn = document.getElementById('videoCallBtn');
 const callModal = document.getElementById('callModal');
-const callFrame = document.getElementById('callFrame');
 const callModalTitle = document.getElementById('callModalTitle');
-const callPopout = document.getElementById('callPopout');
+const callStatusText = document.getElementById('callStatusText');
+const acceptCallBtn = document.getElementById('acceptCallBtn');
+const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const callEmptyState = document.getElementById('callEmptyState');
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 let lastRendered = '';
 let messageCache = new Map();
+let activeCall = null;
+let localStream = null;
+let peerConnection = null;
+let signalAfter = 0;
+let signalTimer = null;
+let callPollTimer = null;
+let offerSent = false;
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, ch => ({
@@ -255,58 +274,194 @@ chatCompose.addEventListener('submit', async (event) => {
   }
 });
 
-function buildCallRoom() {
-  const first = Math.min({{ current_user.id }}, {{ other.id }});
-  const second = Math.max({{ current_user.id }}, {{ other.id }});
-  const suffix = Math.random().toString(36).slice(2, 8);
-  return `StudyFlow-${first}-${second}-${Date.now()}-${suffix}`;
+async function startCall(kind) {
+  if (activeCall) return;
+  try {
+    const res = await fetch(`/api/calls/start/{{ other.id }}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    activeCall = data.call;
+    openCallModal(activeCall, 'Calling...');
+    await ensureLocalMedia(activeCall.kind);
+    startCallPolling();
+  } catch (_) {
+    callStatusText.textContent = 'Could not start call.';
+  }
 }
 
-function buildAppCallUrl(room, kind) {
-  return `${window.location.origin}/call/${room}?mode=${kind}`;
-}
-
-function buildMeetUrl(room, kind) {
-  const url = new URL(`https://meet.jit.si/${room}`);
-  url.hash = kind === 'voice'
-    ? 'config.startWithVideoMuted=true&config.prejoinPageEnabled=true'
-    : 'config.prejoinPageEnabled=true';
-  return url.toString();
-}
-
-function openInAppCall(room, kind) {
-  const appUrl = buildAppCallUrl(room, kind);
-  callModalTitle.textContent = kind === 'voice' ? 'Voice call' : 'Video call';
-  callPopout.href = appUrl;
-  callFrame.src = buildMeetUrl(room, kind);
+function openCallModal(call, statusText) {
+  callModalTitle.textContent = `${call.kind === 'voice' ? 'Voice' : 'Video'} call with ${call.peer.username}`;
+  callStatusText.textContent = statusText || call.status;
+  acceptCallBtn.hidden = call.is_caller || call.status !== 'ringing';
+  declineCallBtn.hidden = call.is_caller || call.status !== 'ringing';
+  endCallBtn.hidden = !call.is_caller && call.status === 'ringing';
+  callEmptyState.querySelector('p').textContent = call.is_caller
+    ? `Calling ${call.peer.username}...`
+    : `${call.peer.username} is calling...`;
   callModal.hidden = false;
   document.body.classList.add('call-open');
 }
 
-function closeInAppCall() {
+async function ensureLocalMedia(kind) {
+  if (localStream) return localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: kind === 'video'
+  });
+  localVideo.srcObject = localStream;
+  return localStream;
+}
+
+function ensurePeerConnection() {
+  if (peerConnection) return peerConnection;
+  peerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+  localStream?.getTracks().forEach(track => {
+    peerConnection.addTrack(track, localStream);
+  });
+  peerConnection.ontrack = event => {
+    remoteVideo.srcObject = event.streams[0];
+    callEmptyState.hidden = true;
+  };
+  peerConnection.onicecandidate = event => {
+    if (event.candidate && activeCall) {
+      sendCallSignal('ice', event.candidate.toJSON());
+    }
+  };
+  return peerConnection;
+}
+
+async function sendCallSignal(type, payload) {
+  if (!activeCall) return;
+  await fetch(`/api/calls/${activeCall.id}/signals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, payload })
+  });
+}
+
+async function createAndSendOffer() {
+  if (offerSent || !activeCall?.is_caller) return;
+  const pc = ensurePeerConnection();
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await sendCallSignal('offer', offer);
+  offerSent = true;
+}
+
+async function handleSignal(signal) {
+  const pc = ensurePeerConnection();
+  if (signal.type === 'offer') {
+    await pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await sendCallSignal('answer', answer);
+  } else if (signal.type === 'answer') {
+    await pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
+  } else if (signal.type === 'ice') {
+    await pc.addIceCandidate(new RTCIceCandidate(signal.payload));
+  }
+}
+
+async function pollSignals() {
+  if (!activeCall || activeCall.status !== 'active') return;
+  try {
+    const res = await fetch(`/api/calls/${activeCall.id}/signals?after=${signalAfter}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    for (const signal of data.signals || []) {
+      signalAfter = Math.max(signalAfter, signal.id);
+      await handleSignal(signal);
+    }
+  } catch (_) {}
+}
+
+function startSignalPolling() {
+  clearInterval(signalTimer);
+  signalTimer = setInterval(pollSignals, 1000);
+  pollSignals();
+}
+
+async function acceptCall() {
+  if (!activeCall) return;
+  await ensureLocalMedia(activeCall.kind);
+  ensurePeerConnection();
+  const res = await fetch(`/api/calls/${activeCall.id}/accept`, { method: 'POST' });
+  if (!res.ok) return;
+  const data = await res.json();
+  activeCall = data.call;
+  openCallModal(activeCall, 'Connected');
+  startSignalPolling();
+}
+
+async function endCall(action = 'end') {
+  const call = activeCall;
+  cleanupCall();
+  if (call) {
+    await fetch(`/api/calls/${call.id}/${action}`, { method: 'POST' });
+  }
+}
+
+function cleanupCall() {
+  clearInterval(signalTimer);
+  signalTimer = null;
+  offerSent = false;
+  signalAfter = 0;
+  peerConnection?.close();
+  peerConnection = null;
+  localStream?.getTracks().forEach(track => track.stop());
+  localStream = null;
+  localVideo.srcObject = null;
+  remoteVideo.srcObject = null;
+  activeCall = null;
+  callEmptyState.hidden = false;
   callModal.hidden = true;
-  callFrame.src = 'about:blank';
   document.body.classList.remove('call-open');
 }
 
-async function startCall(kind) {
-  const room = buildCallRoom();
-  const callUrl = buildAppCallUrl(room, kind);
-  openInAppCall(room, kind);
-  const label = kind === 'voice' ? 'Voice call' : 'Video call';
+async function pollCalls() {
   try {
-    const res = await fetch(chatMessages.dataset.sendUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: `${label} invite: ${callUrl}` })
-    });
-    if (res.ok) await refreshMessages();
+    const res = await fetch('/api/calls', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const calls = data.calls || [];
+    if (activeCall) {
+      const latest = calls.find(call => call.id === activeCall.id);
+      if (!latest || ['ended', 'declined'].includes(latest.status)) {
+        cleanupCall();
+        return;
+      }
+      const becameActive = activeCall.status !== 'active' && latest.status === 'active';
+      activeCall = latest;
+      if (becameActive) {
+        openCallModal(activeCall, 'Connected');
+        await ensureLocalMedia(activeCall.kind);
+        ensurePeerConnection();
+        startSignalPolling();
+        if (activeCall.is_caller) await createAndSendOffer();
+      }
+      return;
+    }
+    const incoming = calls.find(call => !call.is_caller && call.status === 'ringing');
+    if (incoming) {
+      activeCall = incoming;
+      openCallModal(activeCall, 'Incoming call');
+    }
   } catch (_) {}
 }
 
 voiceCallBtn.addEventListener('click', () => startCall('voice'));
 videoCallBtn.addEventListener('click', () => startCall('video'));
-endCallBtn.addEventListener('click', closeInAppCall);
+acceptCallBtn.addEventListener('click', acceptCall);
+declineCallBtn.addEventListener('click', () => endCall('decline'));
+endCallBtn.addEventListener('click', () => endCall('end'));
+callPollTimer = setInterval(pollCalls, 2500);
+pollCalls();
 
 chatBody.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) {

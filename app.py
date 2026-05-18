@@ -13,7 +13,7 @@ import json as json_lib
 import os
 import logging
 import base64
-import re
+import uuid
 
 logging.basicConfig(level=logging.INFO)
 
@@ -400,16 +400,97 @@ def api_set_disappearing_mode(user_id):
     return jsonify({"status": "updated", "disappearing": mode})
 
 
-@app.route("/call/<room>")
+def _public_call(call):
+    if not call:
+        return None
+    peer = call.get("peer") or {}
+    return {
+        "id": call["id"],
+        "kind": call["kind"],
+        "status": call["status"],
+        "created_at": call["created_at"],
+        "answered_at": call.get("answered_at", ""),
+        "ended_at": call.get("ended_at", ""),
+        "is_caller": call["is_caller"],
+        "peer": {
+            "id": peer.get("id"),
+            "username": peer.get("username", "Unknown"),
+            "avatar_data_url": peer.get("avatar_data_url", ""),
+        },
+    }
+
+
+@app.route("/api/calls/start/<int:user_id>", methods=["POST"])
 @login_required
-def call_room(room):
-    if not re.fullmatch(r"[A-Za-z0-9-]{12,96}", room or ""):
-        flash("That call link is invalid.", "error")
-        return redirect(url_for("messages"))
-    mode = request.args.get("mode", "video")
-    if mode not in ("voice", "video"):
-        mode = "video"
-    return render_template("call.html", room=room, mode=mode)
+def api_start_call(user_id):
+    other = db.get_user_by_id(user_id)
+    if not other or other["id"] == current_user.id:
+        return jsonify({"error": "not found"}), 404
+    data = request.get_json(silent=True) or {}
+    kind = data.get("kind", "video")
+    if kind not in ("voice", "video"):
+        kind = "video"
+    call = db.create_call(uuid.uuid4().hex, current_user.id, other["id"], kind)
+    return jsonify({"call": _public_call(call)})
+
+
+@app.route("/api/calls")
+@login_required
+def api_calls():
+    return jsonify({
+        "calls": [_public_call(call) for call in db.get_active_calls(current_user.id)]
+    })
+
+
+@app.route("/api/calls/<call_id>/<action>", methods=["POST"])
+@login_required
+def api_call_action(call_id, action):
+    if action not in ("accept", "decline", "end"):
+        return jsonify({"error": "bad action"}), 400
+    status = "active" if action == "accept" else "declined" if action == "decline" else "ended"
+    call = db.update_call_status(call_id, current_user.id, status)
+    if not call:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"call": _public_call(call)})
+
+
+@app.route("/api/calls/<call_id>/signals", methods=["GET", "POST"])
+@login_required
+def api_call_signals(call_id):
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        signal_type = data.get("type", "")
+        payload = data.get("payload")
+        if signal_type not in ("offer", "answer", "ice") or payload is None:
+            return jsonify({"error": "bad signal"}), 400
+        ok = db.add_call_signal(
+            call_id,
+            current_user.id,
+            signal_type,
+            json_lib.dumps(payload),
+        )
+        if not ok:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"status": "sent"})
+
+    after = request.args.get("after", "0")
+    try:
+        after_id = int(after)
+    except ValueError:
+        after_id = 0
+    rows = db.get_call_signals(call_id, current_user.id, after_id)
+    return jsonify({
+        "signals": [
+            {
+                "id": row["id"],
+                "sender_id": row["sender_id"],
+                "type": row["signal_type"],
+                "payload": json_lib.loads(row["payload"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+    })
 
 
 @app.route("/notifications")
