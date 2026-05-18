@@ -4656,6 +4656,96 @@ select.form-input,
   transform:translateY(-1px);
 }
 
+.call-modal {
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(7,10,24,.72);
+  backdrop-filter:blur(10px);
+}
+
+.call-modal[hidden] {
+  display:none;
+}
+
+.call-modal-panel {
+  width:min(1120px, 100%);
+  height:min(760px, calc(100vh - 48px));
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--surface);
+  box-shadow:0 24px 80px rgba(0,0,0,.38);
+  display:flex;
+  flex-direction:column;
+}
+
+.call-modal-header,
+.call-page-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+}
+
+.call-modal-kicker {
+  color:var(--t3);
+  font-size:11px;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.call-modal-header h2 {
+  margin:2px 0 0;
+  color:var(--t1);
+  font-size:18px;
+}
+
+.call-modal-actions {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.call-end-btn {
+  height:38px;
+  border:0;
+  border-radius:10px;
+  background:var(--rose);
+  color:#fff;
+  cursor:pointer;
+  font-size:12.5px;
+  font-weight:850;
+  padding:0 14px;
+}
+
+.call-frame {
+  width:100%;
+  flex:1;
+  min-height:420px;
+  border:0;
+  background:#050816;
+}
+
+.call-page {
+  min-height:calc(100vh - 80px);
+  display:flex;
+  flex-direction:column;
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--surface);
+  box-shadow:var(--sh-sm);
+}
+
 .chat-expire-toggle {
   display:inline-flex;
   align-items:center;
@@ -5199,6 +5289,30 @@ select.form-input,
   }
 
   .chat-call-btn {
+    flex:1;
+    justify-content:center;
+  }
+
+  .call-modal {
+    padding:10px;
+  }
+
+  .call-modal-panel {
+    height:calc(100vh - 20px);
+  }
+
+  .call-modal-header,
+  .call-page-header {
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .call-modal-actions {
+    width:100%;
+  }
+
+  .call-modal-actions .chat-call-btn,
+  .call-end-btn {
     flex:1;
     justify-content:center;
   }

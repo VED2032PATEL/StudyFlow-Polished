@@ -13,6 +13,7 @@ import json as json_lib
 import os
 import logging
 import base64
+import re
 
 logging.basicConfig(level=logging.INFO)
 
@@ -397,6 +398,18 @@ def api_set_disappearing_mode(user_id):
         bool(data.get("enabled")),
     )
     return jsonify({"status": "updated", "disappearing": mode})
+
+
+@app.route("/call/<room>")
+@login_required
+def call_room(room):
+    if not re.fullmatch(r"[A-Za-z0-9-]{12,96}", room or ""):
+        flash("That call link is invalid.", "error")
+        return redirect(url_for("messages"))
+    mode = request.args.get("mode", "video")
+    if mode not in ("voice", "video"):
+        mode = "video"
+    return render_template("call.html", room=room, mode=mode)
 
 
 @app.route("/notifications")

@@ -106,6 +106,23 @@
   </form>
 </div>
 
+<div class="call-modal" id="callModal" hidden>
+  <div class="call-modal-panel">
+    <div class="call-modal-header">
+      <div>
+        <div class="call-modal-kicker">StudyFlow Call</div>
+        <h2 id="callModalTitle">Video call</h2>
+      </div>
+      <div class="call-modal-actions">
+        <a href="#" target="_blank" rel="noopener noreferrer" class="chat-call-btn" id="callPopout">Open tab</a>
+        <button type="button" class="call-end-btn" id="endCallBtn">End</button>
+      </div>
+    </div>
+    <iframe id="callFrame" class="call-frame" allow="camera; microphone; fullscreen; display-capture; autoplay"
+            referrerpolicy="no-referrer" title="StudyFlow call room"></iframe>
+  </div>
+</div>
+
 <script>
 const chatMessages = document.getElementById('chatMessages');
 const chatCompose = document.getElementById('chatCompose');
@@ -117,6 +134,11 @@ const disappearingToggle = document.getElementById('disappearingToggle');
 const disappearingLabel = document.getElementById('disappearingLabel');
 const voiceCallBtn = document.getElementById('voiceCallBtn');
 const videoCallBtn = document.getElementById('videoCallBtn');
+const callModal = document.getElementById('callModal');
+const callFrame = document.getElementById('callFrame');
+const callModalTitle = document.getElementById('callModalTitle');
+const callPopout = document.getElementById('callPopout');
+const endCallBtn = document.getElementById('endCallBtn');
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 let lastRendered = '';
 let messageCache = new Map();
@@ -233,11 +255,18 @@ chatCompose.addEventListener('submit', async (event) => {
   }
 });
 
-function buildCallUrl(kind) {
+function buildCallRoom() {
   const first = Math.min({{ current_user.id }}, {{ other.id }});
   const second = Math.max({{ current_user.id }}, {{ other.id }});
   const suffix = Math.random().toString(36).slice(2, 8);
-  const room = `StudyFlow-${first}-${second}-${Date.now()}-${suffix}`;
+  return `StudyFlow-${first}-${second}-${Date.now()}-${suffix}`;
+}
+
+function buildAppCallUrl(room, kind) {
+  return `${window.location.origin}/call/${room}?mode=${kind}`;
+}
+
+function buildMeetUrl(room, kind) {
   const url = new URL(`https://meet.jit.si/${room}`);
   url.hash = kind === 'voice'
     ? 'config.startWithVideoMuted=true&config.prejoinPageEnabled=true'
@@ -245,9 +274,25 @@ function buildCallUrl(kind) {
   return url.toString();
 }
 
+function openInAppCall(room, kind) {
+  const appUrl = buildAppCallUrl(room, kind);
+  callModalTitle.textContent = kind === 'voice' ? 'Voice call' : 'Video call';
+  callPopout.href = appUrl;
+  callFrame.src = buildMeetUrl(room, kind);
+  callModal.hidden = false;
+  document.body.classList.add('call-open');
+}
+
+function closeInAppCall() {
+  callModal.hidden = true;
+  callFrame.src = 'about:blank';
+  document.body.classList.remove('call-open');
+}
+
 async function startCall(kind) {
-  const callUrl = buildCallUrl(kind);
-  window.open(callUrl, '_blank', 'noopener');
+  const room = buildCallRoom();
+  const callUrl = buildAppCallUrl(room, kind);
+  openInAppCall(room, kind);
   const label = kind === 'voice' ? 'Voice call' : 'Video call';
   try {
     const res = await fetch(chatMessages.dataset.sendUrl, {
@@ -261,6 +306,7 @@ async function startCall(kind) {
 
 voiceCallBtn.addEventListener('click', () => startCall('voice'));
 videoCallBtn.addEventListener('click', () => startCall('video'));
+endCallBtn.addEventListener('click', closeInAppCall);
 
 chatBody.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) {

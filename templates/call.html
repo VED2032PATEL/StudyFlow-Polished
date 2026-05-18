@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'voice' %}Voice Call{% else %}Video Call{% endif %}{% endblock %}
+
+{% block content %}
+<div class="call-page anim">
+  <div class="call-page-header">
+    <div>
+      <a href="{{ url_for('messages') }}" class="back-link">&larr; Messages</a>
+      <h1 class="page-title">{% if mode == 'voice' %}Voice Call{% else %}Video Call{% endif %}</h1>
+      <p class="page-sub">StudyFlow in-app call room</p>
+    </div>
+    <a href="{{ url_for('messages') }}" class="btn btn-outline">Leave</a>
+  </div>
+
+  <iframe
+    class="call-frame"
+    src="https://meet.jit.si/{{ room }}#{% if mode == 'voice' %}config.startWithVideoMuted=true&{% endif %}config.prejoinPageEnabled=true"
+    allow="camera; microphone; fullscreen; display-capture; autoplay"
+    referrerpolicy="no-referrer"
+    title="StudyFlow call room"></iframe>
+</div>
+{% endblock %}
