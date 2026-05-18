@@ -164,6 +164,22 @@ _CREATE = [
         payload TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )""",
+    """CREATE TABLE IF NOT EXISTS flowcoin_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        amount INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        source_key TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS flowcoin_redemptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reward_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        cost INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -1025,6 +1041,116 @@ def get_streak(user_id):
             run = 1
     best = max(best, current)
     return {"current": current, "best": best, "today_logged": today_logged}
+
+
+# FlowCoin rewards
+
+def calculate_topic_flowcoins(topic):
+    difficulty = int(topic.get("difficulty") or 3)
+    hours = float(topic.get("estimated_hours") or 0)
+    base = 10
+    difficulty_bonus = difficulty * 6
+    effort_bonus = min(30, int(round(hours * 2)))
+    return base + difficulty_bonus + effort_bonus
+
+
+def get_flowcoin_balance(user_id):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM flowcoin_ledger WHERE user_id=?",
+            [user_id],
+        )
+        return int(res.rows[0][0] or 0)
+    finally:
+        conn.close()
+
+
+def add_flowcoins(user_id, amount, reason, source_key):
+    if not amount:
+        return 0
+    conn = get_db()
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM flowcoin_ledger WHERE source_key=?",
+            [source_key],
+        )
+        if exists.rows:
+            return 0
+        conn.execute(
+            "INSERT INTO flowcoin_ledger (user_id,amount,reason,source_key) VALUES (?,?,?,?)",
+            [user_id, int(amount), reason, source_key],
+        )
+        return int(amount)
+    finally:
+        conn.close()
+
+
+def award_topic_flowcoins(user_id, topic):
+    amount = calculate_topic_flowcoins(topic)
+    return add_flowcoins(
+        user_id,
+        amount,
+        f"Completed topic: {topic['name']}",
+        f"topic_complete:{topic['id']}",
+    )
+
+
+def award_streak_flowcoins(user_id):
+    streak = get_streak(user_id)
+    today = datetime.date.today().isoformat()
+    if streak["today_logged"] and streak["current"] and streak["current"] % 7 == 0:
+        amount = 75 + (streak["current"] // 7 - 1) * 25
+        earned = add_flowcoins(
+            user_id,
+            amount,
+            f"{streak['current']}-day streak bonus",
+            f"streak:{user_id}:{today}:{streak['current']}",
+        )
+        return {"earned": earned, "streak": streak["current"]}
+    return {"earned": 0, "streak": streak["current"]}
+
+
+def get_flowcoin_activity(user_id, limit=12):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            "SELECT * FROM flowcoin_ledger WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT ?",
+            [user_id, limit],
+        ))
+    finally:
+        conn.close()
+
+
+def get_redemptions(user_id, limit=12):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            "SELECT * FROM flowcoin_redemptions WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT ?",
+            [user_id, limit],
+        ))
+    finally:
+        conn.close()
+
+
+def redeem_flowcoin_reward(user_id, reward_id, title, cost):
+    balance = get_flowcoin_balance(user_id)
+    if balance < cost:
+        return False, balance
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "INSERT INTO flowcoin_redemptions (user_id,reward_id,title,cost) VALUES (?,?,?,?)",
+            [user_id, reward_id, title, cost],
+        )
+        redemption_id = getattr(res, "last_insert_rowid", None) or datetime.datetime.utcnow().timestamp()
+        conn.execute(
+            "INSERT INTO flowcoin_ledger (user_id,amount,reason,source_key) VALUES (?,?,?,?)",
+            [user_id, -int(cost), f"Redeemed: {title}", f"redeem:{user_id}:{redemption_id}"],
+        )
+    finally:
+        conn.close()
+    return True, get_flowcoin_balance(user_id)
 
 
 def get_weekly_report(user_id):

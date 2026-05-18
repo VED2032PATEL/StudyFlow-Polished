@@ -27,6 +27,37 @@ app = Flask(__name__,
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 
+REDEEM_ITEMS = [
+    {
+        "id": "focus-pass",
+        "title": "Focus Pass",
+        "cost": 120,
+        "description": "Claim a guilt-free 20 minute break after a study block.",
+        "icon": "coffee",
+    },
+    {
+        "id": "theme-badge",
+        "title": "Profile Glow Badge",
+        "cost": 220,
+        "description": "A cosmetic achievement you can show as earned.",
+        "icon": "sparkles",
+    },
+    {
+        "id": "deadline-shield",
+        "title": "Deadline Shield",
+        "cost": 350,
+        "description": "A one-time self-approved deadline recovery token.",
+        "icon": "shield-check",
+    },
+    {
+        "id": "deep-work",
+        "title": "Deep Work Voucher",
+        "cost": 500,
+        "description": "Reserve a premium 90 minute deep work session reward.",
+        "icon": "brain",
+    },
+]
+
 
 def _is_safe_redirect_url(target):
     """Allow only relative redirects within this app."""
@@ -74,10 +105,13 @@ def load_user(user_id):
 def inject_notification_count():
     if current_user.is_authenticated:
         try:
-            return {"notification_count": db.get_notification_count(current_user.id)}
+            return {
+                "notification_count": db.get_notification_count(current_user.id),
+                "flowcoin_balance": db.get_flowcoin_balance(current_user.id),
+            }
         except Exception:
-            return {"notification_count": 0}
-    return {"notification_count": 0}
+            return {"notification_count": 0, "flowcoin_balance": 0}
+    return {"notification_count": 0, "flowcoin_balance": 0}
 
 
 # Initialise DB on first run
@@ -500,6 +534,38 @@ def notifications():
     return render_template("notifications.html", notifications=items)
 
 
+@app.route("/redeem")
+@login_required
+def redeem():
+    return render_template(
+        "redeem.html",
+        rewards=REDEEM_ITEMS,
+        balance=db.get_flowcoin_balance(current_user.id),
+        activity=db.get_flowcoin_activity(current_user.id),
+        redemptions=db.get_redemptions(current_user.id),
+    )
+
+
+@app.route("/redeem/<reward_id>", methods=["POST"])
+@login_required
+def redeem_reward(reward_id):
+    reward = next((item for item in REDEEM_ITEMS if item["id"] == reward_id), None)
+    if not reward:
+        flash("Reward not found.", "error")
+        return redirect(url_for("redeem"))
+    ok, balance = db.redeem_flowcoin_reward(
+        current_user.id,
+        reward["id"],
+        reward["title"],
+        reward["cost"],
+    )
+    if ok:
+        flash(f"Redeemed {reward['title']} for {reward['cost']} FlowCoins.", "success")
+    else:
+        flash(f"You need {reward['cost'] - balance} more FlowCoins for that reward.", "error")
+    return redirect(url_for("redeem"))
+
+
 @app.route("/api/notifications/count")
 @login_required
 def api_notification_count():
@@ -590,6 +656,8 @@ def toggle_topic(topic_id):
     if topic2 and topic2["is_completed"] and topic:
         # Log streak
         db.log_topic_completion(topic_id, topic["subject_id"], uid)
+        flowcoins = db.award_topic_flowcoins(uid, topic)
+        streak_bonus = db.award_streak_flowcoins(uid)
 
         # ── Step 14: SM-2 spaced repetition ──────────────
         existing = db.get_review(topic_id, uid)
@@ -610,6 +678,9 @@ def toggle_topic(topic_id):
             "status": "ok",
             "review_scheduled": next_review.isoformat(),
             "interval_days": new_interval,
+            "flowcoins": flowcoins,
+            "streak_bonus": streak_bonus,
+            "balance": db.get_flowcoin_balance(uid),
         })
 
     return jsonify({"status": "ok"})

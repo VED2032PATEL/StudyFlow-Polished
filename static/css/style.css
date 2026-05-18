@@ -5184,6 +5184,145 @@ select.form-input,
   font-weight:800;
 }
 
+.flowcoin-badge {
+  background:linear-gradient(135deg,#f59e0b,#facc15);
+  color:#301a00;
+}
+
+/* FlowCoin redeem */
+.flowcoin-wallet {
+  min-width:190px;
+  border:1px solid rgba(245,158,11,.35);
+  border-radius:12px;
+  background:linear-gradient(135deg,rgba(245,158,11,.14),rgba(250,204,21,.10));
+  color:var(--t1);
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:6px;
+  padding:12px 16px;
+  box-shadow:var(--sh-sm);
+}
+
+.flowcoin-wallet-label {
+  color:var(--t2);
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+}
+
+.flowcoin-wallet strong {
+  font-size:28px;
+  color:#d97706;
+}
+
+.flowcoin-rules {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.flowcoin-rules > div {
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  padding:16px;
+}
+
+.flowcoin-rules strong {
+  color:var(--t1);
+  font-size:14px;
+}
+
+.flowcoin-rules p {
+  color:var(--t2);
+  font-size:13px;
+  margin-top:5px;
+}
+
+.redeem-grid {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:22px;
+}
+
+.redeem-card {
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-height:220px;
+  box-shadow:var(--sh-sm);
+}
+
+.redeem-icon {
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(245,158,11,.14);
+  color:#d97706;
+}
+
+.redeem-main {
+  flex:1;
+}
+
+.redeem-main h2 {
+  color:var(--t1);
+  font-size:16px;
+  margin-bottom:6px;
+}
+
+.redeem-main p {
+  color:var(--t2);
+  font-size:13px;
+  line-height:1.5;
+}
+
+.redeem-footer,
+.coin-ledger-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.coin-cost {
+  color:#d97706;
+  font-weight:900;
+  font-size:13px;
+}
+
+.coin-ledger {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.coin-ledger-row {
+  border:1px solid var(--border-l);
+  border-radius:10px;
+  padding:10px 12px;
+  color:var(--t1);
+  font-size:13px;
+}
+
+.coin-plus {
+  color:var(--emerald);
+}
+
+.coin-minus {
+  color:var(--rose);
+}
+
 .notifications-layout {
   display:grid;
   grid-template-columns:minmax(0,1fr) 280px;
@@ -5380,5 +5519,14 @@ select.form-input,
 
   .notifications-layout {
     grid-template-columns:1fr;
+  }
+
+  .flowcoin-rules,
+  .redeem-grid {
+    grid-template-columns:1fr;
+  }
+
+  .flowcoin-wallet {
+    width:100%;
   }
 }

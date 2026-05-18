@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Redeem FlowCoins{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">Redeem</h1>
+    <p class="page-sub">Earn FlowCoins by completing topics and keeping your streak alive</p>
+  </div>
+  <div class="flowcoin-wallet">
+    <span class="flowcoin-wallet-label">Balance</span>
+    <strong>{{ balance }}</strong>
+    <span>FlowCoins</span>
+  </div>
+</div>
+
+<div class="flowcoin-rules anim d1">
+  <div>
+    <strong>How earning works</strong>
+    <p>Topic completion gives 10 base coins, plus difficulty and estimated-hour bonuses.</p>
+  </div>
+  <div>
+    <strong>Streak boost</strong>
+    <p>Every 7-day streak milestone adds a bonus starting at 75 FlowCoins.</p>
+  </div>
+</div>
+
+<div class="redeem-grid anim d2">
+  {% for reward in rewards %}
+  <div class="redeem-card">
+    <div class="redeem-icon" data-lucide="{{ reward.icon }}"></div>
+    <div class="redeem-main">
+      <h2>{{ reward.title }}</h2>
+      <p>{{ reward.description }}</p>
+    </div>
+    <div class="redeem-footer">
+      <span class="coin-cost">{{ reward.cost }} FC</span>
+      <form method="POST" action="{{ url_for('redeem_reward', reward_id=reward.id) }}">
+        <button type="submit" class="btn btn-primary btn-sm" {% if balance < reward.cost %}disabled{% endif %}>
+          Redeem
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="two-col redeem-history">
+  <div class="card anim d3">
+    <div class="card-header">
+      <h2 class="card-title">Recent FlowCoins</h2>
+    </div>
+    {% if activity %}
+      <div class="coin-ledger">
+        {% for item in activity %}
+        <div class="coin-ledger-row">
+          <span>{{ item.reason }}</span>
+          <strong class="{% if item.amount > 0 %}coin-plus{% else %}coin-minus{% endif %}">
+            {% if item.amount > 0 %}+{% endif %}{{ item.amount }}
+          </strong>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state compact-empty"><p>No FlowCoin activity yet.</p></div>
+    {% endif %}
+  </div>
+
+  <div class="card anim d4">
+    <div class="card-header">
+      <h2 class="card-title">Claimed Rewards</h2>
+    </div>
+    {% if redemptions %}
+      <div class="coin-ledger">
+        {% for item in redemptions %}
+        <div class="coin-ledger-row">
+          <span>{{ item.title }}</span>
+          <strong>{{ item.cost }} FC</strong>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state compact-empty"><p>No rewards claimed yet.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

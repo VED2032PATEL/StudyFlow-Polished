@@ -1207,6 +1207,16 @@ window.toggleTopic = async function(topicId) {
 
     // If just completed → launch quiz
     if (nowDone && data.review_scheduled) {
+      const earned = Number(data.flowcoins || 0);
+      const streakEarned = Number(data.streak_bonus?.earned || 0);
+      if (earned || streakEarned) {
+        const total = earned + streakEarned;
+        const streakText = streakEarned ? ` including ${streakEarned} streak bonus` : '';
+        showToast(`+${total} FlowCoins earned${streakText}!`, 'success');
+        document.querySelectorAll('.flowcoin-badge').forEach(badge => {
+          if (data.balance !== undefined) badge.textContent = data.balance;
+        });
+      }
       setTimeout(() => launchQuiz(topicId), 400);
     }
   }
