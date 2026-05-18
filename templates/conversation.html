@@ -24,7 +24,7 @@
     <label class="chat-expire-toggle" title="When on, messages in this chat are deleted after 24 hours.">
       <input type="checkbox" id="disappearingToggle" {% if disappearing.enabled %}checked{% endif %}/>
       <span class="chat-expire-switch"></span>
-      <span id="disappearingLabel">24h auto-delete {% if disappearing.enabled %}on{% else %}off{% endif %}</span>
+      <span id="disappearingLabel">Gumshuda {% if disappearing.enabled %}on{% else %}off{% endif %}</span>
     </label>
   </div>
 
@@ -279,7 +279,7 @@ document.addEventListener('click', event => {
 });
 
 function updateDisappearingLabel() {
-  disappearingLabel.textContent = `24h auto-delete ${disappearingToggle.checked ? 'on' : 'off'}`;
+  disappearingLabel.textContent = `Gumshuda ${disappearingToggle.checked ? 'on' : 'off'}`;
 }
 
 disappearingToggle.addEventListener('change', async () => {
