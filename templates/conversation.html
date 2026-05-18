@@ -21,11 +21,21 @@
         </div>
       </div>
     </div>
-    <label class="chat-expire-toggle" title="When on, messages in this chat are deleted after 24 hours.">
-      <input type="checkbox" id="disappearingToggle" {% if disappearing.enabled %}checked{% endif %}/>
-      <span class="chat-expire-switch"></span>
-      <span id="disappearingLabel">Gumshuda {% if disappearing.enabled %}on{% else %}off{% endif %}</span>
-    </label>
+    <div class="chat-header-actions">
+      <button type="button" class="chat-call-btn" id="voiceCallBtn" title="Start voice call">
+        <i data-lucide="phone" width="16" height="16"></i>
+        <span>Call</span>
+      </button>
+      <button type="button" class="chat-call-btn" id="videoCallBtn" title="Start video call">
+        <i data-lucide="video" width="16" height="16"></i>
+        <span>Video</span>
+      </button>
+      <label class="chat-expire-toggle" title="When on, messages in this chat are deleted after 24 hours.">
+        <input type="checkbox" id="disappearingToggle" {% if disappearing.enabled %}checked{% endif %}/>
+        <span class="chat-expire-switch"></span>
+        <span id="disappearingLabel">Gumshuda {% if disappearing.enabled %}on{% else %}off{% endif %}</span>
+      </label>
+    </div>
   </div>
 
   <div class="chat-messages-list" id="chatMessages"
@@ -105,6 +115,8 @@ const emojiToggle = document.getElementById('emojiToggle');
 const emojiPicker = document.getElementById('emojiPicker');
 const disappearingToggle = document.getElementById('disappearingToggle');
 const disappearingLabel = document.getElementById('disappearingLabel');
+const voiceCallBtn = document.getElementById('voiceCallBtn');
+const videoCallBtn = document.getElementById('videoCallBtn');
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 let lastRendered = '';
 let messageCache = new Map();
@@ -126,6 +138,13 @@ function renderReactions(reactions) {
       `).join('')}
     </div>
   `;
+}
+
+function formatMessageBody(value) {
+  return escapeHtml(value).replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
 }
 
 function renderMessages(messages) {
@@ -153,7 +172,7 @@ function renderMessages(messages) {
         ` : ''}
       </div>
       <div class="chat-bubble">
-        <div class="chat-body">${escapeHtml(msg.body)}</div>
+        <div class="chat-body">${formatMessageBody(msg.body)}</div>
         <div class="chat-time">
           ${escapeHtml((msg.created_at || '').slice(5, 16))}${msg.edited_at ? ' · edited' : ''}
         </div>
@@ -213,6 +232,35 @@ chatCompose.addEventListener('submit', async (event) => {
     chatBody.focus();
   }
 });
+
+function buildCallUrl(kind) {
+  const first = Math.min({{ current_user.id }}, {{ other.id }});
+  const second = Math.max({{ current_user.id }}, {{ other.id }});
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const room = `StudyFlow-${first}-${second}-${Date.now()}-${suffix}`;
+  const url = new URL(`https://meet.jit.si/${room}`);
+  url.hash = kind === 'voice'
+    ? 'config.startWithVideoMuted=true&config.prejoinPageEnabled=true'
+    : 'config.prejoinPageEnabled=true';
+  return url.toString();
+}
+
+async function startCall(kind) {
+  const callUrl = buildCallUrl(kind);
+  window.open(callUrl, '_blank', 'noopener');
+  const label = kind === 'voice' ? 'Voice call' : 'Video call';
+  try {
+    const res = await fetch(chatMessages.dataset.sendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: `${label} invite: ${callUrl}` })
+    });
+    if (res.ok) await refreshMessages();
+  } catch (_) {}
+}
+
+voiceCallBtn.addEventListener('click', () => startCall('voice'));
+videoCallBtn.addEventListener('click', () => startCall('video'));
 
 chatBody.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) {
