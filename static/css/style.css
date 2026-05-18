@@ -4881,6 +4881,15 @@ select.form-input,
   gap:8px;
 }
 
+.chat-time-divider {
+  align-self:center;
+  margin:8px 0;
+  color:var(--t2);
+  font-size:12px;
+  font-weight:650;
+  text-align:center;
+}
+
 .chat-mine {
   justify-content:flex-end;
 }
@@ -5012,6 +5021,16 @@ select.form-input,
 .message-more-menu {
   min-width:132px;
   padding:7px;
+}
+
+.message-menu-time {
+  padding:7px 10px 9px;
+  margin:0 -7px 6px;
+  border-bottom:1px solid var(--border-l);
+  color:var(--t2);
+  font-size:12px;
+  font-weight:750;
+  white-space:nowrap;
 }
 
 .message-more-menu button {

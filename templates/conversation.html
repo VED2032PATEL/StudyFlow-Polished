@@ -42,6 +42,9 @@
        data-disappearing-url="{{ url_for('api_set_disappearing_mode', user_id=other.id) }}">
     {% if thread %}
       {% for msg in thread %}
+      {% if msg.show_time_divider %}
+      <div class="chat-time-divider">{{ msg.time_label }}</div>
+      {% endif %}
       <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}" data-message-id="{{ msg.id }}">
         {% if msg.sender_id != current_user.id %}
         <span class="chat-row-avatar">
@@ -54,20 +57,19 @@
         {% endif %}
         <div class="message-hover-tools">
           <button type="button" class="message-tool-btn" data-action="react-menu" data-id="{{ msg.id }}" aria-label="React">☺</button>
-          {% if msg.sender_id == current_user.id %}
           <button type="button" class="message-tool-btn" data-action="more-menu" data-id="{{ msg.id }}" aria-label="More options">...</button>
-          {% endif %}
           <div class="message-reaction-menu" data-menu="react" hidden>
             {% for emoji in ['❤️','😂','😮','😢','🔥','👍'] %}
               <button type="button" data-action="react" data-id="{{ msg.id }}" data-emoji="{{ emoji }}">{{ emoji }}</button>
             {% endfor %}
           </div>
-          {% if msg.sender_id == current_user.id %}
           <div class="message-more-menu" data-menu="more" hidden>
+            <div class="message-menu-time">{{ msg.time_label }}{% if msg.edited_at %} · edited{% endif %}</div>
+            {% if msg.sender_id == current_user.id %}
             <button type="button" data-action="edit" data-id="{{ msg.id }}">Edit</button>
             <button type="button" data-action="delete" data-id="{{ msg.id }}" class="danger">Unsend</button>
+            {% endif %}
           </div>
-          {% endif %}
         </div>
         <div class="chat-bubble">
           <div class="chat-body">{{ msg.body }}</div>
@@ -92,9 +94,6 @@
             {% endfor %}
           </div>
           {% endif %}
-          <div class="chat-time">
-            {{ msg.created_at[5:16] }}{% if msg.edited_at %} · edited{% endif %}
-          </div>
           {% if msg.sender_id == current_user.id %}
           <div class="chat-actions">
             <button type="button" data-action="edit" data-id="{{ msg.id }}">Edit</button>
@@ -248,6 +247,30 @@ function renderAttachment(msg) {
   `;
 }
 
+function formatMessageTimestamp(value) {
+  if (!value) return '';
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T') + 'Z';
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function shouldShowTimeDivider(message, previous) {
+  if (!previous) return true;
+  const current = new Date((message.created_at || '').replace(' ', 'T') + 'Z').getTime();
+  const prior = new Date((previous.created_at || '').replace(' ', 'T') + 'Z').getTime();
+  if (Number.isNaN(current) || Number.isNaN(prior)) {
+    return (message.created_at || '').slice(0, 13) !== (previous.created_at || '').slice(0, 13);
+  }
+  return current - prior >= 3 * 60 * 60 * 1000;
+}
+
 function renderMessages(messages) {
   messageCache = new Map(messages.map(msg => [String(msg.id), msg]));
   const signature = messages.map(m => `${m.id}:${m.edited_at || ''}:${m.body}:${m.attachment_data_url || ''}:${JSON.stringify(m.reactions || [])}`).join('|');
@@ -257,28 +280,27 @@ function renderMessages(messages) {
     chatMessages.innerHTML = '<div class="empty-state compact-empty"><p>No messages yet. Send the first one.</p></div>';
     return;
   }
-  chatMessages.innerHTML = messages.map(msg => `
+  chatMessages.innerHTML = messages.map((msg, index) => `
+    ${shouldShowTimeDivider(msg, messages[index - 1]) ? `<div class="chat-time-divider">${escapeHtml(formatMessageTimestamp(msg.created_at))}</div>` : ''}
     <div class="chat-bubble-row ${msg.is_mine ? 'chat-mine' : 'chat-theirs'}" data-message-id="${msg.id}">
       ${msg.is_mine ? '' : renderIncomingAvatar()}
       <div class="message-hover-tools">
         <button type="button" class="message-tool-btn" data-action="react-menu" data-id="${msg.id}" aria-label="React">☺</button>
-        ${msg.can_edit ? `<button type="button" class="message-tool-btn" data-action="more-menu" data-id="${msg.id}" aria-label="More options">...</button>` : ''}
+        <button type="button" class="message-tool-btn" data-action="more-menu" data-id="${msg.id}" aria-label="More options">...</button>
         <div class="message-reaction-menu" data-menu="react" hidden>
           ${reactionOptions.map(emoji => `<button type="button" data-action="react" data-id="${msg.id}" data-emoji="${emoji}">${emoji}</button>`).join('')}
         </div>
-        ${msg.can_edit ? `
-          <div class="message-more-menu" data-menu="more" hidden>
+        <div class="message-more-menu" data-menu="more" hidden>
+          <div class="message-menu-time">${escapeHtml(formatMessageTimestamp(msg.created_at))}${msg.edited_at ? ' · edited' : ''}</div>
+          ${msg.can_edit ? `
             <button type="button" data-action="edit" data-id="${msg.id}">Edit</button>
             <button type="button" data-action="delete" data-id="${msg.id}" class="danger">Unsend</button>
-          </div>
-        ` : ''}
+          ` : ''}
+        </div>
       </div>
       <div class="chat-bubble">
         <div class="chat-body">${formatMessageBody(msg.body)}</div>
         ${renderAttachment(msg)}
-        <div class="chat-time">
-          ${escapeHtml((msg.created_at || '').slice(5, 16))}${msg.edited_at ? ' · edited' : ''}
-        </div>
         ${renderReactions(msg.reactions || [])}
         ${msg.can_edit ? `
           <div class="chat-actions">

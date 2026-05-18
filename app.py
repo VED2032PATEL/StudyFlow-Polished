@@ -3,7 +3,7 @@ from flask import (Flask, render_template, request, jsonify,
 from flask_login import (LoginManager, UserMixin, login_user,
                          logout_user, login_required, current_user)
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from dotenv import load_dotenv
 from urllib.parse import urlsplit
 import database as db
@@ -125,6 +125,30 @@ def _filter_cse_videos(query="", subject=""):
             "watch_url": f"https://www.youtube.com/watch?v={video['youtube_id']}",
         })
     return videos
+
+
+def _format_chat_timestamp(value):
+    if not value:
+        return ""
+    try:
+        stamp = datetime.strptime(value[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return value
+    return f"{stamp.strftime('%b')} {stamp.day}, {stamp.year}, {stamp.strftime('%I:%M %p').lstrip('0')}"
+
+
+def _prepare_chat_thread_display(thread):
+    previous = None
+    for msg in thread:
+        try:
+            current = datetime.strptime((msg.get("created_at") or "")[:19], "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            current = None
+        msg["time_label"] = _format_chat_timestamp(msg.get("created_at", ""))
+        msg["show_time_divider"] = not previous or not current or (current - previous).total_seconds() >= 3 * 60 * 60
+        if current:
+            previous = current
+    return thread
 
 # ── Flask-Login setup ─────────────────────────────────────────────────────────
 
@@ -352,7 +376,7 @@ def _conversation_response(other):
             db.send_message(current_user.id, other["id"], body)
         return redirect(url_for("conversation_by_user_id", user_id=other["id"]))
 
-    thread = db.get_message_thread(current_user.id, other["id"])
+    thread = _prepare_chat_thread_display(db.get_message_thread(current_user.id, other["id"]))
     db.mark_thread_read(current_user.id, other["id"])
     disappearing = db.get_disappearing_mode(current_user.id, other["id"])
     return render_template(
