@@ -5350,14 +5350,6 @@ select.form-input,
   background:#facc15;
 }
 
-.coupon-preview {
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  margin-top:10px;
-}
-
-.coupon-preview span,
 .coupon-code {
   display:inline-flex;
   width:max-content;

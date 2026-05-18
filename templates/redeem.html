@@ -40,13 +40,6 @@
     <div class="redeem-main">
       <h2>{{ reward.title }}</h2>
       <p>{{ reward.description }}</p>
-      {% if reward.coupon_codes %}
-        <div class="coupon-preview">
-          {% for code in reward.coupon_codes %}
-            <span>{{ code }}</span>
-          {% endfor %}
-        </div>
-      {% endif %}
     </div>
     <div class="redeem-footer">
       <span class="coin-cost">{{ reward.cost }} FC</span>
