@@ -2092,7 +2092,8 @@ input,textarea{cursor:text}
   align-items: center;
   gap: 10px;
 }
-.logout-btn {
+.logout-btn,
+.settings-btn {
   width: 30px;
   height: 30px;
   border-radius: 8px;
@@ -2107,9 +2108,20 @@ input,textarea{cursor:text}
   transition: background .15s, transform .15s;
   flex-shrink: 0;
 }
-.logout-btn:hover {
+.settings-btn {
+  background: rgba(99,102,241,.14);
+  color: var(--p1);
+  border-color: rgba(99,102,241,.22);
+}
+.logout-btn:hover,
+.settings-btn:hover,
+.settings-btn.active {
   background: rgba(244,63,94,.22);
   transform: scale(1.08);
+}
+.settings-btn:hover,
+.settings-btn.active {
+  background: rgba(99,102,241,.24);
 }
 
 /* ── Dark mode auth overrides ─────────────────────────── */
@@ -3712,7 +3724,8 @@ a:hover { text-decoration:none; }
   border:1px solid rgba(255,255,255,.09);
 }
 
-.logout-btn {
+.logout-btn,
+.settings-btn {
   border-radius:7px;
 }
 
@@ -4259,6 +4272,7 @@ select.form-input,
 .btn .lucide,
 .streak-cta .lucide,
 .logout-btn .lucide,
+.settings-btn .lucide,
 .user-avatar .lucide,
 .empty-icon .lucide,
 .empty-full-icon .lucide,
@@ -4299,6 +4313,7 @@ select.form-input,
 .empty-full-icon,
 .sf-search-icon,
 .logout-btn,
+.settings-btn,
 .modal-close,
 .flash-close,
 .sf-clear-btn {
