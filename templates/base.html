@@ -61,6 +61,13 @@
       </a>
     </li>
     <li>
+      <a href="{{ url_for('video_library') }}"
+         class="nav-item {% if request.endpoint == 'video_library' %}active{% endif %}">
+        <span class="nav-icon">▶️</span>
+        <span>Videos</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ url_for('people') }}"
          class="nav-item {% if request.endpoint in ['people', 'user_profile', 'user_profile_by_id'] %}active{% endif %}">
         <span class="nav-icon">👥</span>
@@ -234,6 +241,7 @@
       Reviews: 'repeat-2',
       Analytics: 'chart-no-axes-combined',
       Practice: 'file-pen-line',
+      Videos: 'youtube',
       People: 'users',
       Messages: 'message-circle',
       Notifications: 'bell',
@@ -266,6 +274,8 @@
       ['Reviews', 'repeat-2'],
       ['Analytics', 'chart-no-axes-combined'],
       ['Practice', 'file-pen-line'],
+      ['CSE Videos', 'youtube'],
+      ['Videos', 'youtube'],
       ['People', 'users'],
       ['Messages', 'message-circle'],
       ['Inbox', 'inbox'],
@@ -300,7 +310,8 @@
       ['View Topics', 'arrow-right'],
       ['Find People', 'users'],
       ['Message', 'message-circle'],
-      ['Send', 'send']
+      ['Send', 'send'],
+      ['Search', 'search']
     ];
     document.querySelectorAll('.btn, .streak-cta').forEach(btn => {
       if (btn.dataset.sfIconified === '1') return;

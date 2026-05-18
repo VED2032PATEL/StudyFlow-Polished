@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 import database as db
 import scheduler as sched
 import spaced_rep as sr
+from cse_videos import CSE_VIDEO_LIBRARY
 import json as json_lib
 import os
 import logging
@@ -99,6 +100,31 @@ def _coupon_for_redemption(user_id, reward):
         return ""
     claimed = db.count_reward_redemptions(user_id, reward["id"])
     return codes[claimed % len(codes)]
+
+
+def _filter_cse_videos(query="", subject=""):
+    query = (query or "").strip().lower()
+    subject = (subject or "").strip()
+    videos = []
+    for video in CSE_VIDEO_LIBRARY:
+        if subject and video["subject"] != subject:
+            continue
+        haystack = " ".join([
+            video["title"],
+            video["channel"],
+            video["subject"],
+            video["level"],
+            " ".join(video["topics"]),
+        ]).lower()
+        if query and query not in haystack:
+            continue
+        videos.append({
+            **video,
+            "thumbnail": f"https://img.youtube.com/vi/{video['youtube_id']}/hqdefault.jpg",
+            "embed_url": f"https://www.youtube-nocookie.com/embed/{video['youtube_id']}",
+            "watch_url": f"https://www.youtube.com/watch?v={video['youtube_id']}",
+        })
+    return videos
 
 # ── Flask-Login setup ─────────────────────────────────────────────────────────
 
@@ -560,6 +586,24 @@ def notifications():
         db.mark_notifications_read(current_user.id, follower_keys)
         items = db.get_notifications(current_user.id)
     return render_template("notifications.html", notifications=items)
+
+
+@app.route("/videos")
+@login_required
+def video_library():
+    query = request.args.get("q", "")
+    subject = request.args.get("subject", "")
+    videos = _filter_cse_videos(query, subject)
+    subjects = sorted({video["subject"] for video in CSE_VIDEO_LIBRARY})
+    return render_template(
+        "videos.html",
+        videos=videos,
+        featured=videos[0] if videos else None,
+        query=query,
+        current_subject=subject,
+        subjects=subjects,
+        total_videos=len(CSE_VIDEO_LIBRARY),
+    )
 
 
 @app.route("/redeem")

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}CSE Videos{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">CSE Videos</h1>
+    <p class="page-sub">Search curated full YouTube lectures by subject, topic, or technology</p>
+  </div>
+  <span class="badge badge-primary">{{ videos|length }} found</span>
+</div>
+
+<form class="video-search-panel anim d1" method="GET" action="{{ url_for('video_library') }}">
+  <label class="video-search-box">
+    <span class="sf-search-icon"></span>
+    <input type="search" name="q" value="{{ query }}" placeholder="Search DBMS, paging, React, graphs..." />
+  </label>
+  <select name="subject" class="video-subject-select">
+    <option value="">All subjects</option>
+    {% for subject in subjects %}
+      <option value="{{ subject }}" {% if current_subject == subject %}selected{% endif %}>{{ subject }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-primary">Search</button>
+  {% if query or current_subject %}
+    <a href="{{ url_for('video_library') }}" class="btn btn-outline">Clear</a>
+  {% endif %}
+</form>
+
+{% if featured %}
+<section class="video-player-shell anim d2">
+  <div class="video-player-frame">
+    <iframe
+      id="videoPlayer"
+      src="{{ featured.embed_url }}"
+      title="{{ featured.title }}"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen></iframe>
+  </div>
+  <div class="video-player-info">
+    <span class="video-kicker">Now playing</span>
+    <h2 id="videoPlayerTitle">{{ featured.title }}</h2>
+    <p id="videoPlayerMeta">{{ featured.subject }} - {{ featured.channel }} - {{ featured.duration }}</p>
+    <div class="video-topic-row" id="videoPlayerTopics">
+      {% for topic in featured.topics[:6] %}
+        <span>{{ topic }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if videos %}
+<div class="video-grid anim d3">
+  {% for video in videos %}
+  <article class="video-card">
+    <button
+      type="button"
+      class="video-thumb-button"
+      data-video-id="{{ video.youtube_id }}"
+      data-title="{{ video.title }}"
+      data-meta="{{ video.subject }} - {{ video.channel }} - {{ video.duration }}"
+      data-topics="{{ video.topics|join('||') }}">
+      <img src="{{ video.thumbnail }}" alt="{{ video.title }} thumbnail" loading="lazy" />
+      <span class="video-play-badge" data-lucide="play"></span>
+      <span class="video-duration">{{ video.duration }}</span>
+    </button>
+    <div class="video-card-body">
+      <div class="video-card-meta">
+        <span>{{ video.subject }}</span>
+        <span>{{ video.level }}</span>
+      </div>
+      <h2>{{ video.title }}</h2>
+      <p>{{ video.channel }}</p>
+      <div class="video-topic-row">
+        {% for topic in video.topics[:4] %}
+          <span>{{ topic }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-full compact-empty anim d2">
+  <span class="empty-full-icon"></span>
+  <h2>No videos found</h2>
+  <p>Try a broader subject like DBMS, OS, DSA, networks, Python, or web development.</p>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const player = document.getElementById('videoPlayer');
+  const title = document.getElementById('videoPlayerTitle');
+  const meta = document.getElementById('videoPlayerMeta');
+  const topics = document.getElementById('videoPlayerTopics');
+  if (!player || !title || !meta || !topics) return;
+
+  document.querySelectorAll('.video-thumb-button').forEach(button => {
+    button.addEventListener('click', () => {
+      const videoId = button.dataset.videoId;
+      player.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`;
+      title.textContent = button.dataset.title || '';
+      meta.textContent = button.dataset.meta || '';
+      topics.innerHTML = (button.dataset.topics || '')
+        .split('||')
+        .filter(Boolean)
+        .slice(0, 6)
+        .map(topic => `<span>${topic}</span>`)
+        .join('');
+      document.querySelector('.video-player-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+});
+</script>
+
+{% endblock %}

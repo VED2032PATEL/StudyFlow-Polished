@@ -5532,6 +5532,214 @@ select.form-input,
   font-weight:650;
 }
 
+/* CSE video library */
+.video-search-panel {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 220px auto auto;
+  gap:10px;
+  align-items:center;
+  margin-bottom:18px;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  box-shadow:var(--sh-sm);
+}
+
+.video-search-box {
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border:1px solid var(--border-l);
+  border-radius:10px;
+  background:var(--surface-2);
+  padding:0 12px;
+}
+
+.video-search-box input,
+.video-subject-select {
+  width:100%;
+  min-width:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--t1);
+  font:inherit;
+}
+
+.video-subject-select {
+  min-height:44px;
+  border:1px solid var(--border-l);
+  border-radius:10px;
+  background:var(--surface-2);
+  padding:0 12px;
+}
+
+.video-player-shell {
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr);
+  gap:18px;
+  align-items:stretch;
+  margin-bottom:20px;
+}
+
+.video-player-frame {
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  overflow:hidden;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:#050816;
+  box-shadow:var(--sh-md);
+}
+
+.video-player-frame iframe {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+}
+
+.video-player-info {
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  box-shadow:var(--sh-sm);
+}
+
+.video-kicker,
+.video-card-meta {
+  color:var(--p1);
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.video-player-info h2 {
+  color:var(--t1);
+  font-size:22px;
+  line-height:1.2;
+  margin:8px 0;
+}
+
+.video-player-info p,
+.video-card-body p {
+  color:var(--t2);
+  font-size:13px;
+}
+
+.video-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:14px;
+}
+
+.video-card {
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  box-shadow:var(--sh-sm);
+}
+
+.video-thumb-button {
+  position:relative;
+  display:block;
+  width:100%;
+  aspect-ratio:16/9;
+  border:0;
+  padding:0;
+  cursor:pointer;
+  overflow:hidden;
+  background:#050816;
+}
+
+.video-thumb-button img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  transition:transform .2s ease, opacity .2s ease;
+}
+
+.video-thumb-button:hover img {
+  transform:scale(1.04);
+  opacity:.78;
+}
+
+.video-play-badge {
+  position:absolute;
+  inset:50% auto auto 50%;
+  transform:translate(-50%,-50%);
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  background:rgba(99,91,255,.92);
+  box-shadow:0 16px 30px rgba(0,0,0,.28);
+}
+
+.video-duration {
+  position:absolute;
+  right:10px;
+  bottom:10px;
+  border-radius:7px;
+  background:rgba(5,8,22,.82);
+  color:#fff;
+  padding:4px 7px;
+  font-size:11px;
+  font-weight:800;
+}
+
+.video-card-body {
+  padding:14px;
+}
+
+.video-card-meta {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.video-card-body h2 {
+  color:var(--t1);
+  font-size:15px;
+  line-height:1.35;
+  margin-bottom:5px;
+}
+
+.video-topic-row {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:12px;
+}
+
+.video-topic-row span {
+  max-width:100%;
+  border-radius:999px;
+  background:var(--p-bg);
+  color:var(--p1);
+  border:1px solid rgba(99,102,241,.14);
+  padding:5px 8px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.2;
+}
+
 @media(max-width:800px) {
   .people-search-form,
   .profile-hero,
@@ -5577,6 +5785,16 @@ select.form-input,
 
   .call-modal {
     padding:10px;
+  }
+
+  .video-search-panel,
+  .video-player-shell {
+    grid-template-columns:1fr;
+  }
+
+  .video-search-panel .btn {
+    width:100%;
+    justify-content:center;
   }
 
   .call-modal-panel {
