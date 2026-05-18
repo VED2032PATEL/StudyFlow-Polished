@@ -4692,6 +4692,133 @@ select.form-input,
   resize:vertical;
 }
 
+/* Notifications */
+.nav-badge {
+  margin-left:auto;
+  min-width:20px;
+  height:20px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 6px;
+  background:var(--rose);
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+}
+
+.notifications-layout {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 280px;
+  gap:18px;
+  align-items:start;
+}
+
+.notification-list {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.notification-item {
+  display:flex;
+  gap:12px;
+  padding:14px;
+  border:1px solid var(--border-l);
+  border-radius:10px;
+  background:var(--surface);
+  color:var(--t1);
+}
+
+.notification-item:hover {
+  background:var(--surface-2);
+  border-color:var(--border);
+}
+
+.notification-icon,
+.notification-summary-icon {
+  width:38px;
+  height:38px;
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  color:var(--p1);
+  background:var(--p-bg);
+}
+
+.notification-deadline .notification-icon,
+.notification-schedule .notification-icon {
+  color:#b45309;
+  background:var(--amber-bg);
+}
+
+.notification-message .notification-icon {
+  color:var(--p1);
+  background:var(--p-bg);
+}
+
+.notification-review .notification-icon {
+  color:#047857;
+  background:var(--emerald-bg);
+}
+
+.notification-follower .notification-icon {
+  color:#0369a1;
+  background:var(--sky-bg);
+}
+
+.notification-main {
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  gap:2px;
+}
+
+.notification-title {
+  font-size:14px;
+  font-weight:750;
+  color:var(--t1);
+}
+
+.notification-body,
+.notification-meta {
+  font-size:12.5px;
+  color:var(--t2);
+}
+
+.notification-summary {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.notification-summary-card {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:var(--sh-sm);
+}
+
+.notification-summary-card strong {
+  display:block;
+  font-size:20px;
+  line-height:1;
+  color:var(--t1);
+}
+
+.notification-summary-card span {
+  color:var(--t2);
+  font-size:12px;
+  font-weight:650;
+}
+
 @media(max-width:800px) {
   .people-search-form,
   .profile-hero,
@@ -4719,5 +4846,9 @@ select.form-input,
 
   .chat-bubble {
     max-width:92%;
+  }
+
+  .notifications-layout {
+    grid-template-columns:1fr;
   }
 }

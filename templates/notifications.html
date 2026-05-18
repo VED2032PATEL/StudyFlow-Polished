@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">Notifications</h1>
+    <p class="page-sub">Messages, deadlines, reviews, followers, and schedule alerts in one place</p>
+  </div>
+  <span class="badge badge-primary">{{ notifications|length }} active</span>
+</div>
+
+<div class="notifications-layout">
+  <div class="card anim d1">
+    <div class="card-header">
+      <h2 class="card-title">All Notifications</h2>
+    </div>
+
+    {% if notifications %}
+    <div class="notification-list">
+      {% for item in notifications %}
+      <a href="{{ item.href }}" class="notification-item notification-{{ item.type }}">
+        <span class="notification-icon" data-lucide="{{ item.icon }}"></span>
+        <span class="notification-main">
+          <span class="notification-title">{{ item.title }}</span>
+          <span class="notification-body">{{ item.body }}</span>
+          {% if item.meta %}
+          <span class="notification-meta">{{ item.meta }}</span>
+          {% endif %}
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-full compact-empty">
+      <span class="empty-full-icon">🔔</span>
+      <h2>You're all caught up</h2>
+      <p>No unread messages, urgent deadlines, due reviews, or schedule alerts right now.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="notification-summary anim d2">
+    <div class="notification-summary-card">
+      <span class="notification-summary-icon" data-lucide="message-circle"></span>
+      <div>
+        <strong>{{ notifications|selectattr('type', 'equalto', 'message')|list|length }}</strong>
+        <span>Message alerts</span>
+      </div>
+    </div>
+    <div class="notification-summary-card">
+      <span class="notification-summary-icon" data-lucide="clock"></span>
+      <div>
+        <strong>{{ notifications|selectattr('type', 'equalto', 'deadline')|list|length }}</strong>
+        <span>Deadline alerts</span>
+      </div>
+    </div>
+    <div class="notification-summary-card">
+      <span class="notification-summary-icon" data-lucide="repeat-2"></span>
+      <div>
+        <strong>{{ notifications|selectattr('type', 'equalto', 'review')|list|length }}</strong>
+        <span>Review alerts</span>
+      </div>
+    </div>
+    <div class="notification-summary-card">
+      <span class="notification-summary-icon" data-lucide="user-plus"></span>
+      <div>
+        <strong>{{ notifications|selectattr('type', 'equalto', 'follower')|list|length }}</strong>
+        <span>Follower alerts</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

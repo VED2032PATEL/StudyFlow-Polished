@@ -466,6 +466,80 @@ def mark_thread_read(user_id, other_user_id):
         conn.close()
 
 
+def get_notifications(user_id):
+    today = datetime.date.today()
+    items = []
+
+    for convo in get_conversations(user_id):
+        unread = convo.get("unread", 0)
+        if unread:
+            user = convo["user"]
+            last = convo.get("last") or {}
+            items.append({
+                "type": "message",
+                "priority": 1,
+                "title": f"{unread} unread message{'s' if unread != 1 else ''}",
+                "body": f"Latest from {user['username']}: {last.get('body', '')[:90]}",
+                "meta": last.get("created_at", ""),
+                "href": f"/messages/{user['username']}",
+                "icon": "message-circle",
+            })
+
+    for deadline in get_dashboard_stats(user_id).get("upcoming_deadlines", []):
+        deadline_date = datetime.date.fromisoformat(deadline["deadline"])
+        days_left = (deadline_date - today).days
+        when = "today" if days_left == 0 else f"in {days_left} day{'s' if days_left != 1 else ''}"
+        items.append({
+            "type": "deadline",
+            "priority": 2 if days_left <= 3 else 4,
+            "title": f"{deadline['topic_name']} deadline {when}",
+            "body": f"{deadline['subject_name']} deadline is on {deadline['deadline']}.",
+            "meta": deadline["deadline"],
+            "href": "/",
+            "icon": "clock",
+        })
+
+    for review in get_due_reviews(user_id):
+        items.append({
+            "type": "review",
+            "priority": 3,
+            "title": f"Review due: {review['topic_name']}",
+            "body": f"{review['subject_name']} is ready for spaced repetition review.",
+            "meta": review["next_review"],
+            "href": "/reviews",
+            "icon": "repeat-2",
+        })
+
+    for follower in get_followers(user_id)[:5]:
+        items.append({
+            "type": "follower",
+            "priority": 5,
+            "title": f"{follower['username']} followed you",
+            "body": "Open their profile to see public study progress.",
+            "meta": follower.get("followed_at", ""),
+            "href": f"/users/{follower['username']}",
+            "icon": "user-plus",
+        })
+
+    if has_stale_schedule(user_id):
+        items.append({
+            "type": "schedule",
+            "priority": 2,
+            "title": "Schedule needs attention",
+            "body": "Some unfinished sessions are in the past. Open Schedule to regenerate.",
+            "meta": today.isoformat(),
+            "href": "/schedule",
+            "icon": "calendar-alert",
+        })
+
+    items.sort(key=lambda item: (item["priority"], item.get("meta", "")))
+    return items
+
+
+def get_notification_count(user_id):
+    return len(get_notifications(user_id))
+
+
 def get_all_subjects(user_id):
     conn = get_db()
     try:

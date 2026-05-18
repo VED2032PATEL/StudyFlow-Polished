@@ -69,6 +69,16 @@ def load_user(user_id):
     return User(row) if row else None
 
 
+@app.context_processor
+def inject_notification_count():
+    if current_user.is_authenticated:
+        try:
+            return {"notification_count": db.get_notification_count(current_user.id)}
+        except Exception:
+            return {"notification_count": 0}
+    return {"notification_count": 0}
+
+
 # Initialise DB on first run
 with app.app_context():
     try:
@@ -253,6 +263,12 @@ def conversation(username):
     thread = db.get_message_thread(current_user.id, other["id"])
     db.mark_thread_read(current_user.id, other["id"])
     return render_template("conversation.html", other=other, thread=thread)
+
+@app.route("/notifications")
+@login_required
+def notifications():
+    items = db.get_notifications(current_user.id)
+    return render_template("notifications.html", notifications=items)
 
 @app.route("/subjects")
 @login_required
