@@ -305,6 +305,7 @@ def _message_thread_response(other):
                 "body": msg["body"],
                 "created_at": msg["created_at"],
                 "edited_at": msg.get("edited_at", ""),
+                "reactions": msg.get("reactions", []),
                 "is_mine": msg["sender_id"] == current_user.id,
                 "can_edit": msg["sender_id"] == current_user.id,
             }
@@ -368,6 +369,18 @@ def api_delete_message(message_id):
     if not db.delete_message(message_id, current_user.id):
         return jsonify({"error": "not found"}), 404
     return jsonify({"status": "deleted"})
+
+
+@app.route("/api/messages/<int:message_id>/reaction", methods=["POST"])
+@login_required
+def api_react_to_message(message_id):
+    data = request.get_json(silent=True) or {}
+    emoji = (data.get("emoji") or "").strip()
+    if not emoji:
+        return jsonify({"error": "Emoji is required."}), 400
+    if not db.react_to_message(message_id, current_user.id, emoji):
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"status": "reacted"})
 
 
 @app.route("/api/messages/user/<int:user_id>/disappearing", methods=["POST"])

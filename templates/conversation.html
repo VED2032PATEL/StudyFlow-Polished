@@ -34,16 +34,40 @@
        data-disappearing-url="{{ url_for('api_set_disappearing_mode', user_id=other.id) }}">
     {% if thread %}
       {% for msg in thread %}
-      <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}">
+      <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}" data-message-id="{{ msg.id }}">
+        <div class="message-hover-tools">
+          <button type="button" class="message-tool-btn" data-action="react-menu" data-id="{{ msg.id }}" aria-label="React">☺</button>
+          {% if msg.sender_id == current_user.id %}
+          <button type="button" class="message-tool-btn" data-action="more-menu" data-id="{{ msg.id }}" aria-label="More options">...</button>
+          {% endif %}
+          <div class="message-reaction-menu" data-menu="react" hidden>
+            {% for emoji in ['❤️','😂','😮','😢','🔥','👍'] %}
+              <button type="button" data-action="react" data-id="{{ msg.id }}" data-emoji="{{ emoji }}">{{ emoji }}</button>
+            {% endfor %}
+          </div>
+          {% if msg.sender_id == current_user.id %}
+          <div class="message-more-menu" data-menu="more" hidden>
+            <button type="button" data-action="edit" data-id="{{ msg.id }}">Edit</button>
+            <button type="button" data-action="delete" data-id="{{ msg.id }}" class="danger">Unsend</button>
+          </div>
+          {% endif %}
+        </div>
         <div class="chat-bubble">
           <div class="chat-body">{{ msg.body }}</div>
+          {% if msg.reactions %}
+          <div class="chat-reactions">
+            {% for reaction in msg.reactions %}
+              <span class="chat-reaction {% if reaction.reacted %}mine{% endif %}">{{ reaction.emoji }}{% if reaction.count > 1 %} {{ reaction.count }}{% endif %}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
           <div class="chat-time">
             {{ msg.created_at[5:16] }}{% if msg.edited_at %} · edited{% endif %}
           </div>
           {% if msg.sender_id == current_user.id %}
           <div class="chat-actions">
             <button type="button" data-action="edit" data-id="{{ msg.id }}">Edit</button>
-            <button type="button" data-action="delete" data-id="{{ msg.id }}">Delete</button>
+            <button type="button" data-action="delete" data-id="{{ msg.id }}">Unsend</button>
           </div>
           {% endif %}
         </div>
@@ -81,6 +105,7 @@ const emojiToggle = document.getElementById('emojiToggle');
 const emojiPicker = document.getElementById('emojiPicker');
 const disappearingToggle = document.getElementById('disappearingToggle');
 const disappearingLabel = document.getElementById('disappearingLabel');
+const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 let lastRendered = '';
 let messageCache = new Map();
 
@@ -90,9 +115,22 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+function renderReactions(reactions) {
+  if (!reactions.length) return '';
+  return `
+    <div class="chat-reactions">
+      ${reactions.map(reaction => `
+        <span class="chat-reaction ${reaction.reacted ? 'mine' : ''}">
+          ${escapeHtml(reaction.emoji)}${reaction.count > 1 ? ` ${reaction.count}` : ''}
+        </span>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderMessages(messages) {
   messageCache = new Map(messages.map(msg => [String(msg.id), msg]));
-  const signature = messages.map(m => `${m.id}:${m.edited_at || ''}:${m.body}`).join('|');
+  const signature = messages.map(m => `${m.id}:${m.edited_at || ''}:${m.body}:${JSON.stringify(m.reactions || [])}`).join('|');
   if (signature === lastRendered) return;
   lastRendered = signature;
   if (!messages.length) {
@@ -100,16 +138,30 @@ function renderMessages(messages) {
     return;
   }
   chatMessages.innerHTML = messages.map(msg => `
-    <div class="chat-bubble-row ${msg.is_mine ? 'chat-mine' : 'chat-theirs'}">
+    <div class="chat-bubble-row ${msg.is_mine ? 'chat-mine' : 'chat-theirs'}" data-message-id="${msg.id}">
+      <div class="message-hover-tools">
+        <button type="button" class="message-tool-btn" data-action="react-menu" data-id="${msg.id}" aria-label="React">☺</button>
+        ${msg.can_edit ? `<button type="button" class="message-tool-btn" data-action="more-menu" data-id="${msg.id}" aria-label="More options">...</button>` : ''}
+        <div class="message-reaction-menu" data-menu="react" hidden>
+          ${reactionOptions.map(emoji => `<button type="button" data-action="react" data-id="${msg.id}" data-emoji="${emoji}">${emoji}</button>`).join('')}
+        </div>
+        ${msg.can_edit ? `
+          <div class="message-more-menu" data-menu="more" hidden>
+            <button type="button" data-action="edit" data-id="${msg.id}">Edit</button>
+            <button type="button" data-action="delete" data-id="${msg.id}" class="danger">Unsend</button>
+          </div>
+        ` : ''}
+      </div>
       <div class="chat-bubble">
         <div class="chat-body">${escapeHtml(msg.body)}</div>
         <div class="chat-time">
           ${escapeHtml((msg.created_at || '').slice(5, 16))}${msg.edited_at ? ' · edited' : ''}
         </div>
+        ${renderReactions(msg.reactions || [])}
         ${msg.can_edit ? `
           <div class="chat-actions">
             <button type="button" data-action="edit" data-id="${msg.id}">Edit</button>
-            <button type="button" data-action="delete" data-id="${msg.id}">Delete</button>
+            <button type="button" data-action="delete" data-id="${msg.id}">Unsend</button>
           </div>
         ` : ''}
       </div>
@@ -166,9 +218,35 @@ chatBody.addEventListener('keydown', event => {
 chatMessages.addEventListener('click', async event => {
   const button = event.target.closest('[data-action]');
   if (!button) return;
+  event.stopPropagation();
   const id = button.dataset.id;
+  const row = button.closest('.chat-bubble-row');
+  const tools = button.closest('.message-hover-tools');
+
+  if (button.dataset.action === 'react-menu' || button.dataset.action === 'more-menu') {
+    const menuName = button.dataset.action === 'react-menu' ? 'react' : 'more';
+    document.querySelectorAll('.message-reaction-menu, .message-more-menu').forEach(menu => {
+      if (!tools || menu !== tools.querySelector(`[data-menu="${menuName}"]`)) menu.hidden = true;
+    });
+    const menu = tools.querySelector(`[data-menu="${menuName}"]`);
+    menu.hidden = !menu.hidden;
+    row?.classList.toggle('menu-open', !menu.hidden);
+    return;
+  }
+
   const message = messageCache.get(id);
   if (!message) return;
+
+  if (button.dataset.action === 'react') {
+    const res = await fetch(`/api/messages/${id}/reaction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emoji: button.dataset.emoji })
+    });
+    document.querySelectorAll('.message-reaction-menu').forEach(menu => menu.hidden = true);
+    if (res.ok) await refreshMessages();
+    return;
+  }
 
   if (button.dataset.action === 'edit') {
     const next = prompt('Edit message', message.body);
@@ -184,10 +262,20 @@ chatMessages.addEventListener('click', async event => {
   }
 
   if (button.dataset.action === 'delete') {
-    if (!confirm('Delete this message?')) return;
+    if (!confirm('Unsend this message?')) return;
     const res = await fetch(`/api/messages/${id}`, { method: 'DELETE' });
     if (res.ok) await refreshMessages();
   }
+});
+
+document.addEventListener('click', event => {
+  if (event.target.closest('.message-hover-tools')) return;
+  document.querySelectorAll('.message-reaction-menu, .message-more-menu').forEach(menu => {
+    menu.hidden = true;
+  });
+  document.querySelectorAll('.chat-bubble-row.menu-open').forEach(row => {
+    row.classList.remove('menu-open');
+  });
 });
 
 function updateDisappearingLabel() {

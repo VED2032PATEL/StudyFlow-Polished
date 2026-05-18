@@ -138,6 +138,13 @@ _CREATE = [
         PRIMARY KEY (user_one_id, user_two_id),
         CHECK (user_one_id < user_two_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS message_reactions (
+        message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        emoji TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (message_id, user_id)
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -410,6 +417,28 @@ def _chat_pair(user_id, other_user_id):
     return first, second
 
 
+def _attach_message_reactions(conn, messages, viewer_id):
+    for msg in messages:
+        rows = _rows_to_dicts(conn.execute(
+            """SELECT emoji,COUNT(*) AS count,
+                      SUM(CASE WHEN user_id=? THEN 1 ELSE 0 END) AS reacted
+               FROM message_reactions
+               WHERE message_id=?
+               GROUP BY emoji
+               ORDER BY count DESC, emoji""",
+            [viewer_id, msg["id"]],
+        ))
+        msg["reactions"] = [
+            {
+                "emoji": row["emoji"],
+                "count": row["count"],
+                "reacted": bool(row.get("reacted")),
+            }
+            for row in rows
+        ]
+    return messages
+
+
 def get_disappearing_mode(user_id, other_user_id):
     one, two = _chat_pair(user_id, other_user_id)
     conn = get_db()
@@ -515,6 +544,43 @@ def delete_message(message_id, user_id):
         conn.close()
 
 
+def react_to_message(message_id, user_id, emoji):
+    emoji = (emoji or "").strip()[:16]
+    if not emoji:
+        return False
+    conn = get_db()
+    try:
+        msg = _rows_to_dicts(conn.execute(
+            "SELECT sender_id,receiver_id FROM messages WHERE id=?",
+            [message_id],
+        ))
+        if not msg:
+            return False
+        row = msg[0]
+        if user_id not in (row["sender_id"], row["receiver_id"]):
+            return False
+        existing = _rows_to_dicts(conn.execute(
+            "SELECT emoji FROM message_reactions WHERE message_id=? AND user_id=?",
+            [message_id, user_id],
+        ))
+        if existing and existing[0]["emoji"] == emoji:
+            conn.execute(
+                "DELETE FROM message_reactions WHERE message_id=? AND user_id=?",
+                [message_id, user_id],
+            )
+        else:
+            conn.execute(
+                """INSERT INTO message_reactions (message_id,user_id,emoji)
+                   VALUES (?,?,?)
+                   ON CONFLICT(message_id,user_id) DO UPDATE SET
+                   emoji=excluded.emoji,created_at=datetime('now')""",
+                [message_id, user_id, emoji],
+            )
+        return True
+    finally:
+        conn.close()
+
+
 def get_unread_message_count(user_id):
     conn = get_db()
     try:
@@ -574,12 +640,13 @@ def get_message_thread(user_id, other_user_id, limit=100):
     purge_expired_messages(user_id, other_user_id)
     conn = get_db()
     try:
-        return _rows_to_dicts(conn.execute(
+        messages = _rows_to_dicts(conn.execute(
             """SELECT * FROM messages
                WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)
                ORDER BY created_at DESC,id DESC LIMIT ?""",
             [user_id, other_user_id, other_user_id, user_id, limit],
         ))[::-1]
+        return _attach_message_reactions(conn, messages, user_id)
     finally:
         conn.close()
 
