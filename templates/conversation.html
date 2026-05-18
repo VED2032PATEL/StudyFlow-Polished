@@ -23,7 +23,9 @@
     </div>
   </div>
 
-  <div class="chat-messages-list">
+  <div class="chat-messages-list" id="chatMessages"
+       data-thread-url="{{ url_for('api_message_thread_by_user_id', user_id=other.id) }}"
+       data-send-url="{{ url_for('api_send_message_by_user_id', user_id=other.id) }}">
     {% if thread %}
       {% for msg in thread %}
       <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}">
@@ -40,11 +42,89 @@
     {% endif %}
   </div>
 
-  <form method="POST" action="{{ url_for('conversation', username=other.username) }}" class="chat-compose">
-    <textarea name="body" class="form-input" rows="3" maxlength="2000"
+  <form method="POST" action="{{ url_for('conversation_by_user_id', user_id=other.id) }}" class="chat-compose" id="chatCompose">
+    <textarea name="body" class="form-input" rows="3" maxlength="2000" id="chatBody"
               placeholder="Write a message..." required></textarea>
     <button type="submit" class="btn btn-primary">Send</button>
   </form>
 </div>
+
+<script>
+const chatMessages = document.getElementById('chatMessages');
+const chatCompose = document.getElementById('chatCompose');
+const chatBody = document.getElementById('chatBody');
+const sendBtn = chatCompose.querySelector('button[type="submit"]');
+let lastRendered = '';
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  }[ch]));
+}
+
+function renderMessages(messages) {
+  const signature = messages.map(m => m.id).join(',');
+  if (signature === lastRendered) return;
+  lastRendered = signature;
+  if (!messages.length) {
+    chatMessages.innerHTML = '<div class="empty-state compact-empty"><p>No messages yet. Send the first one.</p></div>';
+    return;
+  }
+  chatMessages.innerHTML = messages.map(msg => `
+    <div class="chat-bubble-row ${msg.is_mine ? 'chat-mine' : 'chat-theirs'}">
+      <div class="chat-bubble">
+        <div class="chat-body">${escapeHtml(msg.body)}</div>
+        <div class="chat-time">${escapeHtml((msg.created_at || '').slice(5, 16))}</div>
+      </div>
+    </div>
+  `).join('');
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function refreshMessages() {
+  try {
+    const res = await fetch(chatMessages.dataset.threadUrl, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    renderMessages(data.messages || []);
+  } catch (_) {}
+}
+
+chatCompose.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const body = chatBody.value.trim();
+  if (!body) return;
+  sendBtn.disabled = true;
+  try {
+    const res = await fetch(chatMessages.dataset.sendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body })
+    });
+    if (res.ok) {
+      chatBody.value = '';
+      await refreshMessages();
+    } else {
+      chatCompose.submit();
+    }
+  } catch (_) {
+    chatCompose.submit();
+  } finally {
+    sendBtn.disabled = false;
+    chatBody.focus();
+  }
+});
+
+chatBody.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    chatCompose.requestSubmit();
+  }
+});
+
+chatMessages.scrollTop = chatMessages.scrollHeight;
+refreshMessages();
+setInterval(refreshMessages, 2500);
+</script>
 
 {% endblock %}

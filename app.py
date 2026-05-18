@@ -241,10 +241,7 @@ def messages():
     return render_template("messages.html", conversations=conversations)
 
 
-@app.route("/messages/<username>", methods=["GET", "POST"])
-@login_required
-def conversation(username):
-    other = db.get_user_by_username(username)
+def _conversation_response(other):
     if not other:
         flash("User not found.", "error")
         return redirect(url_for("messages"))
@@ -258,11 +255,82 @@ def conversation(username):
             flash("Message cannot be empty.", "error")
         else:
             db.send_message(current_user.id, other["id"], body)
-        return redirect(url_for("conversation", username=other["username"]))
+        return redirect(url_for("conversation_by_user_id", user_id=other["id"]))
 
     thread = db.get_message_thread(current_user.id, other["id"])
     db.mark_thread_read(current_user.id, other["id"])
     return render_template("conversation.html", other=other, thread=thread)
+
+
+@app.route("/messages/user/<int:user_id>", methods=["GET", "POST"])
+@login_required
+def conversation_by_user_id(user_id):
+    return _conversation_response(db.get_user_by_id(user_id))
+
+
+@app.route("/messages/<username>", methods=["GET", "POST"])
+@login_required
+def conversation(username):
+    other = db.get_user_by_username(username) or db.get_user_by_username_loose(username)
+    return _conversation_response(other)
+
+
+def _message_thread_response(other):
+    if not other or other["id"] == current_user.id:
+        return jsonify({"error": "not found"}), 404
+    thread = db.get_message_thread(current_user.id, other["id"])
+    db.mark_thread_read(current_user.id, other["id"])
+    return jsonify({
+        "messages": [
+            {
+                "id": msg["id"],
+                "sender_id": msg["sender_id"],
+                "receiver_id": msg["receiver_id"],
+                "body": msg["body"],
+                "created_at": msg["created_at"],
+                "is_mine": msg["sender_id"] == current_user.id,
+            }
+            for msg in thread
+        ]
+    })
+
+
+@app.route("/api/messages/user/<int:user_id>")
+@login_required
+def api_message_thread_by_user_id(user_id):
+    return _message_thread_response(db.get_user_by_id(user_id))
+
+
+@app.route("/api/messages/<username>")
+@login_required
+def api_message_thread(username):
+    other = db.get_user_by_username(username) or db.get_user_by_username_loose(username)
+    return _message_thread_response(other)
+
+
+def _send_message_response(other):
+    if not other or other["id"] == current_user.id:
+        return jsonify({"error": "not found"}), 404
+    data = request.get_json(silent=True) or {}
+    body = (data.get("body") or "").strip()
+    if not body:
+        return jsonify({"error": "Message cannot be empty."}), 400
+    msg_id = db.send_message(current_user.id, other["id"], body)
+    return jsonify({"status": "sent", "id": msg_id})
+
+
+@app.route("/api/messages/user/<int:user_id>/send", methods=["POST"])
+@login_required
+def api_send_message_by_user_id(user_id):
+    return _send_message_response(db.get_user_by_id(user_id))
+
+
+@app.route("/api/messages/<username>/send", methods=["POST"])
+@login_required
+def api_send_message(username):
+    other = db.get_user_by_username(username) or db.get_user_by_username_loose(username)
+    return _send_message_response(other)
+
 
 @app.route("/notifications")
 @login_required

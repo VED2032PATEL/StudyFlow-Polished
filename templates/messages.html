@@ -20,7 +20,7 @@
   {% if conversations %}
   <div class="conversation-list">
     {% for convo in conversations %}
-    <a href="{{ url_for('conversation', username=convo.user.username) }}"
+    <a href="{{ url_for('conversation_by_user_id', user_id=convo.user.id) }}"
        class="conversation-row {% if convo.unread %}conversation-unread{% endif %}">
       <span class="conversation-avatar">
         {% if convo.user.avatar_data_url %}

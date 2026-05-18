@@ -190,6 +190,18 @@ def get_user_by_username(username):
         conn.close()
 
 
+def get_user_by_username_loose(username):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "SELECT * FROM users WHERE lower(trim(username))=lower(trim(?))",
+            [username],
+        )
+        return _rows_to_dicts(res)[0] if res.rows else None
+    finally:
+        conn.close()
+
+
 def get_user_by_email(email):
     conn = get_db()
     try:
@@ -481,7 +493,7 @@ def get_notifications(user_id):
                 "title": f"{unread} unread message{'s' if unread != 1 else ''}",
                 "body": f"Latest from {user['username']}: {last.get('body', '')[:90]}",
                 "meta": last.get("created_at", ""),
-                "href": f"/messages/{user['username']}",
+                "href": f"/messages/user/{user['id']}",
                 "icon": "message-circle",
             })
 
