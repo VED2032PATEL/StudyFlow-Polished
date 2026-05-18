@@ -4687,9 +4687,80 @@ select.form-input,
   background:var(--surface);
 }
 
+.chat-input-wrap {
+  position:relative;
+  flex:1;
+  min-width:0;
+}
+
 .chat-compose textarea {
+  width:100%;
   min-height:72px;
   resize:vertical;
+  padding-right:48px;
+}
+
+.emoji-toggle {
+  position:absolute;
+  right:10px;
+  bottom:10px;
+  width:32px;
+  height:32px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--surface-2);
+  color:var(--t1);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:18px;
+  line-height:1;
+  transition:background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.emoji-toggle:hover {
+  background:var(--surface);
+  border-color:var(--p1);
+  transform:translateY(-1px);
+}
+
+.emoji-picker {
+  position:absolute;
+  right:0;
+  bottom:48px;
+  width:min(280px, calc(100vw - 48px));
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+  padding:10px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  box-shadow:var(--sh-lg);
+  z-index:10;
+}
+
+.emoji-picker[hidden] {
+  display:none;
+}
+
+.emoji-choice {
+  width:100%;
+  aspect-ratio:1;
+  border:1px solid transparent;
+  border-radius:8px;
+  background:var(--surface-2);
+  cursor:pointer;
+  font-size:20px;
+  line-height:1;
+  transition:background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.emoji-choice:hover {
+  background:rgba(99,91,255,.10);
+  border-color:rgba(99,91,255,.30);
+  transform:translateY(-1px);
 }
 
 /* Notifications */
@@ -4842,6 +4913,12 @@ select.form-input,
   .chat-compose {
     flex-direction:column;
     align-items:stretch;
+  }
+
+  .emoji-picker {
+    left:0;
+    right:auto;
+    width:100%;
   }
 
   .chat-bubble {

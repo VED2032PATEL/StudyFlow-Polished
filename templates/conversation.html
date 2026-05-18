@@ -43,8 +43,17 @@
   </div>
 
   <form method="POST" action="{{ url_for('conversation_by_user_id', user_id=other.id) }}" class="chat-compose" id="chatCompose">
-    <textarea name="body" class="form-input" rows="3" maxlength="2000" id="chatBody"
-              placeholder="Write a message..." required></textarea>
+    <div class="chat-input-wrap">
+      <textarea name="body" class="form-input" rows="3" maxlength="2000" id="chatBody"
+                placeholder="Write a message..." required></textarea>
+      <button type="button" class="emoji-toggle" id="emojiToggle"
+              aria-label="Add emoji" aria-expanded="false">😊</button>
+      <div class="emoji-picker" id="emojiPicker" hidden>
+        {% for emoji in ['😊','😂','😍','😎','🥳','👍','👏','🙏','🔥','✨','💯','✅','📚','📝','⏰','💪','😅','🤔','😴','❤️'] %}
+          <button type="button" class="emoji-choice" data-emoji="{{ emoji }}" aria-label="Insert {{ emoji }}">{{ emoji }}</button>
+        {% endfor %}
+      </div>
+    </div>
     <button type="submit" class="btn btn-primary">Send</button>
   </form>
 </div>
@@ -54,6 +63,8 @@ const chatMessages = document.getElementById('chatMessages');
 const chatCompose = document.getElementById('chatCompose');
 const chatBody = document.getElementById('chatBody');
 const sendBtn = chatCompose.querySelector('button[type="submit"]');
+const emojiToggle = document.getElementById('emojiToggle');
+const emojiPicker = document.getElementById('emojiPicker');
 let lastRendered = '';
 
 function escapeHtml(value) {
@@ -120,6 +131,36 @@ chatBody.addEventListener('keydown', event => {
     event.preventDefault();
     chatCompose.requestSubmit();
   }
+});
+
+function setEmojiPicker(open) {
+  emojiPicker.hidden = !open;
+  emojiToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function insertEmoji(emoji) {
+  const start = chatBody.selectionStart ?? chatBody.value.length;
+  const end = chatBody.selectionEnd ?? chatBody.value.length;
+  chatBody.value = chatBody.value.slice(0, start) + emoji + chatBody.value.slice(end);
+  const next = start + emoji.length;
+  chatBody.focus();
+  chatBody.setSelectionRange(next, next);
+}
+
+emojiToggle.addEventListener('click', event => {
+  event.stopPropagation();
+  setEmojiPicker(emojiPicker.hidden);
+});
+
+emojiPicker.addEventListener('click', event => {
+  const button = event.target.closest('.emoji-choice');
+  if (!button) return;
+  insertEmoji(button.dataset.emoji);
+});
+
+document.addEventListener('click', event => {
+  if (emojiPicker.hidden) return;
+  if (!event.target.closest('.chat-input-wrap')) setEmojiPicker(false);
 });
 
 chatMessages.scrollTop = chatMessages.scrollHeight;
