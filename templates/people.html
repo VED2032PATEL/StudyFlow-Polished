@@ -42,6 +42,7 @@
         <a href="{{ url_for('user_profile', username=person.username) }}" class="person-name">{{ person.username }}</a>
         <div class="person-meta">{{ person.counts.followers }} followers · {{ person.counts.following }} following</div>
       </div>
+      <a href="{{ url_for('conversation', username=person.username) }}" class="btn btn-outline btn-sm">Message</a>
       {% if person.is_following %}
       <form method="POST" action="{{ url_for('unfollow_user', user_id=person.id) }}">
         <input type="hidden" name="next" value="{{ url_for('people', q=query) }}"/>

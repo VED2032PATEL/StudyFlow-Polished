@@ -224,6 +224,36 @@ def unfollow_user(user_id):
 
 # ── Subjects ──────────────────────────────────────────────────────────────────
 
+@app.route("/messages")
+@login_required
+def messages():
+    conversations = db.get_conversations(current_user.id)
+    return render_template("messages.html", conversations=conversations)
+
+
+@app.route("/messages/<username>", methods=["GET", "POST"])
+@login_required
+def conversation(username):
+    other = db.get_user_by_username(username)
+    if not other:
+        flash("User not found.", "error")
+        return redirect(url_for("messages"))
+    if other["id"] == current_user.id:
+        flash("You cannot message yourself.", "error")
+        return redirect(url_for("messages"))
+
+    if request.method == "POST":
+        body = request.form.get("body", "").strip()
+        if not body:
+            flash("Message cannot be empty.", "error")
+        else:
+            db.send_message(current_user.id, other["id"], body)
+        return redirect(url_for("conversation", username=other["username"]))
+
+    thread = db.get_message_thread(current_user.id, other["id"])
+    db.mark_thread_read(current_user.id, other["id"])
+    return render_template("conversation.html", other=other, thread=thread)
+
 @app.route("/subjects")
 @login_required
 def subjects():

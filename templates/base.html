@@ -68,6 +68,13 @@
       </a>
     </li>
     <li>
+      <a href="{{ url_for('messages') }}"
+         class="nav-item {% if request.endpoint in ['messages', 'conversation'] %}active{% endif %}">
+        <span class="nav-icon">💬</span>
+        <span>Messages</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ url_for('settings') }}"
          class="nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
         <span class="nav-icon">⚙️</span>
@@ -213,6 +220,7 @@
       Analytics: 'chart-no-axes-combined',
       Practice: 'file-pen-line',
       People: 'users',
+      Messages: 'message-circle',
       Settings: 'settings'
     };
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -241,6 +249,8 @@
       ['Analytics', 'chart-no-axes-combined'],
       ['Practice', 'file-pen-line'],
       ['People', 'users'],
+      ['Messages', 'message-circle'],
+      ['Inbox', 'inbox'],
       ['Settings', 'settings'],
       ['Overall Progress', 'chart-bar'],
       ['Upcoming Deadlines', 'clock'],
@@ -267,7 +277,10 @@
       ['Clear', 'trash-2'],
       ['Manage', 'arrow-right'],
       ['View Analytics', 'arrow-right'],
-      ['View Topics', 'arrow-right']
+      ['View Topics', 'arrow-right'],
+      ['Find People', 'users'],
+      ['Message', 'message-circle'],
+      ['Send', 'send']
     ];
     document.querySelectorAll('.btn, .streak-cta').forEach(btn => {
       if (btn.dataset.sfIconified === '1') return;

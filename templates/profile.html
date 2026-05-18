@@ -23,6 +23,8 @@
     </div>
   </div>
   {% if not profile.is_self %}
+    <div class="profile-actions">
+    <a href="{{ url_for('conversation', username=profile.user.username) }}" class="btn btn-outline">Message</a>
     {% if profile.is_following %}
     <form method="POST" action="{{ url_for('unfollow_user', user_id=profile.user.id) }}">
       <input type="hidden" name="next" value="{{ url_for('user_profile', username=profile.user.username) }}"/>
@@ -34,6 +36,7 @@
       <button type="submit" class="btn btn-primary">Follow</button>
     </form>
     {% endif %}
+    </div>
   {% endif %}
 </div>
 

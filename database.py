@@ -119,6 +119,15 @@ _CREATE = [
         PRIMARY KEY (follower_id, following_id),
         CHECK (follower_id != following_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body TEXT NOT NULL,
+        read_at TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        CHECK (sender_id != receiver_id)
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -362,6 +371,100 @@ def get_public_profile(username, viewer_id):
 
 
 # ── Subjects ──────────────────────────────────────────────────────────────────
+
+# Messages
+
+def send_message(sender_id, receiver_id, body):
+    body = (body or "").strip()
+    if not body:
+        return None
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "INSERT INTO messages (sender_id,receiver_id,body) VALUES (?,?,?)",
+            [sender_id, receiver_id, body[:2000]],
+        )
+        return res.last_insert_rowid
+    finally:
+        conn.close()
+
+
+def get_unread_message_count(user_id):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM messages WHERE receiver_id=? AND read_at=''",
+            [user_id],
+        ).rows[0][0]
+    finally:
+        conn.close()
+
+
+def get_conversations(user_id):
+    conn = get_db()
+    try:
+        peers = _rows_to_dicts(conn.execute(
+            """SELECT CASE WHEN sender_id=? THEN receiver_id ELSE sender_id END AS peer_id,
+                      MAX(created_at) AS latest_at
+               FROM messages
+               WHERE sender_id=? OR receiver_id=?
+               GROUP BY peer_id
+               ORDER BY latest_at DESC""",
+            [user_id, user_id, user_id],
+        ))
+        conversations = []
+        for peer in peers:
+            peer_id = peer["peer_id"]
+            user_rows = _rows_to_dicts(conn.execute(
+                "SELECT id,username,email,avatar_data_url FROM users WHERE id=?",
+                [peer_id],
+            ))
+            if not user_rows:
+                continue
+            last_rows = _rows_to_dicts(conn.execute(
+                """SELECT * FROM messages
+                   WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)
+                   ORDER BY created_at DESC,id DESC LIMIT 1""",
+                [user_id, peer_id, peer_id, user_id],
+            ))
+            unread = conn.execute(
+                "SELECT COUNT(*) FROM messages WHERE sender_id=? AND receiver_id=? AND read_at=''",
+                [peer_id, user_id],
+            ).rows[0][0]
+            conversations.append({
+                "user": user_rows[0],
+                "last": last_rows[0] if last_rows else None,
+                "unread": unread,
+            })
+        return conversations
+    finally:
+        conn.close()
+
+
+def get_message_thread(user_id, other_user_id, limit=100):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            """SELECT * FROM messages
+               WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)
+               ORDER BY created_at DESC,id DESC LIMIT ?""",
+            [user_id, other_user_id, other_user_id, user_id, limit],
+        ))[::-1]
+    finally:
+        conn.close()
+
+
+def mark_thread_read(user_id, other_user_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            """UPDATE messages SET read_at=datetime('now')
+               WHERE sender_id=? AND receiver_id=? AND read_at=''""",
+            [other_user_id, user_id],
+        )
+    finally:
+        conn.close()
+
 
 def get_all_subjects(user_id):
     conn = get_db()

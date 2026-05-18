@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Chat with {{ other.username }}{% endblock %}
+
+{% block content %}
+
+<div class="chat-shell anim">
+  <div class="chat-thread-header">
+    <div class="chat-user-head">
+      <a href="{{ url_for('messages') }}" class="back-link">← Messages</a>
+      <div class="chat-user-line">
+        <span class="conversation-avatar">
+          {% if other.avatar_data_url %}
+            <img src="{{ other.avatar_data_url }}" alt="{{ other.username }} profile photo"/>
+          {% else %}
+            {{ other.username[0].upper() }}
+          {% endif %}
+        </span>
+        <div>
+          <h1 class="chat-title">{{ other.username }}</h1>
+          <a href="{{ url_for('user_profile', username=other.username) }}" class="chat-profile-link">View profile</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-messages-list">
+    {% if thread %}
+      {% for msg in thread %}
+      <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}">
+        <div class="chat-bubble">
+          <div class="chat-body">{{ msg.body }}</div>
+          <div class="chat-time">{{ msg.created_at[5:16] }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state compact-empty">
+        <p>No messages yet. Send the first one.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <form method="POST" action="{{ url_for('conversation', username=other.username) }}" class="chat-compose">
+    <textarea name="body" class="form-input" rows="3" maxlength="2000"
+              placeholder="Write a message..." required></textarea>
+    <button type="submit" class="btn btn-primary">Send</button>
+  </form>
+</div>
+
+{% endblock %}

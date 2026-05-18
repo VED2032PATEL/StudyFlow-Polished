@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Messages{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">Messages</h1>
+    <p class="page-sub">Private one-to-one chats with other StudyFlow users</p>
+  </div>
+  <a href="{{ url_for('people') }}" class="btn btn-primary">Find People</a>
+</div>
+
+<div class="card anim d1">
+  <div class="card-header">
+    <h2 class="card-title">Inbox</h2>
+    <span class="badge badge-primary">{{ conversations|length }} chats</span>
+  </div>
+
+  {% if conversations %}
+  <div class="conversation-list">
+    {% for convo in conversations %}
+    <a href="{{ url_for('conversation', username=convo.user.username) }}"
+       class="conversation-row {% if convo.unread %}conversation-unread{% endif %}">
+      <span class="conversation-avatar">
+        {% if convo.user.avatar_data_url %}
+          <img src="{{ convo.user.avatar_data_url }}" alt="{{ convo.user.username }} profile photo"/>
+        {% else %}
+          {{ convo.user.username[0].upper() }}
+        {% endif %}
+      </span>
+      <span class="conversation-main">
+        <span class="conversation-top">
+          <strong>{{ convo.user.username }}</strong>
+          {% if convo.last %}<time>{{ convo.last.created_at[5:16] }}</time>{% endif %}
+        </span>
+        {% if convo.last %}
+        <span class="conversation-preview">
+          {% if convo.last.sender_id == current_user.id %}You: {% endif %}
+          {{ convo.last.body[:120] }}{% if convo.last.body|length > 120 %}...{% endif %}
+        </span>
+        {% endif %}
+      </span>
+      {% if convo.unread %}
+      <span class="conversation-badge">{{ convo.unread }}</span>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-full compact-empty">
+    <span class="empty-full-icon">💬</span>
+    <h2>No messages yet</h2>
+    <p>Search for a user from People and start a conversation.</p>
+    <a href="{{ url_for('people') }}" class="btn btn-primary">Find People</a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
