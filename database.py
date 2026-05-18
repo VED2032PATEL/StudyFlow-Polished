@@ -126,6 +126,9 @@ _CREATE = [
         body TEXT NOT NULL,
         read_at TEXT NOT NULL DEFAULT '',
         edited_at TEXT NOT NULL DEFAULT '',
+        attachment_name TEXT NOT NULL DEFAULT '',
+        attachment_type TEXT NOT NULL DEFAULT '',
+        attachment_data_url TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         CHECK (sender_id != receiver_id)
     )""",
@@ -201,6 +204,9 @@ _MIGRATIONS = [
     ("users",      "default_difficulty",   "ALTER TABLE users ADD COLUMN default_difficulty INTEGER NOT NULL DEFAULT 3"),
     ("users",      "avatar_data_url",       "ALTER TABLE users ADD COLUMN avatar_data_url TEXT NOT NULL DEFAULT ''"),
     ("messages",   "edited_at",             "ALTER TABLE messages ADD COLUMN edited_at TEXT NOT NULL DEFAULT ''"),
+    ("messages",   "attachment_name",       "ALTER TABLE messages ADD COLUMN attachment_name TEXT NOT NULL DEFAULT ''"),
+    ("messages",   "attachment_type",       "ALTER TABLE messages ADD COLUMN attachment_type TEXT NOT NULL DEFAULT ''"),
+    ("messages",   "attachment_data_url",   "ALTER TABLE messages ADD COLUMN attachment_data_url TEXT NOT NULL DEFAULT ''"),
     ("flowcoin_redemptions", "coupon_code",  "ALTER TABLE flowcoin_redemptions ADD COLUMN coupon_code TEXT NOT NULL DEFAULT ''"),
 ]
 
@@ -543,15 +549,28 @@ def purge_expired_messages(user_id, other_user_id):
         conn.close()
 
 
-def send_message(sender_id, receiver_id, body):
+def send_message(sender_id, receiver_id, body, attachment=None):
     body = (body or "").strip()
-    if not body:
+    attachment = attachment or {}
+    attachment_data_url = (attachment.get("data_url") or "").strip()
+    attachment_name = (attachment.get("name") or "").strip()
+    attachment_type = (attachment.get("type") or "").strip()
+    if not body and not attachment_data_url:
         return None
     conn = get_db()
     try:
         res = conn.execute(
-            "INSERT INTO messages (sender_id,receiver_id,body) VALUES (?,?,?)",
-            [sender_id, receiver_id, body[:2000]],
+            """INSERT INTO messages
+               (sender_id,receiver_id,body,attachment_name,attachment_type,attachment_data_url)
+               VALUES (?,?,?,?,?,?)""",
+            [
+                sender_id,
+                receiver_id,
+                body[:2000],
+                attachment_name[:180],
+                attachment_type[:120],
+                attachment_data_url,
+            ],
         )
         return res.last_insert_rowid
     finally:

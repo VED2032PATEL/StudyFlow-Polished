@@ -390,6 +390,9 @@ def _message_thread_response(other):
                 "sender_id": msg["sender_id"],
                 "receiver_id": msg["receiver_id"],
                 "body": msg["body"],
+                "attachment_name": msg.get("attachment_name", ""),
+                "attachment_type": msg.get("attachment_type", ""),
+                "attachment_data_url": msg.get("attachment_data_url", ""),
                 "created_at": msg["created_at"],
                 "edited_at": msg.get("edited_at", ""),
                 "reactions": msg.get("reactions", []),
@@ -419,9 +422,14 @@ def _send_message_response(other):
         return jsonify({"error": "not found"}), 404
     data = request.get_json(silent=True) or {}
     body = (data.get("body") or "").strip()
-    if not body:
+    attachment = data.get("attachment") or {}
+    if not isinstance(attachment, dict):
+        attachment = {}
+    if not body and not attachment.get("data_url"):
         return jsonify({"error": "Message cannot be empty."}), 400
-    msg_id = db.send_message(current_user.id, other["id"], body)
+    if attachment.get("data_url") and len(attachment.get("data_url", "")) > 2_000_000:
+        return jsonify({"error": "Attachment is too large."}), 400
+    msg_id = db.send_message(current_user.id, other["id"], body, attachment)
     return jsonify({"status": "sent", "id": msg_id})
 
 

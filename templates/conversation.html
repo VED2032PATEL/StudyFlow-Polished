@@ -22,13 +22,11 @@
       </div>
     </div>
     <div class="chat-header-actions">
-      <button type="button" class="chat-call-btn" id="voiceCallBtn" title="Start voice call">
+      <button type="button" class="chat-call-btn chat-icon-btn" id="voiceCallBtn" title="Start voice call" aria-label="Start voice call">
         <i data-lucide="phone" width="16" height="16"></i>
-        <span>Call</span>
       </button>
-      <button type="button" class="chat-call-btn" id="videoCallBtn" title="Start video call">
+      <button type="button" class="chat-call-btn chat-icon-btn" id="videoCallBtn" title="Start video call" aria-label="Start video call">
         <i data-lucide="video" width="16" height="16"></i>
-        <span>Video</span>
       </button>
       <label class="chat-expire-toggle" title="When on, messages in this chat are deleted after 24 hours.">
         <input type="checkbox" id="disappearingToggle" {% if disappearing.enabled %}checked{% endif %}/>
@@ -45,6 +43,15 @@
     {% if thread %}
       {% for msg in thread %}
       <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}" data-message-id="{{ msg.id }}">
+        {% if msg.sender_id != current_user.id %}
+        <span class="chat-row-avatar">
+          {% if other.avatar_data_url %}
+            <img src="{{ other.avatar_data_url }}" alt="{{ other.username }} profile photo"/>
+          {% else %}
+            {{ other.username[0].upper() }}
+          {% endif %}
+        </span>
+        {% endif %}
         <div class="message-hover-tools">
           <button type="button" class="message-tool-btn" data-action="react-menu" data-id="{{ msg.id }}" aria-label="React">☺</button>
           {% if msg.sender_id == current_user.id %}
@@ -64,6 +71,20 @@
         </div>
         <div class="chat-bubble">
           <div class="chat-body">{{ msg.body }}</div>
+          {% if msg.attachment_data_url %}
+          <a class="chat-attachment {% if msg.attachment_type.startswith('image/') %}image-attachment{% endif %}"
+             href="{{ msg.attachment_data_url }}"
+             download="{{ msg.attachment_name }}"
+             target="_blank"
+             rel="noopener noreferrer">
+            {% if msg.attachment_type.startswith('image/') %}
+              <img src="{{ msg.attachment_data_url }}" alt="{{ msg.attachment_name }}"/>
+            {% else %}
+              <i data-lucide="paperclip" width="15" height="15"></i>
+              <span>{{ msg.attachment_name or 'Attachment' }}</span>
+            {% endif %}
+          </a>
+          {% endif %}
           {% if msg.reactions %}
           <div class="chat-reactions">
             {% for reaction in msg.reactions %}
@@ -93,7 +114,13 @@
   <form method="POST" action="{{ url_for('conversation_by_user_id', user_id=other.id) }}" class="chat-compose" id="chatCompose">
     <div class="chat-input-wrap">
       <textarea name="body" class="form-input" rows="3" maxlength="2000" id="chatBody"
-                placeholder="Write a message..." required></textarea>
+                placeholder="Write a message..."></textarea>
+      <input type="file" id="chatAttachmentInput" class="chat-file-input"
+             accept="image/*,.pdf,.txt,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip"/>
+      <button type="button" class="chat-attach-toggle" id="chatAttachToggle"
+              aria-label="Attach file" title="Attach file">
+        <i data-lucide="paperclip" width="16" height="16"></i>
+      </button>
       <button type="button" class="emoji-toggle" id="emojiToggle"
               aria-label="Add emoji" aria-expanded="false">😊</button>
       <div class="emoji-picker" id="emojiPicker" hidden>
@@ -101,8 +128,8 @@
           <button type="button" class="emoji-choice" data-emoji="{{ emoji }}" aria-label="Insert {{ emoji }}">{{ emoji }}</button>
         {% endfor %}
       </div>
+      <div class="chat-attachment-preview" id="chatAttachmentPreview" hidden></div>
     </div>
-    <button type="submit" class="btn btn-primary">Send</button>
   </form>
 </div>
 
@@ -135,9 +162,11 @@
 const chatMessages = document.getElementById('chatMessages');
 const chatCompose = document.getElementById('chatCompose');
 const chatBody = document.getElementById('chatBody');
-const sendBtn = chatCompose.querySelector('button[type="submit"]');
 const emojiToggle = document.getElementById('emojiToggle');
 const emojiPicker = document.getElementById('emojiPicker');
+const chatAttachToggle = document.getElementById('chatAttachToggle');
+const chatAttachmentInput = document.getElementById('chatAttachmentInput');
+const chatAttachmentPreview = document.getElementById('chatAttachmentPreview');
 const disappearingToggle = document.getElementById('disappearingToggle');
 const disappearingLabel = document.getElementById('disappearingLabel');
 const voiceCallBtn = document.getElementById('voiceCallBtn');
@@ -152,8 +181,12 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
+const otherAvatarUrl = {{ (other.avatar_data_url or '')|tojson }};
+const otherInitial = {{ other.username[0].upper()|tojson }};
+const maxAttachmentBytes = 1400 * 1024;
 let lastRendered = '';
 let messageCache = new Map();
+let pendingAttachment = null;
 let activeCall = null;
 let localStream = null;
 let peerConnection = null;
@@ -182,15 +215,42 @@ function renderReactions(reactions) {
 }
 
 function formatMessageBody(value) {
-  return escapeHtml(value).replace(
+  return escapeHtml(value || '').replace(
     /(https?:\/\/[^\s<]+)/g,
     '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
   );
 }
 
+function renderIncomingAvatar() {
+  return `
+    <span class="chat-row-avatar">
+      ${otherAvatarUrl ? `<img src="${escapeHtml(otherAvatarUrl)}" alt="Profile photo"/>` : escapeHtml(otherInitial)}
+    </span>
+  `;
+}
+
+function renderAttachment(msg) {
+  if (!msg.attachment_data_url) return '';
+  const name = msg.attachment_name || 'Attachment';
+  const type = msg.attachment_type || '';
+  if (type.startsWith('image/')) {
+    return `
+      <a class="chat-attachment image-attachment" href="${escapeHtml(msg.attachment_data_url)}" download="${escapeHtml(name)}" target="_blank" rel="noopener noreferrer">
+        <img src="${escapeHtml(msg.attachment_data_url)}" alt="${escapeHtml(name)}"/>
+      </a>
+    `;
+  }
+  return `
+    <a class="chat-attachment" href="${escapeHtml(msg.attachment_data_url)}" download="${escapeHtml(name)}" target="_blank" rel="noopener noreferrer">
+      <i data-lucide="paperclip" width="15" height="15"></i>
+      <span>${escapeHtml(name)}</span>
+    </a>
+  `;
+}
+
 function renderMessages(messages) {
   messageCache = new Map(messages.map(msg => [String(msg.id), msg]));
-  const signature = messages.map(m => `${m.id}:${m.edited_at || ''}:${m.body}:${JSON.stringify(m.reactions || [])}`).join('|');
+  const signature = messages.map(m => `${m.id}:${m.edited_at || ''}:${m.body}:${m.attachment_data_url || ''}:${JSON.stringify(m.reactions || [])}`).join('|');
   if (signature === lastRendered) return;
   lastRendered = signature;
   if (!messages.length) {
@@ -199,6 +259,7 @@ function renderMessages(messages) {
   }
   chatMessages.innerHTML = messages.map(msg => `
     <div class="chat-bubble-row ${msg.is_mine ? 'chat-mine' : 'chat-theirs'}" data-message-id="${msg.id}">
+      ${msg.is_mine ? '' : renderIncomingAvatar()}
       <div class="message-hover-tools">
         <button type="button" class="message-tool-btn" data-action="react-menu" data-id="${msg.id}" aria-label="React">☺</button>
         ${msg.can_edit ? `<button type="button" class="message-tool-btn" data-action="more-menu" data-id="${msg.id}" aria-label="More options">...</button>` : ''}
@@ -214,6 +275,7 @@ function renderMessages(messages) {
       </div>
       <div class="chat-bubble">
         <div class="chat-body">${formatMessageBody(msg.body)}</div>
+        ${renderAttachment(msg)}
         <div class="chat-time">
           ${escapeHtml((msg.created_at || '').slice(5, 16))}${msg.edited_at ? ' · edited' : ''}
         </div>
@@ -227,6 +289,7 @@ function renderMessages(messages) {
       </div>
     </div>
   `).join('');
+  window.lucide?.createIcons();
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
@@ -252,16 +315,16 @@ document.addEventListener('visibilitychange', () => {
 chatCompose.addEventListener('submit', async (event) => {
   event.preventDefault();
   const body = chatBody.value.trim();
-  if (!body) return;
-  sendBtn.disabled = true;
+  if (!body && !pendingAttachment) return;
   try {
     const res = await fetch(chatMessages.dataset.sendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body })
+      body: JSON.stringify({ body, attachment: pendingAttachment })
     });
     if (res.ok) {
       chatBody.value = '';
+      clearAttachment();
       await refreshMessages();
     } else {
       chatCompose.submit();
@@ -269,7 +332,6 @@ chatCompose.addEventListener('submit', async (event) => {
   } catch (_) {
     chatCompose.submit();
   } finally {
-    sendBtn.disabled = false;
     chatBody.focus();
   }
 });
@@ -568,9 +630,56 @@ function insertEmoji(emoji) {
   chatBody.setSelectionRange(next, next);
 }
 
+function clearAttachment() {
+  pendingAttachment = null;
+  chatAttachmentInput.value = '';
+  chatAttachmentPreview.hidden = true;
+  chatAttachmentPreview.innerHTML = '';
+}
+
+function renderAttachmentPreview(file) {
+  chatAttachmentPreview.hidden = false;
+  chatAttachmentPreview.innerHTML = `
+    <span><i data-lucide="paperclip" width="14" height="14"></i>${escapeHtml(file.name)}</span>
+    <button type="button" id="clearChatAttachment" aria-label="Remove attachment">×</button>
+  `;
+  window.lucide?.createIcons();
+}
+
 emojiToggle.addEventListener('click', event => {
   event.stopPropagation();
   setEmojiPicker(emojiPicker.hidden);
+});
+
+chatAttachToggle.addEventListener('click', () => {
+  chatAttachmentInput.click();
+});
+
+chatAttachmentInput.addEventListener('change', () => {
+  const file = chatAttachmentInput.files?.[0];
+  if (!file) {
+    clearAttachment();
+    return;
+  }
+  if (file.size > maxAttachmentBytes) {
+    alert('Please attach a file smaller than 1.4 MB.');
+    clearAttachment();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingAttachment = {
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      data_url: String(reader.result || '')
+    };
+    renderAttachmentPreview(file);
+  };
+  reader.readAsDataURL(file);
+});
+
+chatAttachmentPreview.addEventListener('click', event => {
+  if (event.target.closest('#clearChatAttachment')) clearAttachment();
 });
 
 emojiPicker.addEventListener('click', event => {
