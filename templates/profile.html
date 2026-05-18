@@ -24,15 +24,15 @@
   </div>
   {% if not profile.is_self %}
     <div class="profile-actions">
-    <a href="{{ url_for('conversation', username=profile.user.username) }}" class="btn btn-outline">Message</a>
+    <a href="{{ url_for('conversation_by_user_id', user_id=profile.user.id) }}" class="btn btn-outline">Message</a>
     {% if profile.is_following %}
     <form method="POST" action="{{ url_for('unfollow_user', user_id=profile.user.id) }}">
-      <input type="hidden" name="next" value="{{ url_for('user_profile', username=profile.user.username) }}"/>
+      <input type="hidden" name="next" value="{{ url_for('user_profile_by_id', user_id=profile.user.id) }}"/>
       <button type="submit" class="btn btn-ghost">Unfollow</button>
     </form>
     {% else %}
     <form method="POST" action="{{ url_for('follow_user', user_id=profile.user.id) }}">
-      <input type="hidden" name="next" value="{{ url_for('user_profile', username=profile.user.username) }}"/>
+      <input type="hidden" name="next" value="{{ url_for('user_profile_by_id', user_id=profile.user.id) }}"/>
       <button type="submit" class="btn btn-primary">Follow</button>
     </form>
     {% endif %}

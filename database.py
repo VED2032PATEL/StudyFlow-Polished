@@ -360,8 +360,7 @@ def get_followers(user_id):
         conn.close()
 
 
-def get_public_profile(username, viewer_id):
-    user = get_user_by_username(username)
+def _build_public_profile(user, viewer_id):
     if not user:
         return None
     user_id = user["id"]
@@ -383,6 +382,15 @@ def get_public_profile(username, viewer_id):
 
 
 # ── Subjects ──────────────────────────────────────────────────────────────────
+
+def get_public_profile(username, viewer_id):
+    user = get_user_by_username(username) or get_user_by_username_loose(username)
+    return _build_public_profile(user, viewer_id)
+
+
+def get_public_profile_by_id(user_id, viewer_id):
+    return _build_public_profile(get_user_by_id(user_id), viewer_id)
+
 
 # Messages
 
@@ -529,7 +537,7 @@ def get_notifications(user_id):
             "title": f"{follower['username']} followed you",
             "body": "Open their profile to see public study progress.",
             "meta": follower.get("followed_at", ""),
-            "href": f"/users/{follower['username']}",
+            "href": f"/users/user/{follower['id']}",
             "icon": "user-plus",
         })
 

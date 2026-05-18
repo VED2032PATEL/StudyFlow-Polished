@@ -189,14 +189,23 @@ def people():
                            followers=followers)
 
 
-@app.route("/users/<username>")
-@login_required
-def user_profile(username):
-    profile = db.get_public_profile(username, current_user.id)
+def _profile_response(profile):
     if not profile:
         flash("User not found.", "error")
         return redirect(url_for("people"))
     return render_template("profile.html", profile=profile)
+
+
+@app.route("/users/user/<int:user_id>")
+@login_required
+def user_profile_by_id(user_id):
+    return _profile_response(db.get_public_profile_by_id(user_id, current_user.id))
+
+
+@app.route("/users/<username>")
+@login_required
+def user_profile(username):
+    return _profile_response(db.get_public_profile(username, current_user.id))
 
 
 @app.route("/users/<int:user_id>/follow", methods=["POST"])
@@ -214,7 +223,7 @@ def follow_user(user_id):
     next_page = request.form.get("next")
     if _is_safe_redirect_url(next_page):
         return redirect(next_page)
-    return redirect(url_for("user_profile", username=target["username"]))
+    return redirect(url_for("user_profile_by_id", user_id=target["id"]))
 
 
 @app.route("/users/<int:user_id>/unfollow", methods=["POST"])
@@ -229,7 +238,7 @@ def unfollow_user(user_id):
     next_page = request.form.get("next")
     if _is_safe_redirect_url(next_page):
         return redirect(next_page)
-    return redirect(url_for("user_profile", username=target["username"]))
+    return redirect(url_for("user_profile_by_id", user_id=target["id"]))
 
 
 # ── Subjects ──────────────────────────────────────────────────────────────────

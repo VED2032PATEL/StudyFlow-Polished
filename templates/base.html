@@ -62,7 +62,7 @@
     </li>
     <li>
       <a href="{{ url_for('people') }}"
-         class="nav-item {% if request.endpoint in ['people', 'user_profile'] %}active{% endif %}">
+         class="nav-item {% if request.endpoint in ['people', 'user_profile', 'user_profile_by_id'] %}active{% endif %}">
         <span class="nav-icon">👥</span>
         <span>People</span>
       </a>
