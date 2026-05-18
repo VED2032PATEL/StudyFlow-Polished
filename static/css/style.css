@@ -188,6 +188,16 @@ input,textarea{cursor:text}
   transition:background .2s;
 }
 .sidebar-user:hover{background:rgba(255,255,255,.12)}
+.sidebar-account-link{
+  min-width:0;
+  flex:1;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  color:inherit;
+  text-decoration:none;
+}
+.sidebar-account-link:hover{text-decoration:none}
 .user-avatar{
   width:36px;height:36px;border-radius:50%;flex-shrink:0;
   background:linear-gradient(135deg,var(--p1),var(--p2));
@@ -3825,6 +3835,11 @@ a:hover { text-decoration:none; }
   padding:8px;
   background:transparent !important;
   border-color:transparent;
+}
+
+.sidebar:not(:hover):not(:focus-within) .sidebar-account-link {
+  flex:0 0 auto;
+  gap:0;
 }
 
 .sidebar:hover .sidebar-user,
