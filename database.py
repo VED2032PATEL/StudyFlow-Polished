@@ -851,21 +851,6 @@ def get_notifications(user_id):
     read_keys = get_read_notification_keys(user_id)
     items = []
 
-    for convo in get_conversations(user_id):
-        unread = convo.get("unread", 0)
-        if unread:
-            user = convo["user"]
-            last = convo.get("last") or {}
-            items.append({
-                "type": "message",
-                "priority": 1,
-                "title": f"{unread} unread message{'s' if unread != 1 else ''}",
-                "body": f"Latest from {user['username']}: {last.get('body', '')[:90]}",
-                "meta": last.get("created_at", ""),
-                "href": f"/messages/user/{user['id']}",
-                "icon": "message-circle",
-            })
-
     for deadline in get_dashboard_stats(user_id).get("upcoming_deadlines", []):
         deadline_date = datetime.date.fromisoformat(deadline["deadline"])
         days_left = (deadline_date - today).days

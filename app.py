@@ -157,11 +157,12 @@ def inject_notification_count():
         try:
             return {
                 "notification_count": db.get_notification_count(current_user.id),
+                "unread_message_count": db.get_unread_message_count(current_user.id),
                 "flowcoin_balance": db.get_flowcoin_balance(current_user.id),
             }
         except Exception:
-            return {"notification_count": 0, "flowcoin_balance": 0}
-    return {"notification_count": 0, "flowcoin_balance": 0}
+            return {"notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
+    return {"notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
 
 
 # Initialise DB on first run

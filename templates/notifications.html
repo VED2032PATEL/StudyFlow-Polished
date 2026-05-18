@@ -6,7 +6,7 @@
 <div class="page-header anim">
   <div>
     <h1 class="page-title">Notifications</h1>
-    <p class="page-sub">Messages, deadlines, reviews, followers, and schedule alerts in one place</p>
+    <p class="page-sub">Deadlines, reviews, followers, and schedule alerts in one place</p>
   </div>
   <span class="badge badge-primary">{{ notifications|length }} active</span>
 </div>
@@ -42,13 +42,6 @@
   </div>
 
   <div class="notification-summary anim d2">
-    <div class="notification-summary-card">
-      <span class="notification-summary-icon" data-lucide="message-circle"></span>
-      <div>
-        <strong>{{ notifications|selectattr('type', 'equalto', 'message')|list|length }}</strong>
-        <span>Message alerts</span>
-      </div>
-    </div>
     <div class="notification-summary-card">
       <span class="notification-summary-icon" data-lucide="clock"></span>
       <div>

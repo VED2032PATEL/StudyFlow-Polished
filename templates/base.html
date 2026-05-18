@@ -76,9 +76,14 @@
     </li>
     <li>
       <a href="{{ url_for('messages') }}"
+         id="messagesNav"
+         data-initial-count="{{ unread_message_count or 0 }}"
          class="nav-item {% if request.endpoint in ['messages', 'conversation', 'conversation_by_user_id'] %}active{% endif %}">
         <span class="nav-icon">💬</span>
         <span>Messages</span>
+        {% if unread_message_count %}
+          <span class="nav-badge" id="messageBadge">{{ unread_message_count }}</span>
+        {% endif %}
       </a>
     </li>
     <li>
@@ -380,6 +385,7 @@
   {% if current_user.is_authenticated %}
   (function() {
     const nav = document.getElementById('notificationsNav');
+    const messagesNav = document.getElementById('messagesNav');
     const soundKey = 'sfNotifySoundCount:{{ current_user.id }}';
     let audioCtx = null;
     let audioUnlocked = false;
@@ -440,15 +446,15 @@
       } catch (_) {}
     }
 
-    function setBadge(count) {
-      if (!nav) return;
-      let badge = document.getElementById('notificationBadge');
+    function setNavBadge(parent, badgeId, count) {
+      if (!parent) return;
+      let badge = document.getElementById(badgeId);
       if (count > 0) {
         if (!badge) {
           badge = document.createElement('span');
           badge.className = 'nav-badge';
-          badge.id = 'notificationBadge';
-          nav.appendChild(badge);
+          badge.id = badgeId;
+          parent.appendChild(badge);
         }
         badge.textContent = count;
       } else if (badge) {
@@ -462,9 +468,11 @@
         if (!res.ok) return;
         const data = await res.json();
         const visibleCount = Number(data.count || 0);
+        const unreadMessages = Number(data.unread_messages || 0);
         const soundCount = Number(data.sound_count || visibleCount);
         const previous = sessionStorage.getItem(soundKey);
-        setBadge(visibleCount);
+        setNavBadge(nav, 'notificationBadge', visibleCount);
+        setNavBadge(messagesNav, 'messageBadge', unreadMessages);
         if (previous !== null && soundCount > Number(previous)) {
           playNotificationBeep();
         }
