@@ -125,8 +125,18 @@ _CREATE = [
         receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         body TEXT NOT NULL,
         read_at TEXT NOT NULL DEFAULT '',
+        edited_at TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         CHECK (sender_id != receiver_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS chat_settings (
+        user_one_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_two_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        disappear_after_hours INTEGER NOT NULL DEFAULT 0,
+        updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_one_id, user_two_id),
+        CHECK (user_one_id < user_two_id)
     )""",
 ]
 
@@ -141,6 +151,7 @@ _MIGRATIONS = [
     ("users",      "show_completed",       "ALTER TABLE users ADD COLUMN show_completed INTEGER NOT NULL DEFAULT 1"),
     ("users",      "default_difficulty",   "ALTER TABLE users ADD COLUMN default_difficulty INTEGER NOT NULL DEFAULT 3"),
     ("users",      "avatar_data_url",       "ALTER TABLE users ADD COLUMN avatar_data_url TEXT NOT NULL DEFAULT ''"),
+    ("messages",   "edited_at",             "ALTER TABLE messages ADD COLUMN edited_at TEXT NOT NULL DEFAULT ''"),
 ]
 
 
@@ -394,6 +405,72 @@ def get_public_profile_by_id(user_id, viewer_id):
 
 # Messages
 
+def _chat_pair(user_id, other_user_id):
+    first, second = sorted((int(user_id), int(other_user_id)))
+    return first, second
+
+
+def get_disappearing_mode(user_id, other_user_id):
+    one, two = _chat_pair(user_id, other_user_id)
+    conn = get_db()
+    try:
+        res = conn.execute(
+            """SELECT disappear_after_hours FROM chat_settings
+               WHERE user_one_id=? AND user_two_id=?""",
+            [one, two],
+        )
+        if not res.rows:
+            return {"enabled": False, "hours": 0}
+        hours = int(res.rows[0][0] or 0)
+        return {"enabled": hours > 0, "hours": hours}
+    finally:
+        conn.close()
+
+
+def set_disappearing_mode(user_id, other_user_id, enabled):
+    one, two = _chat_pair(user_id, other_user_id)
+    hours = 24 if enabled else 0
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO chat_settings
+               (user_one_id,user_two_id,disappear_after_hours,updated_by,updated_at)
+               VALUES (?,?,?,?,datetime('now'))
+               ON CONFLICT(user_one_id,user_two_id) DO UPDATE SET
+               disappear_after_hours=excluded.disappear_after_hours,
+               updated_by=excluded.updated_by,
+               updated_at=datetime('now')""",
+            [one, two, hours, user_id],
+        )
+    finally:
+        conn.close()
+    purge_expired_messages(user_id, other_user_id)
+    return get_disappearing_mode(user_id, other_user_id)
+
+
+def purge_expired_messages(user_id, other_user_id):
+    mode = get_disappearing_mode(user_id, other_user_id)
+    if not mode["enabled"]:
+        return 0
+    conn = get_db()
+    try:
+        res = conn.execute(
+            """DELETE FROM messages
+               WHERE ((sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?))
+                 AND created_at < datetime('now', ?)""",
+            [
+                user_id,
+                other_user_id,
+                other_user_id,
+                user_id,
+                f"-{mode['hours']} hours",
+            ],
+        )
+        return getattr(res, "rows_affected", 0) or 0
+    finally:
+        conn.close()
+
+
 def send_message(sender_id, receiver_id, body):
     body = (body or "").strip()
     if not body:
@@ -405,6 +482,35 @@ def send_message(sender_id, receiver_id, body):
             [sender_id, receiver_id, body[:2000]],
         )
         return res.last_insert_rowid
+    finally:
+        conn.close()
+
+
+def edit_message(message_id, user_id, body):
+    body = (body or "").strip()
+    if not body:
+        return False
+    conn = get_db()
+    try:
+        res = conn.execute(
+            """UPDATE messages
+               SET body=?, edited_at=datetime('now')
+               WHERE id=? AND sender_id=?""",
+            [body[:2000], message_id, user_id],
+        )
+        return bool(getattr(res, "rows_affected", 0))
+    finally:
+        conn.close()
+
+
+def delete_message(message_id, user_id):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "DELETE FROM messages WHERE id=? AND sender_id=?",
+            [message_id, user_id],
+        )
+        return bool(getattr(res, "rows_affected", 0))
     finally:
         conn.close()
 
@@ -435,6 +541,7 @@ def get_conversations(user_id):
         conversations = []
         for peer in peers:
             peer_id = peer["peer_id"]
+            purge_expired_messages(user_id, peer_id)
             user_rows = _rows_to_dicts(conn.execute(
                 "SELECT id,username,email,avatar_data_url FROM users WHERE id=?",
                 [peer_id],
@@ -447,6 +554,8 @@ def get_conversations(user_id):
                    ORDER BY created_at DESC,id DESC LIMIT 1""",
                 [user_id, peer_id, peer_id, user_id],
             ))
+            if not last_rows:
+                continue
             unread = conn.execute(
                 "SELECT COUNT(*) FROM messages WHERE sender_id=? AND receiver_id=? AND read_at=''",
                 [peer_id, user_id],
@@ -462,6 +571,7 @@ def get_conversations(user_id):
 
 
 def get_message_thread(user_id, other_user_id, limit=100):
+    purge_expired_messages(user_id, other_user_id)
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(

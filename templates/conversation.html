@@ -21,17 +21,31 @@
         </div>
       </div>
     </div>
+    <label class="chat-expire-toggle" title="When on, messages in this chat are deleted after 24 hours.">
+      <input type="checkbox" id="disappearingToggle" {% if disappearing.enabled %}checked{% endif %}/>
+      <span class="chat-expire-switch"></span>
+      <span id="disappearingLabel">24h auto-delete {% if disappearing.enabled %}on{% else %}off{% endif %}</span>
+    </label>
   </div>
 
   <div class="chat-messages-list" id="chatMessages"
        data-thread-url="{{ url_for('api_message_thread_by_user_id', user_id=other.id) }}"
-       data-send-url="{{ url_for('api_send_message_by_user_id', user_id=other.id) }}">
+       data-send-url="{{ url_for('api_send_message_by_user_id', user_id=other.id) }}"
+       data-disappearing-url="{{ url_for('api_set_disappearing_mode', user_id=other.id) }}">
     {% if thread %}
       {% for msg in thread %}
       <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}">
         <div class="chat-bubble">
           <div class="chat-body">{{ msg.body }}</div>
-          <div class="chat-time">{{ msg.created_at[5:16] }}</div>
+          <div class="chat-time">
+            {{ msg.created_at[5:16] }}{% if msg.edited_at %} · edited{% endif %}
+          </div>
+          {% if msg.sender_id == current_user.id %}
+          <div class="chat-actions">
+            <button type="button" data-action="edit" data-id="{{ msg.id }}">Edit</button>
+            <button type="button" data-action="delete" data-id="{{ msg.id }}">Delete</button>
+          </div>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -65,7 +79,10 @@ const chatBody = document.getElementById('chatBody');
 const sendBtn = chatCompose.querySelector('button[type="submit"]');
 const emojiToggle = document.getElementById('emojiToggle');
 const emojiPicker = document.getElementById('emojiPicker');
+const disappearingToggle = document.getElementById('disappearingToggle');
+const disappearingLabel = document.getElementById('disappearingLabel');
 let lastRendered = '';
+let messageCache = new Map();
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, ch => ({
@@ -74,7 +91,8 @@ function escapeHtml(value) {
 }
 
 function renderMessages(messages) {
-  const signature = messages.map(m => m.id).join(',');
+  messageCache = new Map(messages.map(msg => [String(msg.id), msg]));
+  const signature = messages.map(m => `${m.id}:${m.edited_at || ''}:${m.body}`).join('|');
   if (signature === lastRendered) return;
   lastRendered = signature;
   if (!messages.length) {
@@ -85,7 +103,15 @@ function renderMessages(messages) {
     <div class="chat-bubble-row ${msg.is_mine ? 'chat-mine' : 'chat-theirs'}">
       <div class="chat-bubble">
         <div class="chat-body">${escapeHtml(msg.body)}</div>
-        <div class="chat-time">${escapeHtml((msg.created_at || '').slice(5, 16))}</div>
+        <div class="chat-time">
+          ${escapeHtml((msg.created_at || '').slice(5, 16))}${msg.edited_at ? ' · edited' : ''}
+        </div>
+        ${msg.can_edit ? `
+          <div class="chat-actions">
+            <button type="button" data-action="edit" data-id="${msg.id}">Edit</button>
+            <button type="button" data-action="delete" data-id="${msg.id}">Delete</button>
+          </div>
+        ` : ''}
       </div>
     </div>
   `).join('');
@@ -97,6 +123,10 @@ async function refreshMessages() {
     const res = await fetch(chatMessages.dataset.threadUrl, { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
+    if (data.disappearing && disappearingToggle) {
+      disappearingToggle.checked = Boolean(data.disappearing.enabled);
+      updateDisappearingLabel();
+    }
     renderMessages(data.messages || []);
   } catch (_) {}
 }
@@ -130,6 +160,54 @@ chatBody.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
     chatCompose.requestSubmit();
+  }
+});
+
+chatMessages.addEventListener('click', async event => {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const id = button.dataset.id;
+  const message = messageCache.get(id);
+  if (!message) return;
+
+  if (button.dataset.action === 'edit') {
+    const next = prompt('Edit message', message.body);
+    if (next === null) return;
+    const body = next.trim();
+    if (!body || body === message.body) return;
+    const res = await fetch(`/api/messages/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body })
+    });
+    if (res.ok) await refreshMessages();
+  }
+
+  if (button.dataset.action === 'delete') {
+    if (!confirm('Delete this message?')) return;
+    const res = await fetch(`/api/messages/${id}`, { method: 'DELETE' });
+    if (res.ok) await refreshMessages();
+  }
+});
+
+function updateDisappearingLabel() {
+  disappearingLabel.textContent = `24h auto-delete ${disappearingToggle.checked ? 'on' : 'off'}`;
+}
+
+disappearingToggle.addEventListener('change', async () => {
+  const enabled = disappearingToggle.checked;
+  updateDisappearingLabel();
+  try {
+    const res = await fetch(chatMessages.dataset.disappearingUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    });
+    if (!res.ok) throw new Error('failed');
+    await refreshMessages();
+  } catch (_) {
+    disappearingToggle.checked = !enabled;
+    updateDisappearingLabel();
   }
 });
 

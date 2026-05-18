@@ -4598,6 +4598,10 @@ select.form-input,
 }
 
 .chat-thread-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
   padding:18px 20px;
   border-bottom:1px solid var(--border);
   background:var(--surface);
@@ -4620,6 +4624,57 @@ select.form-input,
   color:var(--t2);
   font-size:12.5px;
   font-weight:650;
+}
+
+.chat-expire-toggle {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface-2);
+  color:var(--t2);
+  font-size:12px;
+  font-weight:750;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.chat-expire-toggle input {
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+
+.chat-expire-switch {
+  position:relative;
+  width:34px;
+  height:20px;
+  border-radius:999px;
+  background:var(--border);
+  transition:background .18s ease;
+}
+
+.chat-expire-switch::after {
+  content:"";
+  position:absolute;
+  top:3px;
+  left:3px;
+  width:14px;
+  height:14px;
+  border-radius:999px;
+  background:#fff;
+  box-shadow:0 1px 4px rgba(15,23,42,.20);
+  transition:transform .18s ease;
+}
+
+.chat-expire-toggle input:checked + .chat-expire-switch {
+  background:var(--p1);
+}
+
+.chat-expire-toggle input:checked + .chat-expire-switch::after {
+  transform:translateX(14px);
 }
 
 .chat-messages-list {
@@ -4676,6 +4731,40 @@ select.form-input,
 
 .chat-mine .chat-time {
   color:rgba(255,255,255,.72);
+}
+
+.chat-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:6px;
+  margin-top:7px;
+}
+
+.chat-actions button {
+  border:0;
+  border-radius:999px;
+  background:rgba(15,23,42,.06);
+  color:var(--t2);
+  cursor:pointer;
+  font-size:10.5px;
+  font-weight:800;
+  padding:4px 8px;
+  transition:background .16s ease, color .16s ease;
+}
+
+.chat-actions button:hover {
+  background:rgba(99,91,255,.12);
+  color:var(--p1);
+}
+
+.chat-mine .chat-actions button {
+  background:rgba(255,255,255,.16);
+  color:rgba(255,255,255,.82);
+}
+
+.chat-mine .chat-actions button:hover {
+  background:rgba(255,255,255,.28);
+  color:#fff;
 }
 
 .chat-compose {
@@ -4913,6 +5002,15 @@ select.form-input,
   .chat-compose {
     flex-direction:column;
     align-items:stretch;
+  }
+
+  .chat-thread-header {
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .chat-expire-toggle {
+    justify-content:space-between;
   }
 
   .emoji-picker {

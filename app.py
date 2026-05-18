@@ -268,7 +268,13 @@ def _conversation_response(other):
 
     thread = db.get_message_thread(current_user.id, other["id"])
     db.mark_thread_read(current_user.id, other["id"])
-    return render_template("conversation.html", other=other, thread=thread)
+    disappearing = db.get_disappearing_mode(current_user.id, other["id"])
+    return render_template(
+        "conversation.html",
+        other=other,
+        thread=thread,
+        disappearing=disappearing,
+    )
 
 
 @app.route("/messages/user/<int:user_id>", methods=["GET", "POST"])
@@ -290,6 +296,7 @@ def _message_thread_response(other):
     thread = db.get_message_thread(current_user.id, other["id"])
     db.mark_thread_read(current_user.id, other["id"])
     return jsonify({
+        "disappearing": db.get_disappearing_mode(current_user.id, other["id"]),
         "messages": [
             {
                 "id": msg["id"],
@@ -297,7 +304,9 @@ def _message_thread_response(other):
                 "receiver_id": msg["receiver_id"],
                 "body": msg["body"],
                 "created_at": msg["created_at"],
+                "edited_at": msg.get("edited_at", ""),
                 "is_mine": msg["sender_id"] == current_user.id,
+                "can_edit": msg["sender_id"] == current_user.id,
             }
             for msg in thread
         ]
@@ -339,6 +348,41 @@ def api_send_message_by_user_id(user_id):
 def api_send_message(username):
     other = db.get_user_by_username(username) or db.get_user_by_username_loose(username)
     return _send_message_response(other)
+
+
+@app.route("/api/messages/<int:message_id>", methods=["PATCH"])
+@login_required
+def api_edit_message(message_id):
+    data = request.get_json(silent=True) or {}
+    body = (data.get("body") or "").strip()
+    if not body:
+        return jsonify({"error": "Message cannot be empty."}), 400
+    if not db.edit_message(message_id, current_user.id, body):
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"status": "edited"})
+
+
+@app.route("/api/messages/<int:message_id>", methods=["DELETE"])
+@login_required
+def api_delete_message(message_id):
+    if not db.delete_message(message_id, current_user.id):
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/messages/user/<int:user_id>/disappearing", methods=["POST"])
+@login_required
+def api_set_disappearing_mode(user_id):
+    other = db.get_user_by_id(user_id)
+    if not other or other["id"] == current_user.id:
+        return jsonify({"error": "not found"}), 404
+    data = request.get_json(silent=True) or {}
+    mode = db.set_disappearing_mode(
+        current_user.id,
+        other["id"],
+        bool(data.get("enabled")),
+    )
+    return jsonify({"status": "updated", "disappearing": mode})
 
 
 @app.route("/notifications")
