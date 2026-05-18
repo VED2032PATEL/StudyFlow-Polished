@@ -347,6 +347,19 @@ def notifications():
     items = db.get_notifications(current_user.id)
     return render_template("notifications.html", notifications=items)
 
+
+@app.route("/api/notifications/count")
+@login_required
+def api_notification_count():
+    notification_count = db.get_notification_count(current_user.id)
+    unread_messages = db.get_unread_message_count(current_user.id)
+    return jsonify({
+        "count": notification_count,
+        "unread_messages": unread_messages,
+        "sound_count": notification_count + unread_messages,
+    })
+
+
 @app.route("/subjects")
 @login_required
 def subjects():

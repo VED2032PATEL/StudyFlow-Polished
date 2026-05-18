@@ -69,18 +69,20 @@
     </li>
     <li>
       <a href="{{ url_for('messages') }}"
-         class="nav-item {% if request.endpoint in ['messages', 'conversation'] %}active{% endif %}">
+         class="nav-item {% if request.endpoint in ['messages', 'conversation', 'conversation_by_user_id'] %}active{% endif %}">
         <span class="nav-icon">💬</span>
         <span>Messages</span>
       </a>
     </li>
     <li>
       <a href="{{ url_for('notifications') }}"
+         id="notificationsNav"
+         data-initial-count="{{ notification_count or 0 }}"
          class="nav-item {% if request.endpoint == 'notifications' %}active{% endif %}">
         <span class="nav-icon">🔔</span>
         <span>Notifications</span>
         {% if notification_count %}
-          <span class="nav-badge">{{ notification_count }}</span>
+          <span class="nav-badge" id="notificationBadge">{{ notification_count }}</span>
         {% endif %}
       </a>
     </li>
@@ -354,6 +356,96 @@
     checkAiStatus();
     setInterval(checkAiStatus, 60000);
   })();
+
+  {% if current_user.is_authenticated %}
+  (function() {
+    const nav = document.getElementById('notificationsNav');
+    const soundKey = 'sfNotifySoundCount:{{ current_user.id }}';
+    let audioCtx = null;
+    let audioUnlocked = false;
+    let pendingBeep = false;
+
+    function ensureAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playNotificationBeep() {
+      try {
+        if (!audioUnlocked) {
+          pendingBeep = true;
+          return;
+        }
+        const ctx = ensureAudio();
+        const now = ctx.currentTime;
+        [0, 0.13].forEach((offset, index) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = index ? 1046 : 784;
+          gain.gain.setValueAtTime(0.0001, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.16, now + offset + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.18);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.2);
+        });
+      } catch (_) {}
+    }
+
+    function unlockAudio() {
+      try {
+        ensureAudio();
+        audioUnlocked = true;
+        if (pendingBeep) {
+          pendingBeep = false;
+          playNotificationBeep();
+        }
+      } catch (_) {}
+    }
+
+    function setBadge(count) {
+      if (!nav) return;
+      let badge = document.getElementById('notificationBadge');
+      if (count > 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'nav-badge';
+          badge.id = 'notificationBadge';
+          nav.appendChild(badge);
+        }
+        badge.textContent = count;
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+
+    async function checkNotifications() {
+      try {
+        const res = await fetch('/api/notifications/count', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const visibleCount = Number(data.count || 0);
+        const soundCount = Number(data.sound_count || visibleCount);
+        const previous = sessionStorage.getItem(soundKey);
+        setBadge(visibleCount);
+        if (previous !== null && soundCount > Number(previous)) {
+          playNotificationBeep();
+        }
+        sessionStorage.setItem(soundKey, String(soundCount));
+      } catch (_) {}
+    }
+
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    checkNotifications();
+    setInterval(checkNotifications, 12000);
+  })();
+  {% endif %}
 
   // Sidebar toggle
   const sidebar = document.getElementById('sidebar');
