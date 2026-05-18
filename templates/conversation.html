@@ -172,7 +172,9 @@ function renderMessages(messages) {
 
 async function refreshMessages() {
   try {
-    const res = await fetch(chatMessages.dataset.threadUrl, { cache: 'no-store' });
+    const url = new URL(chatMessages.dataset.threadUrl, window.location.origin);
+    if (document.visibilityState === 'visible') url.searchParams.set('mark_read', '1');
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
     if (data.disappearing && disappearingToggle) {
@@ -182,6 +184,10 @@ async function refreshMessages() {
     renderMessages(data.messages || []);
   } catch (_) {}
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshMessages();
+});
 
 chatCompose.addEventListener('submit', async (event) => {
   event.preventDefault();

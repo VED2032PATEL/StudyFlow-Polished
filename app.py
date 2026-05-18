@@ -294,7 +294,8 @@ def _message_thread_response(other):
     if not other or other["id"] == current_user.id:
         return jsonify({"error": "not found"}), 404
     thread = db.get_message_thread(current_user.id, other["id"])
-    db.mark_thread_read(current_user.id, other["id"])
+    if request.args.get("mark_read") == "1":
+        db.mark_thread_read(current_user.id, other["id"])
     return jsonify({
         "disappearing": db.get_disappearing_mode(current_user.id, other["id"]),
         "messages": [
