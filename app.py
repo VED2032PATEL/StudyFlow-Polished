@@ -357,7 +357,13 @@ def unfollow_user(user_id):
 @login_required
 def messages():
     conversations = db.get_conversations(current_user.id)
-    return render_template("messages.html", conversations=conversations)
+    return render_template(
+        "messages.html",
+        conversations=conversations,
+        other=None,
+        thread=[],
+        disappearing={"enabled": False, "hours": 0},
+    )
 
 
 def _conversation_response(other):
@@ -379,8 +385,10 @@ def _conversation_response(other):
     thread = _prepare_chat_thread_display(db.get_message_thread(current_user.id, other["id"]))
     db.mark_thread_read(current_user.id, other["id"])
     disappearing = db.get_disappearing_mode(current_user.id, other["id"])
+    conversations = db.get_conversations(current_user.id)
     return render_template(
-        "conversation.html",
+        "messages.html",
+        conversations=conversations,
         other=other,
         thread=thread,
         disappearing=disappearing,

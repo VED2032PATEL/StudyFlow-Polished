@@ -3,58 +3,94 @@
 
 {% block content %}
 
-<div class="page-header anim">
-  <div>
-    <h1 class="page-title">Messages</h1>
-    <p class="page-sub">Private one-to-one chats with other StudyFlow users</p>
-  </div>
-  <a href="{{ url_for('people') }}" class="btn btn-primary">Find People</a>
+<div class="messages-split-shell anim">
+  <aside class="messages-sidebar-panel">
+    <div class="messages-sidebar-header">
+      <div>
+        <h1 class="messages-sidebar-title">Messages</h1>
+        <p>{{ conversations|length }} chats</p>
+      </div>
+      <a href="{{ url_for('people') }}" class="messages-new-btn" title="Find people" aria-label="Find people">
+        <i data-lucide="edit-3" width="18" height="18"></i>
+      </a>
+    </div>
+
+    <label class="messages-search-box">
+      <span class="sf-search-icon"></span>
+      <input type="search" id="messageSearchInput" placeholder="Search chats" autocomplete="off"/>
+    </label>
+
+    {% if conversations %}
+    <div class="conversation-list split-conversation-list" id="splitConversationList">
+      {% for convo in conversations %}
+      <a href="{{ url_for('conversation_by_user_id', user_id=convo.user.id) }}"
+         class="conversation-row {% if other and convo.user.id == other.id %}active{% endif %} {% if convo.unread %}conversation-unread{% endif %}"
+         data-search="{{ convo.user.username|lower }}">
+        <span class="conversation-avatar">
+          {% if convo.user.avatar_data_url %}
+            <img src="{{ convo.user.avatar_data_url }}" alt="{{ convo.user.username }} profile photo"/>
+          {% else %}
+            {{ convo.user.username[0].upper() }}
+          {% endif %}
+        </span>
+        <span class="conversation-main">
+          <span class="conversation-top">
+            <strong>{{ convo.user.username }}</strong>
+            {% if convo.last %}<time>{{ convo.last.created_at[5:16] }}</time>{% endif %}
+          </span>
+          {% if convo.last %}
+          <span class="conversation-preview">
+            {% if convo.last.sender_id == current_user.id %}You: {% endif %}
+            {% if convo.last.body %}
+              {{ convo.last.body[:72] }}{% if convo.last.body|length > 72 %}...{% endif %}
+            {% elif convo.last.attachment_name %}
+              Attachment: {{ convo.last.attachment_name }}
+            {% else %}
+              Attachment
+            {% endif %}
+          </span>
+          {% endif %}
+        </span>
+        {% if convo.unread %}
+        <span class="conversation-badge">{{ convo.unread }}</span>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="messages-empty-side">
+      <p>No messages yet.</p>
+      <a href="{{ url_for('people') }}" class="btn btn-primary btn-sm">Find People</a>
+    </div>
+    {% endif %}
+  </aside>
+
+  <section class="messages-chat-panel">
+    {% if other %}
+      {% include "conversation.html" %}
+    {% else %}
+      <div class="messages-select-empty">
+        <span class="title-icon"><i data-lucide="message-circle" width="22" height="22"></i></span>
+        <h2>Select a chat</h2>
+        <p>Choose a conversation from the left to start messaging.</p>
+        <a href="{{ url_for('people') }}" class="btn btn-primary">Find People</a>
+      </div>
+    {% endif %}
+  </section>
 </div>
 
-<div class="card anim d1">
-  <div class="card-header">
-    <h2 class="card-title">Inbox</h2>
-    <span class="badge badge-primary">{{ conversations|length }} chats</span>
-  </div>
-
-  {% if conversations %}
-  <div class="conversation-list">
-    {% for convo in conversations %}
-    <a href="{{ url_for('conversation_by_user_id', user_id=convo.user.id) }}"
-       class="conversation-row {% if convo.unread %}conversation-unread{% endif %}">
-      <span class="conversation-avatar">
-        {% if convo.user.avatar_data_url %}
-          <img src="{{ convo.user.avatar_data_url }}" alt="{{ convo.user.username }} profile photo"/>
-        {% else %}
-          {{ convo.user.username[0].upper() }}
-        {% endif %}
-      </span>
-      <span class="conversation-main">
-        <span class="conversation-top">
-          <strong>{{ convo.user.username }}</strong>
-          {% if convo.last %}<time>{{ convo.last.created_at[5:16] }}</time>{% endif %}
-        </span>
-        {% if convo.last %}
-        <span class="conversation-preview">
-          {% if convo.last.sender_id == current_user.id %}You: {% endif %}
-          {{ convo.last.body[:120] }}{% if convo.last.body|length > 120 %}...{% endif %}
-        </span>
-        {% endif %}
-      </span>
-      {% if convo.unread %}
-      <span class="conversation-badge">{{ convo.unread }}</span>
-      {% endif %}
-    </a>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty-full compact-empty">
-    <span class="empty-full-icon">💬</span>
-    <h2>No messages yet</h2>
-    <p>Search for a user from People and start a conversation.</p>
-    <a href="{{ url_for('people') }}" class="btn btn-primary">Find People</a>
-  </div>
-  {% endif %}
-</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('messageSearchInput');
+  const rows = Array.from(document.querySelectorAll('#splitConversationList .conversation-row'));
+  if (!input || !rows.length) return;
+  input.addEventListener('input', () => {
+    const query = input.value.trim().toLowerCase();
+    rows.forEach(row => {
+      row.hidden = query && !(row.dataset.search || '').includes(query);
+    });
+  });
+});
+</script>
 
 {% endblock %}
