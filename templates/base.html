@@ -401,18 +401,30 @@
         }
         const ctx = ensureAudio();
         const now = ctx.currentTime;
-        [0, 0.13].forEach((offset, index) => {
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-18, now);
+        compressor.knee.setValueAtTime(18, now);
+        compressor.ratio.setValueAtTime(6, now);
+        compressor.attack.setValueAtTime(0.003, now);
+        compressor.release.setValueAtTime(0.16, now);
+        compressor.connect(ctx.destination);
+
+        [
+          { offset: 0, frequency: 659, volume: 0.34 },
+          { offset: 0.08, frequency: 880, volume: 0.38 },
+          { offset: 0.16, frequency: 1175, volume: 0.32 }
+        ].forEach(note => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = index ? 1046 : 784;
-          gain.gain.setValueAtTime(0.0001, now + offset);
-          gain.gain.exponentialRampToValueAtTime(0.16, now + offset + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.18);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(note.frequency, now + note.offset);
+          gain.gain.setValueAtTime(0.0001, now + note.offset);
+          gain.gain.exponentialRampToValueAtTime(note.volume, now + note.offset + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + note.offset + 0.22);
           osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + offset);
-          osc.stop(now + offset + 0.2);
+          gain.connect(compressor);
+          osc.start(now + note.offset);
+          osc.stop(now + note.offset + 0.24);
         });
       } catch (_) {}
     }
