@@ -5421,6 +5421,40 @@ select.form-input,
   color:#fff;
 }
 
+.chat-bubble.is-editing {
+  width:min(520px,78vw);
+  background:var(--surface);
+  border-color:rgba(99,91,255,.34);
+  color:var(--t1);
+  box-shadow:var(--sh-md);
+}
+
+.chat-inline-edit-input {
+  width:100%;
+  min-height:82px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface-2);
+  color:var(--t1);
+  padding:11px 12px;
+  resize:vertical;
+  font:inherit;
+  line-height:1.45;
+  outline:0;
+}
+
+.chat-inline-edit-input:focus {
+  border-color:var(--p1);
+  box-shadow:var(--sh-glow);
+}
+
+.chat-inline-edit-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:10px;
+}
+
 .chat-actions {
   display:none;
   justify-content:flex-end;
@@ -5595,6 +5629,50 @@ select.form-input,
   background:rgba(99,91,255,.10);
   border-color:rgba(99,91,255,.30);
   transform:translateY(-1px);
+}
+
+.chat-confirm-modal {
+  position:fixed;
+  inset:0;
+  z-index:9800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:22px;
+  background:rgba(15,23,42,.42);
+  backdrop-filter:blur(8px);
+}
+
+.chat-confirm-modal[hidden] {
+  display:none;
+}
+
+.chat-confirm-panel {
+  width:min(360px,100%);
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+  color:var(--t1);
+  box-shadow:var(--sh-lg);
+  padding:20px;
+}
+
+.chat-confirm-panel h2 {
+  font-size:20px;
+  line-height:1.2;
+  margin-bottom:7px;
+}
+
+.chat-confirm-panel p {
+  color:var(--t2);
+  font-size:13.5px;
+}
+
+.chat-confirm-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:9px;
+  margin-top:18px;
 }
 
 /* Notifications */

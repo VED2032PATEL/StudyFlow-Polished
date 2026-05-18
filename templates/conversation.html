@@ -89,12 +89,6 @@
             {% endfor %}
           </div>
           {% endif %}
-          {% if msg.sender_id == current_user.id %}
-          <div class="chat-actions">
-            <button type="button" data-action="edit" data-id="{{ msg.id }}">Edit</button>
-            <button type="button" data-action="delete" data-id="{{ msg.id }}">Unsend</button>
-          </div>
-          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -125,6 +119,17 @@
       <div class="chat-attachment-preview" id="chatAttachmentPreview" hidden></div>
     </div>
   </form>
+</div>
+
+<div class="chat-confirm-modal" id="unsendModal" hidden>
+  <div class="chat-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="unsendTitle">
+    <h2 id="unsendTitle">Unsend message?</h2>
+    <p>This message will be removed from the chat.</p>
+    <div class="chat-confirm-actions">
+      <button type="button" class="btn btn-outline btn-sm" id="cancelUnsendBtn">Cancel</button>
+      <button type="button" class="btn btn-danger btn-sm" id="confirmUnsendBtn">Unsend</button>
+    </div>
+  </div>
 </div>
 
 <div class="call-modal" id="callModal" hidden>
@@ -165,6 +170,9 @@ const disappearingToggle = document.getElementById('disappearingToggle');
 const disappearingLabel = document.getElementById('disappearingLabel');
 const voiceCallBtn = document.getElementById('voiceCallBtn');
 const videoCallBtn = document.getElementById('videoCallBtn');
+const unsendModal = document.getElementById('unsendModal');
+const cancelUnsendBtn = document.getElementById('cancelUnsendBtn');
+const confirmUnsendBtn = document.getElementById('confirmUnsendBtn');
 const callModal = document.getElementById('callModal');
 const callModalTitle = document.getElementById('callModalTitle');
 const callStatusText = document.getElementById('callStatusText');
@@ -188,6 +196,8 @@ let signalAfter = 0;
 let signalTimer = null;
 let callPollTimer = null;
 let offerSent = false;
+let activeEditMessageId = null;
+let pendingUnsendMessageId = null;
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, ch => ({
@@ -297,12 +307,6 @@ function renderMessages(messages) {
         <div class="chat-body">${formatMessageBody(msg.body)}</div>
         ${renderAttachment(msg)}
         ${renderReactions(msg.reactions || [])}
-        ${msg.can_edit ? `
-          <div class="chat-actions">
-            <button type="button" data-action="edit" data-id="${msg.id}">Edit</button>
-            <button type="button" data-action="delete" data-id="${msg.id}">Unsend</button>
-          </div>
-        ` : ''}
       </div>
     </div>
   `).join('');
@@ -321,6 +325,7 @@ async function refreshMessages() {
       disappearingToggle.checked = Boolean(data.disappearing.enabled);
       updateDisappearingLabel();
     }
+    if (activeEditMessageId) return;
     renderMessages(data.messages || []);
   } catch (_) {}
 }
@@ -569,9 +574,9 @@ chatMessages.addEventListener('click', async event => {
   }
 
   const message = messageCache.get(id);
-  if (!message) return;
 
   if (button.dataset.action === 'react') {
+    if (!message) return;
     const res = await fetch(`/api/messages/${id}/reaction`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -583,22 +588,44 @@ chatMessages.addEventListener('click', async event => {
   }
 
   if (button.dataset.action === 'edit') {
-    const next = prompt('Edit message', message.body);
-    if (next === null) return;
-    const body = next.trim();
-    if (!body || body === message.body) return;
+    if (!message || !row) return;
+    startInlineEdit(row, message);
+    return;
+  }
+
+  if (button.dataset.action === 'cancel-edit') {
+    if (!message || !row) return;
+    cancelInlineEdit(row, message);
+    return;
+  }
+
+  if (button.dataset.action === 'save-edit') {
+    if (!message || !row) return;
+    const editor = row.querySelector('.chat-inline-edit-input');
+    const body = (editor?.value || '').trim();
+    if (!body || body === message.body) {
+      cancelInlineEdit(row, message);
+      return;
+    }
+    button.disabled = true;
     const res = await fetch(`/api/messages/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body })
     });
-    if (res.ok) await refreshMessages();
+    if (res.ok) {
+      activeEditMessageId = null;
+      lastRendered = '';
+      await refreshMessages();
+    } else {
+      button.disabled = false;
+    }
+    return;
   }
 
   if (button.dataset.action === 'delete') {
-    if (!confirm('Unsend this message?')) return;
-    const res = await fetch(`/api/messages/${id}`, { method: 'DELETE' });
-    if (res.ok) await refreshMessages();
+    if (!message) return;
+    openUnsendDialog(id);
   }
 });
 
@@ -610,6 +637,83 @@ document.addEventListener('click', event => {
   document.querySelectorAll('.chat-bubble-row.menu-open').forEach(row => {
     row.classList.remove('menu-open');
   });
+});
+
+function closeMessageMenus() {
+  document.querySelectorAll('.message-reaction-menu, .message-more-menu').forEach(menu => {
+    menu.hidden = true;
+  });
+  document.querySelectorAll('.chat-bubble-row.menu-open').forEach(row => {
+    row.classList.remove('menu-open');
+  });
+}
+
+function startInlineEdit(row, message) {
+  closeMessageMenus();
+  if (activeEditMessageId && String(activeEditMessageId) !== String(message.id)) {
+    const previous = document.querySelector(`.chat-bubble-row[data-message-id="${activeEditMessageId}"]`);
+    const previousMessage = messageCache.get(String(activeEditMessageId));
+    if (previous && previousMessage) cancelInlineEdit(previous, previousMessage);
+  }
+  activeEditMessageId = message.id;
+  const bubble = row.querySelector('.chat-bubble');
+  const body = row.querySelector('.chat-body');
+  if (!bubble || !body) return;
+  bubble.classList.add('is-editing');
+  body.innerHTML = `
+    <textarea class="chat-inline-edit-input" rows="2" maxlength="2000">${escapeHtml(message.body || '')}</textarea>
+    <div class="chat-inline-edit-actions">
+      <button type="button" data-action="cancel-edit" data-id="${message.id}" class="btn btn-outline btn-sm">Cancel</button>
+      <button type="button" data-action="save-edit" data-id="${message.id}" class="btn btn-primary btn-sm">Save</button>
+    </div>
+  `;
+  const editor = body.querySelector('.chat-inline-edit-input');
+  editor.focus();
+  editor.setSelectionRange(editor.value.length, editor.value.length);
+}
+
+function cancelInlineEdit(row, message) {
+  const bubble = row.querySelector('.chat-bubble');
+  const body = row.querySelector('.chat-body');
+  if (!bubble || !body) return;
+  body.innerHTML = formatMessageBody(message.body || '');
+  bubble.classList.remove('is-editing');
+  activeEditMessageId = null;
+}
+
+function openUnsendDialog(id) {
+  closeMessageMenus();
+  pendingUnsendMessageId = id;
+  unsendModal.hidden = false;
+  document.body.classList.add('chat-confirm-open');
+  confirmUnsendBtn.focus();
+}
+
+function closeUnsendDialog() {
+  pendingUnsendMessageId = null;
+  unsendModal.hidden = true;
+  document.body.classList.remove('chat-confirm-open');
+  confirmUnsendBtn.disabled = false;
+}
+
+cancelUnsendBtn.addEventListener('click', closeUnsendDialog);
+unsendModal.addEventListener('click', event => {
+  if (event.target === unsendModal) closeUnsendDialog();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !unsendModal.hidden) closeUnsendDialog();
+});
+confirmUnsendBtn.addEventListener('click', async () => {
+  if (!pendingUnsendMessageId) return;
+  confirmUnsendBtn.disabled = true;
+  const res = await fetch(`/api/messages/${pendingUnsendMessageId}`, { method: 'DELETE' });
+  if (res.ok) {
+    closeUnsendDialog();
+    lastRendered = '';
+    await refreshMessages();
+  } else {
+    confirmUnsendBtn.disabled = false;
+  }
 });
 
 function updateDisappearingLabel() {
