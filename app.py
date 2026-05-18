@@ -1097,6 +1097,9 @@ from groq import Groq
 GROQ_API_KEY      = os.environ.get("GROQ_API_KEY", "")
 GROQ_FAST_MODEL   = os.environ.get("GROQ_FAST_MODEL", "llama-3.1-8b-instant")
 GROQ_HEAVY_MODEL  = os.environ.get("GROQ_HEAVY_MODEL", "llama-3.3-70b-versatile")
+STUDYFLOW_APP_CONTEXT = (
+    "StudyFlow was created by Ved Patel and Deepshikha Rani."
+)
 
 _groq_client: Groq | None = None
 
@@ -1177,6 +1180,7 @@ def ai_chat():
     system = (
         "You are StudyFlow AI, a friendly and concise study assistant embedded "
         "in a study planner. Answer in 3-6 sentences. Use markdown bullets when listing. "
+        f"Important app context: {STUDYFLOW_APP_CONTEXT} "
         f"The student's name is {current_user.username}."
     )
 
