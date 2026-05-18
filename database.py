@@ -181,6 +181,12 @@ _CREATE = [
         coupon_code TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )""",
+    """CREATE TABLE IF NOT EXISTS notification_reads (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        notification_key TEXT NOT NULL,
+        read_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, notification_key)
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -808,8 +814,41 @@ def mark_thread_read(user_id, other_user_id):
         conn.close()
 
 
+def _notification_key(kind, *parts):
+    clean_parts = [str(part or "").replace("|", "-") for part in parts]
+    return "|".join([kind, *clean_parts])
+
+
+def get_read_notification_keys(user_id):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "SELECT notification_key FROM notification_reads WHERE user_id=?",
+            [user_id],
+        )
+        return {row[0] for row in res.rows}
+    finally:
+        conn.close()
+
+
+def mark_notifications_read(user_id, notification_keys):
+    keys = [key for key in notification_keys if key]
+    if not keys:
+        return
+    conn = get_db()
+    try:
+        for key in keys:
+            conn.execute(
+                "INSERT OR IGNORE INTO notification_reads (user_id,notification_key) VALUES (?,?)",
+                [user_id, key],
+            )
+    finally:
+        conn.close()
+
+
 def get_notifications(user_id):
     today = datetime.date.today()
+    read_keys = get_read_notification_keys(user_id)
     items = []
 
     for convo in get_conversations(user_id):
@@ -853,8 +892,12 @@ def get_notifications(user_id):
         })
 
     for follower in get_followers(user_id)[:5]:
+        notification_key = _notification_key("follower", follower["id"], follower.get("followed_at", ""))
+        if notification_key in read_keys:
+            continue
         items.append({
             "type": "follower",
+            "key": notification_key,
             "priority": 5,
             "title": f"{follower['username']} followed you",
             "body": "Open their profile to see public study progress.",

@@ -555,6 +555,10 @@ def api_call_signals(call_id):
 @login_required
 def notifications():
     items = db.get_notifications(current_user.id)
+    follower_keys = [item.get("key") for item in items if item.get("type") == "follower"]
+    if follower_keys:
+        db.mark_notifications_read(current_user.id, follower_keys)
+        items = db.get_notifications(current_user.id)
     return render_template("notifications.html", notifications=items)
 
 
