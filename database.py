@@ -178,6 +178,7 @@ _CREATE = [
         reward_id TEXT NOT NULL,
         title TEXT NOT NULL,
         cost INTEGER NOT NULL,
+        coupon_code TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )""",
 ]
@@ -194,6 +195,7 @@ _MIGRATIONS = [
     ("users",      "default_difficulty",   "ALTER TABLE users ADD COLUMN default_difficulty INTEGER NOT NULL DEFAULT 3"),
     ("users",      "avatar_data_url",       "ALTER TABLE users ADD COLUMN avatar_data_url TEXT NOT NULL DEFAULT ''"),
     ("messages",   "edited_at",             "ALTER TABLE messages ADD COLUMN edited_at TEXT NOT NULL DEFAULT ''"),
+    ("flowcoin_redemptions", "coupon_code",  "ALTER TABLE flowcoin_redemptions ADD COLUMN coupon_code TEXT NOT NULL DEFAULT ''"),
 ]
 
 
@@ -1133,15 +1135,27 @@ def get_redemptions(user_id, limit=12):
         conn.close()
 
 
-def redeem_flowcoin_reward(user_id, reward_id, title, cost):
+def count_reward_redemptions(user_id, reward_id):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "SELECT COUNT(*) FROM flowcoin_redemptions WHERE user_id=? AND reward_id=?",
+            [user_id, reward_id],
+        )
+        return int(res.rows[0][0] or 0)
+    finally:
+        conn.close()
+
+
+def redeem_flowcoin_reward(user_id, reward_id, title, cost, coupon_code=""):
     balance = get_flowcoin_balance(user_id)
     if balance < cost:
         return False, balance
     conn = get_db()
     try:
         res = conn.execute(
-            "INSERT INTO flowcoin_redemptions (user_id,reward_id,title,cost) VALUES (?,?,?,?)",
-            [user_id, reward_id, title, cost],
+            "INSERT INTO flowcoin_redemptions (user_id,reward_id,title,cost,coupon_code) VALUES (?,?,?,?,?)",
+            [user_id, reward_id, title, cost, coupon_code or ""],
         )
         redemption_id = getattr(res, "last_insert_rowid", None) or datetime.datetime.utcnow().timestamp()
         conn.execute(

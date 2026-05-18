@@ -27,6 +27,13 @@ app = Flask(__name__,
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 
+DELIVERY_COUPONS = [
+    "VEDLOVESDIYU",
+    "VEDREALLYLOVESDIYU",
+    "VEDHEARTU",
+    "V143D",
+]
+
 REDEEM_ITEMS = [
     {
         "id": "focus-pass",
@@ -48,6 +55,15 @@ REDEEM_ITEMS = [
         "cost": 350,
         "description": "A one-time self-approved deadline recovery token.",
         "icon": "shield-check",
+    },
+    {
+        "id": "delivery-treat",
+        "title": "Swiggy/Blinkit Treat",
+        "cost": 200,
+        "description": "Redeem an order coupon worth up to Rs 300 for your next snack or study refill.",
+        "icon": "shopping-bag",
+        "visual": "delivery",
+        "coupon_codes": DELIVERY_COUPONS,
     },
     {
         "id": "deep-work",
@@ -75,6 +91,14 @@ def _redirect_back(default_endpoint="dashboard"):
     if _is_safe_redirect_url(next_page):
         return redirect(next_page)
     return redirect(url_for(default_endpoint))
+
+
+def _coupon_for_redemption(user_id, reward):
+    codes = reward.get("coupon_codes") or []
+    if not codes:
+        return ""
+    claimed = db.count_reward_redemptions(user_id, reward["id"])
+    return codes[claimed % len(codes)]
 
 # ── Flask-Login setup ─────────────────────────────────────────────────────────
 
@@ -553,14 +577,19 @@ def redeem_reward(reward_id):
     if not reward:
         flash("Reward not found.", "error")
         return redirect(url_for("redeem"))
+    coupon_code = _coupon_for_redemption(current_user.id, reward)
     ok, balance = db.redeem_flowcoin_reward(
         current_user.id,
         reward["id"],
         reward["title"],
         reward["cost"],
+        coupon_code,
     )
     if ok:
-        flash(f"Redeemed {reward['title']} for {reward['cost']} FlowCoins.", "success")
+        if coupon_code:
+            flash(f"Redeemed {reward['title']} for {reward['cost']} FlowCoins. Coupon: {coupon_code}", "success")
+        else:
+            flash(f"Redeemed {reward['title']} for {reward['cost']} FlowCoins.", "success")
     else:
         flash(f"You need {reward['cost'] - balance} more FlowCoins for that reward.", "error")
     return redirect(url_for("redeem"))

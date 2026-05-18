@@ -28,11 +28,25 @@
 
 <div class="redeem-grid anim d2">
   {% for reward in rewards %}
-  <div class="redeem-card">
-    <div class="redeem-icon" data-lucide="{{ reward.icon }}"></div>
+  <div class="redeem-card {% if reward.visual == 'delivery' %}delivery-reward{% endif %}">
+    {% if reward.visual == 'delivery' %}
+      <div class="delivery-reward-art" aria-label="Swiggy and Blinkit reward">
+        <span class="delivery-logo swiggy-logo">Swiggy</span>
+        <span class="delivery-logo blinkit-logo">Blinkit</span>
+      </div>
+    {% else %}
+      <div class="redeem-icon" data-lucide="{{ reward.icon }}"></div>
+    {% endif %}
     <div class="redeem-main">
       <h2>{{ reward.title }}</h2>
       <p>{{ reward.description }}</p>
+      {% if reward.coupon_codes %}
+        <div class="coupon-preview">
+          {% for code in reward.coupon_codes %}
+            <span>{{ code }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
     <div class="redeem-footer">
       <span class="coin-cost">{{ reward.cost }} FC</span>
@@ -75,7 +89,12 @@
       <div class="coin-ledger">
         {% for item in redemptions %}
         <div class="coin-ledger-row">
-          <span>{{ item.title }}</span>
+          <span>
+            {{ item.title }}
+            {% if item.coupon_code %}
+              <small class="coupon-code">Coupon: {{ item.coupon_code }}</small>
+            {% endif %}
+          </span>
           <strong>{{ item.cost }} FC</strong>
         </div>
         {% endfor %}
