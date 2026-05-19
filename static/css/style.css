@@ -4856,6 +4856,12 @@ select.form-input,
   transform:translate(-50%,-50%);
 }
 
+.avatar-decoration--pastel_study .avatar-decoration-img {
+  width:126%;
+  height:126%;
+  transform:translate(-50%,-50%);
+}
+
 .profile-avatar-large.avatar-decoration--night_study .avatar-decoration-img {
   width:134%;
   height:134%;

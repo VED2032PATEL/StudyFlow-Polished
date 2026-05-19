@@ -27,6 +27,7 @@ PROFILE_DECORATIONS = [
     {"id": "science_neon", "name": "Science Neon", "filename": "profile-decorations/science-neon-frame.png"},
     {"id": "graduation_gold", "name": "Graduation Gold", "filename": "profile-decorations/graduation-gold-frame.png"},
     {"id": "school_supplies", "name": "School Supplies", "filename": "profile-decorations/school-supplies-frame.png"},
+    {"id": "pastel_study", "name": "Pastel Study", "filename": "profile-decorations/pastel-study-frame.png"},
 ]
 PROFILE_DECORATION_ASSETS = {item["id"]: item["filename"] for item in PROFILE_DECORATIONS}
 
