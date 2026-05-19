@@ -176,18 +176,19 @@
         </div>
       </div>
 
+      {% set current_decoration = user.profile_decoration if user.profile_decoration in profile_decoration_assets else '' %}
       <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data" class="profile-photo-form">
         <input type="hidden" name="action" value="avatar"/>
         <input type="hidden" name="avatar_data" id="avatarDataInput"/>
         <div class="profile-photo-row">
-          <div class="profile-photo-preview {% if user.profile_decoration %}decorated-avatar has-avatar-decoration{% endif %}" id="avatarPreview">
+          <div class="profile-photo-preview {% if current_decoration %}decorated-avatar has-avatar-decoration{% endif %}" id="avatarPreview">
             {% if user.avatar_data_url %}
               <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
             {% else %}
               <span class="avatar-initial">{{ user.username[0].upper() }}</span>
             {% endif %}
-            {% if user.profile_decoration == 'study_ghost' %}
-              <img src="{{ url_for('static', filename='profile-decorations/study-ghost.svg') }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
+            {% if current_decoration %}
+              <img src="{{ url_for('static', filename=profile_decoration_assets[current_decoration]) }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
             {% endif %}
           </div>
           <div class="profile-photo-copy">
@@ -214,13 +215,14 @@
         <p class="form-hint">Choose an overlay that sits on top of your profile photo.</p>
         <div class="decoration-picker">
           <label class="decoration-option">
-            <input type="radio" name="profile_decoration" value="" {% if not user.profile_decoration %}checked{% endif %}/>
+            <input type="radio" name="profile_decoration" value="" {% if not current_decoration %}checked{% endif %}/>
             <span class="decoration-card">
               <span class="decoration-none">None</span>
             </span>
           </label>
+          {% for decoration in profile_decorations %}
           <label class="decoration-option">
-            <input type="radio" name="profile_decoration" value="study_ghost" {% if user.profile_decoration == 'study_ghost' %}checked{% endif %}/>
+            <input type="radio" name="profile_decoration" value="{{ decoration.id }}" {% if current_decoration == decoration.id %}checked{% endif %}/>
             <span class="decoration-card">
               <span class="profile-photo-preview decorated-avatar has-avatar-decoration decoration-sample">
                 {% if user.avatar_data_url %}
@@ -228,11 +230,12 @@
                 {% else %}
                   <span class="avatar-initial">{{ user.username[0].upper() }}</span>
                 {% endif %}
-                <img src="{{ url_for('static', filename='profile-decorations/study-ghost.svg') }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
+                <img src="{{ url_for('static', filename=decoration.filename) }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
               </span>
-              <strong>Study Ghost</strong>
+              <strong>{{ decoration.name }}</strong>
             </span>
           </label>
+          {% endfor %}
         </div>
         <button type="submit" class="btn btn-primary btn-sm">Save Decoration</button>
       </form>

@@ -7,14 +7,15 @@
 {%- endmacro %}
 
 {% macro decorated_avatar(user, class_name, alt='profile photo') -%}
-  <span class="{{ class_name }} decorated-avatar {% if user and user.profile_decoration %}has-avatar-decoration{% endif %}">
+  {% set decoration_asset = profile_decoration_assets.get(user.profile_decoration) if user and user.profile_decoration else '' %}
+  <span class="{{ class_name }} decorated-avatar {% if decoration_asset %}has-avatar-decoration{% endif %}">
     {% if user and user.avatar_data_url %}
       <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
     {% else %}
       <span class="avatar-initial">{{ user.username[0].upper() if user and user.username else '?' }}</span>
     {% endif %}
-    {% if user and user.profile_decoration == 'study_ghost' %}
-      <img src="{{ url_for('static', filename='profile-decorations/study-ghost.svg') }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
+    {% if decoration_asset %}
+      <img src="{{ url_for('static', filename=decoration_asset) }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
     {% endif %}
   </span>
 {%- endmacro %}

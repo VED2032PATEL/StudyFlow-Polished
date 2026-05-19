@@ -174,7 +174,11 @@ const callEmptyState = document.getElementById('callEmptyState');
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 const otherAvatarUrl = {{ (other.avatar_data_url or '')|tojson }};
 const otherDecoration = {{ (other.profile_decoration or '')|tojson }};
-const studyGhostDecorationUrl = {{ url_for('static', filename='profile-decorations/study-ghost.svg')|tojson }};
+const profileDecorationAssets = {
+  {% for key, filename in profile_decoration_assets.items() %}
+  {{ key|tojson }}: {{ url_for('static', filename=filename)|tojson }}{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
 const otherInitial = {{ other.username[0].upper()|tojson }};
 const maxAttachmentBytes = 1400 * 1024;
 let lastRendered = '';
@@ -217,9 +221,8 @@ function formatMessageBody(value) {
 }
 
 function renderIncomingAvatar() {
-  const decoration = otherDecoration === 'study_ghost'
-    ? `<img src="${studyGhostDecorationUrl}" alt="" class="avatar-decoration-img" aria-hidden="true"/>`
-    : '';
+  const decorationUrl = profileDecorationAssets[otherDecoration] || '';
+  const decoration = decorationUrl ? `<img src="${decorationUrl}" alt="" class="avatar-decoration-img" aria-hidden="true"/>` : '';
   return `
     <span class="chat-row-avatar decorated-avatar ${decoration ? 'has-avatar-decoration' : ''}">
       ${otherAvatarUrl ? `<img src="${escapeHtml(otherAvatarUrl)}" alt="Profile photo" class="avatar-photo-img"/>` : `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`}

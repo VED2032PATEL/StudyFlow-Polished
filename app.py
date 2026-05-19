@@ -21,6 +21,15 @@ logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
 
+PROFILE_DECORATIONS = [
+    {"id": "night_study", "name": "Night Study", "filename": "profile-decorations/night-study-frame.png"},
+    {"id": "golden_books", "name": "Golden Books", "filename": "profile-decorations/golden-books-frame.png"},
+    {"id": "science_neon", "name": "Science Neon", "filename": "profile-decorations/science-neon-frame.png"},
+    {"id": "graduation_gold", "name": "Graduation Gold", "filename": "profile-decorations/graduation-gold-frame.png"},
+    {"id": "school_supplies", "name": "School Supplies", "filename": "profile-decorations/school-supplies-frame.png"},
+]
+PROFILE_DECORATION_ASSETS = {item["id"]: item["filename"] for item in PROFILE_DECORATIONS}
+
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__,
@@ -209,16 +218,21 @@ def load_user(user_id):
 
 @app.context_processor
 def inject_notification_count():
+    base_context = {
+        "profile_decorations": PROFILE_DECORATIONS,
+        "profile_decoration_assets": PROFILE_DECORATION_ASSETS,
+    }
     if current_user.is_authenticated:
         try:
             return {
+                **base_context,
                 "notification_count": db.get_notification_count(current_user.id),
                 "unread_message_count": db.get_unread_message_count(current_user.id),
                 "flowcoin_balance": db.get_flowcoin_balance(current_user.id),
             }
         except Exception:
-            return {"notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
-    return {"notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
+            return {**base_context, "notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
+    return {**base_context, "notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
 
 
 @app.before_request
@@ -1326,7 +1340,7 @@ def settings():
 
         elif action == "decoration":
             decoration = request.form.get("profile_decoration", "")
-            if decoration not in {"", "study_ghost"}:
+            if decoration not in {"", *PROFILE_DECORATION_ASSETS.keys()}:
                 decoration = ""
             db.update_profile_decoration(uid, decoration)
             row = db.get_user_by_id(uid)
