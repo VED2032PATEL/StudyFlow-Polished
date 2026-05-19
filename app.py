@@ -1,5 +1,5 @@
 from flask import (Flask, render_template, request, jsonify,
-                   redirect, url_for, flash)
+                   redirect, url_for, flash, send_from_directory)
 from flask_login import (LoginManager, UserMixin, login_user,
                          logout_user, login_required, current_user)
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -75,6 +75,13 @@ app = Flask(__name__,
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
 app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
+
+
+@app.route("/service-worker.js")
+def service_worker():
+    response = send_from_directory(app.static_folder, "service-worker.js", mimetype="application/javascript")
+    response.headers["Service-Worker-Allowed"] = "/"
+    return response
 
 DELIVERY_COUPONS = [
     "VEDLOVESDIYU",
