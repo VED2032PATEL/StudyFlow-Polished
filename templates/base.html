@@ -34,49 +34,49 @@
   <span class="nav-section-label">Main Menu</span>
 
   <ul class="nav-links">
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('dashboard') }}"
          class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
         <span class="nav-icon">🏠</span>
         <span>Dashboard</span>
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('reviews') }}"
          class="nav-item {% if request.endpoint == 'reviews' %}active{% endif %}">
         <span class="nav-icon">🔁</span>
         <span>Reviews</span>
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('analytics') }}"
          class="nav-item {% if request.endpoint == 'analytics' %}active{% endif %}">
         <span class="nav-icon">📊</span>
         <span>Analytics</span>
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('practice') }}"
          class="nav-item {% if request.endpoint == 'practice' %}active{% endif %}">
         <span class="nav-icon">📝</span>
         <span>Practice</span>
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('video_library') }}"
          class="nav-item {% if request.endpoint == 'video_library' %}active{% endif %}">
         <span class="nav-icon">▶️</span>
         <span>Videos</span>
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('people') }}"
          class="nav-item {% if request.endpoint in ['people', 'user_profile', 'user_profile_by_id'] %}active{% endif %}">
         <span class="nav-icon">👥</span>
         <span>People</span>
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('messages') }}"
          id="messagesNav"
          data-initial-count="{{ unread_message_count or 0 }}"
@@ -88,7 +88,7 @@
         {% endif %}
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('notifications') }}"
          id="notificationsNav"
          data-initial-count="{{ notification_count or 0 }}"
@@ -100,7 +100,7 @@
         {% endif %}
       </a>
     </li>
-    <li>
+    <li class="user-nav-item">
       <a href="{{ url_for('redeem') }}"
          class="nav-item {% if request.endpoint in ['redeem', 'redeem_reward'] %}active{% endif %}">
         <span class="nav-icon">🪙</span>

@@ -148,6 +148,10 @@ body.creator-sections-open .developer-nav-item {
   display:list-item;
 }
 
+body.creator-sections-open .user-nav-item {
+  display:none;
+}
+
 .nav-item{
   display:flex;align-items:center;gap:11px;
   padding:11px 13px;border-radius:var(--r-s);
