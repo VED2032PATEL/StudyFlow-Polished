@@ -211,20 +211,24 @@ input,textarea{cursor:text}
 .user-role{font-size:10.5px;color:rgba(167,139,250,.60)}
 
 .verified-badge {
-  width:16px;
-  height:16px;
+  width:.86em;
+  height:.86em;
+  min-width:.86em;
   border-radius:50%;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  vertical-align:-2px;
-  margin-left:4px;
+  vertical-align:.02em;
+  margin-left:.26em;
   background:#1d9bf0;
   color:#fff;
-  box-shadow:0 0 0 2px var(--surface, #fff);
+  box-shadow:none;
+  line-height:1;
 }
 
 .verified-badge .lucide {
+  width:62%;
+  height:62%;
   stroke:currentColor;
 }
 
