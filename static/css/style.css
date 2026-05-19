@@ -4949,6 +4949,55 @@ select.form-input,
   transform:translate(-50%,-50%);
 }
 
+.avatar-decoration--pastel_study .avatar-decoration-img {
+  animation:pastelStudyFloat 5.6s ease-in-out infinite;
+  filter:drop-shadow(0 6px 14px rgba(168,85,247,.18));
+  transform-origin:center;
+}
+
+.avatar-decoration--pastel_study::after {
+  content:"";
+  position:absolute;
+  inset:-14%;
+  z-index:3;
+  pointer-events:none;
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 27% 30%,rgba(255,182,193,.72) 0 2px,transparent 3px),
+    radial-gradient(circle at 72% 28%,rgba(250,204,21,.72) 0 2px,transparent 3px),
+    radial-gradient(circle at 78% 72%,rgba(167,139,250,.70) 0 2px,transparent 3px),
+    radial-gradient(circle at 31% 75%,rgba(99,102,241,.62) 0 2px,transparent 3px);
+  opacity:.42;
+  animation:pastelStudySparkles 4.2s ease-in-out infinite;
+}
+
+@keyframes pastelStudyFloat {
+  0%, 100% {
+    transform:translate(-50%,-50%) rotate(-1deg) scale(1);
+  }
+  50% {
+    transform:translate(-50%,-53%) rotate(1.5deg) scale(1.025);
+  }
+}
+
+@keyframes pastelStudySparkles {
+  0%, 100% {
+    opacity:.28;
+    transform:rotate(0deg) scale(.98);
+  }
+  50% {
+    opacity:.74;
+    transform:rotate(8deg) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-decoration--pastel_study .avatar-decoration-img,
+  .avatar-decoration--pastel_study::after {
+    animation:none;
+  }
+}
+
 .profile-avatar-large.avatar-decoration--night_study .avatar-decoration-img {
   width:134%;
   height:134%;

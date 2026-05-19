@@ -1176,12 +1176,7 @@ def get_streak(user_id):
 # FlowCoin rewards
 
 def calculate_topic_flowcoins(topic):
-    difficulty = int(topic.get("difficulty") or 3)
-    hours = float(topic.get("estimated_hours") or 0)
-    base = 10
-    difficulty_bonus = difficulty * 6
-    effort_bonus = min(30, int(round(hours * 2)))
-    return base + difficulty_bonus + effort_bonus
+    return 10
 
 
 def get_flowcoin_balance(user_id):
@@ -1234,7 +1229,7 @@ def award_streak_flowcoins(user_id):
     streak = get_streak(user_id)
     today = datetime.date.today().isoformat()
     if streak["today_logged"] and streak["current"] and streak["current"] % 7 == 0:
-        amount = 75 + (streak["current"] // 7 - 1) * 25
+        amount = 120
         earned = add_flowcoins(
             user_id,
             amount,
