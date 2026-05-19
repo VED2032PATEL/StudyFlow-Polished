@@ -5405,12 +5405,13 @@ select.form-input,
 .conversation-row {
   display:flex;
   align-items:center;
-  gap:12px;
-  padding:12px;
+  gap:14px;
+  padding:14px 12px;
   border:1px solid var(--border-l);
   border-radius:10px;
   background:var(--surface);
   color:var(--t1);
+  overflow:visible;
 }
 
 .conversation-row:hover {
@@ -5432,7 +5433,7 @@ select.form-input,
   width:44px;
   height:44px;
   border-radius:12px;
-  overflow:hidden;
+  overflow:visible;
   flex-shrink:0;
   display:flex;
   align-items:center;
@@ -5447,6 +5448,7 @@ select.form-input,
   height:100%;
   object-fit:cover;
   display:block;
+  border-radius:inherit;
 }
 
 .conversation-main {
@@ -5763,7 +5765,8 @@ select.form-input,
 .chat-bubble-row {
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:12px;
+  padding:3px 0;
 }
 
 .chat-time-divider {
@@ -5791,7 +5794,7 @@ select.form-input,
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  overflow:hidden;
+  overflow:visible;
   color:#fff;
   background:linear-gradient(135deg,var(--p1),var(--p2));
   font-size:13px;
@@ -5804,6 +5807,7 @@ select.form-input,
   height:100%;
   object-fit:cover;
   display:block;
+  border-radius:inherit;
 }
 
 .chat-bubble {
