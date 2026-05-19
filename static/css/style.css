@@ -114,18 +114,18 @@ input,textarea{cursor:text}
 }
 .brand-logo{
   width:46px;height:46px;flex-shrink:0;
-  border-radius:14px;
+  border-radius:0;
   display:flex;align-items:center;justify-content:center;
-  overflow:hidden;
-  box-shadow:0 4px 20px rgba(99,102,241,.60),0 0 0 1px rgba(255,255,255,.20) inset;
-  transition:transform .32s cubic-bezier(.34,1.56,.64,1),box-shadow .32s;
+  overflow:visible;
+  filter:drop-shadow(0 4px 14px rgba(99,102,241,.45));
+  transition:transform .32s cubic-bezier(.34,1.56,.64,1),filter .32s;
 }
 .brand-logo-img{
-  width:100%;height:100%;object-fit:cover;display:block;border-radius:14px;
+  width:100%;height:100%;object-fit:contain;display:block;border-radius:0;
 }
 .sidebar-brand:hover .brand-logo{
   transform:rotate(-8deg) scale(1.10);
-  box-shadow:0 6px 28px rgba(99,102,241,.75),0 0 0 1px rgba(255,255,255,.22) inset;
+  filter:drop-shadow(0 6px 20px rgba(99,102,241,.62));
 }
 .brand-text{line-height:1.25}
 .brand-name{font-size:19px;font-weight:800;color:#fff;letter-spacing:-.4px;display:block}
@@ -2027,14 +2027,14 @@ body.creator-sections-open .user-nav-item {
   width: 80px;
   height: 80px;
   margin: 0 auto;
-  border-radius: 22px;
-  overflow: hidden;
+  border-radius: 0;
+  overflow: visible;
   filter: drop-shadow(0 6px 20px rgba(99,102,241,.5));
 }
 .auth-logo-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 .auth-brand-name {
@@ -3897,18 +3897,18 @@ a:hover { text-decoration:none; }
 .brand-logo {
   width:44px;
   height:44px;
-  border-radius:12px;
-  background:rgba(255,255,255,.08);
-  box-shadow:0 0 0 1px rgba(255,255,255,.14);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
 }
 
 .brand-logo-img {
-  border-radius:12px;
+  border-radius:0;
 }
 
 .sidebar-brand:hover .brand-logo {
   transform:none;
-  box-shadow:0 0 0 1px rgba(255,255,255,.20),0 10px 24px rgba(99,91,255,.22);
+  filter:drop-shadow(0 10px 24px rgba(99,91,255,.32));
 }
 
 .brand-name {
@@ -4554,7 +4554,7 @@ select.form-input,
 
 .auth-logo,
 .auth-logo-img {
-  border-radius:14px;
+  border-radius:0;
 }
 
 .auth-card {
