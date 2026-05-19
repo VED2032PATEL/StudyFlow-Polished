@@ -128,24 +128,26 @@
         </td>
 
         <td class="actions-cell">
-          <button class="btn btn-sm {% if t.is_completed %}btn-undo{% else %}btn-toggle{% endif %}"
-                  id="toggle-btn-{{ t.id }}"
-                  onclick="toggleTopic({{ t.id }})">
-            {% if t.is_completed %}Undo{% else %}Complete{% endif %}
-          </button>
-          <button class="btn-notes-open"
-                  onclick="openNotesModal({{ t.id }}, '{{ t.name | replace("'", "\\'") }}')"
-                  title="Notes & Links">
-            📝
-          </button>
-          <button class="btn-ai-tips"
-                  onclick="loadTopicTips({{ t.id }}, this)">
-            <span class="ai-sparkle">✨</span> AI Tips
-          </button>
-          <form method="POST" action="{{ url_for('delete_topic', topic_id=t.id) }}"
-                onsubmit="return confirm('Delete \'{{ t.name }}\'?')" style="display:inline">
-            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-          </form>
+          <div class="actions-cell-inner">
+            <button class="btn btn-sm {% if t.is_completed %}btn-undo{% else %}btn-toggle{% endif %}"
+                    id="toggle-btn-{{ t.id }}"
+                    onclick="toggleTopic({{ t.id }})">
+              {% if t.is_completed %}Undo{% else %}Complete{% endif %}
+            </button>
+            <button class="btn-notes-open"
+                    onclick="openNotesModal({{ t.id }}, '{{ t.name | replace("'", "\\'") }}')"
+                    title="Notes & Links">
+              📝
+            </button>
+            <button class="btn-ai-tips"
+                    onclick="loadTopicTips({{ t.id }}, this)">
+              <span class="ai-sparkle">✨</span> AI Tips
+            </button>
+            <form method="POST" action="{{ url_for('delete_topic', topic_id=t.id) }}"
+                  onsubmit="return confirm('Delete \'{{ t.name }}\'?')" style="display:inline">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </div>
         </td>
 
       </tr>
