@@ -2522,7 +2522,7 @@ body.creator-sections-open .user-nav-item {
 .profile-photo-preview {
   width:72px;
   height:72px;
-  border-radius:16px;
+  border-radius:50%;
   overflow:hidden;
   flex-shrink:0;
   display:flex;
@@ -4730,13 +4730,13 @@ select.form-input,
 .person-avatar {
   width:46px;
   height:46px;
-  border-radius:12px;
+  border-radius:50%;
 }
 
 .people-mini-avatar {
   width:34px;
   height:34px;
-  border-radius:9px;
+  border-radius:50%;
   font-size:13px;
 }
 
