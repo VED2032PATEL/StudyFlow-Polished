@@ -1,3 +1,4 @@
+{%- import "_ui.html" as ui -%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -123,7 +124,7 @@
           {% endif %}
         </div>
         <div class="sidebar-user-info" style="flex:1;min-width:0">
-          <div class="user-name">{{ current_user.username }}</div>
+          <div class="user-name">{{ current_user.username }} {{ ui.verified_badge(current_user) }}</div>
         </div>
       </a>
       <a href="{{ url_for('settings') }}"

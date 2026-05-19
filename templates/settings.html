@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}Settings{% endblock %}
 
 {% block content %}
@@ -237,7 +238,7 @@
       <div class="account-stats">
         <div class="account-stat">
           <span class="account-stat-icon">🎓</span>
-          <div class="account-stat-val">{{ user.username }}</div>
+          <div class="account-stat-val">{{ user.username }} {{ ui.verified_badge(user) }}</div>
           <div class="account-stat-lbl">Username</div>
         </div>
         <div class="account-stat">

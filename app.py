@@ -165,6 +165,7 @@ class User(UserMixin):
         self.email    = row["email"]
         self.avatar_data_url = row.get("avatar_data_url", "")
         self.banner_data_url = row.get("banner_data_url", "")
+        self.is_verified = row.get("is_verified", 0)
 
     def get_id(self):
         return str(self.id)

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}People{% endblock %}
 
 {% block content %}
@@ -39,7 +40,7 @@
         {% endif %}
       </a>
       <div class="person-main">
-        <a href="{{ url_for('user_profile_by_id', user_id=person.id) }}" class="person-name">{{ person.username }}</a>
+        <a href="{{ url_for('user_profile_by_id', user_id=person.id) }}" class="person-name">{{ person.username }} {{ ui.verified_badge(person) }}</a>
         <div class="person-meta">{{ person.counts.followers }} followers · {{ person.counts.following }} following</div>
       </div>
       <a href="{{ url_for('conversation_by_user_id', user_id=person.id) }}" class="btn btn-outline btn-sm">Message</a>
@@ -83,7 +84,7 @@
             {{ person.username[0].upper() }}
           {% endif %}
         </span>
-        <span>{{ person.username }}</span>
+        <span>{{ person.username }} {{ ui.verified_badge(person) }}</span>
       </a>
       {% endfor %}
     </div>
@@ -110,7 +111,7 @@
             {{ person.username[0].upper() }}
           {% endif %}
         </span>
-        <span>{{ person.username }}</span>
+        <span>{{ person.username }} {{ ui.verified_badge(person) }}</span>
       </a>
       {% endfor %}
     </div>

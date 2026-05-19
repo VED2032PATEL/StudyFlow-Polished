@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}Messages{% endblock %}
 
 {% block content %}
@@ -35,7 +36,7 @@
         </span>
         <span class="conversation-main">
           <span class="conversation-top">
-            <strong>{{ convo.user.username }}</strong>
+            <strong>{{ convo.user.username }} {{ ui.verified_badge(convo.user) }}</strong>
             {% if convo.last %}<time>{{ convo.last.created_at[5:16] }}</time>{% endif %}
           </span>
           {% if convo.last %}

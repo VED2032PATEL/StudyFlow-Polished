@@ -210,6 +210,24 @@ input,textarea{cursor:text}
 .user-name{font-size:13px;font-weight:700;color:#fff;line-height:1.25}
 .user-role{font-size:10.5px;color:rgba(167,139,250,.60)}
 
+.verified-badge {
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  vertical-align:-2px;
+  margin-left:4px;
+  background:#1d9bf0;
+  color:#fff;
+  box-shadow:0 0 0 2px var(--surface, #fff);
+}
+
+.verified-badge .lucide {
+  stroke:currentColor;
+}
+
 /* ═══════════════════════════════════════════════════════════
    MAIN CONTENT
 ═══════════════════════════════════════════════════════════ */

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}{{ profile.user.username }}{% endblock %}
 
 {% block content %}
@@ -20,7 +21,7 @@
       </div>
       <div>
         <a href="{{ url_for('people') }}" class="back-link">← People</a>
-        <h1 class="profile-name">{{ profile.user.username }}</h1>
+        <h1 class="profile-name">{{ profile.user.username }} {{ ui.verified_badge(profile.user) }}</h1>
         <p class="profile-sub">Member since {{ profile.user.created_at[:10] }}</p>
         <div class="profile-follow-meta">
           {% if profile.can_view_connections %}
