@@ -20,7 +20,8 @@
 <body>
 
 <nav class="sidebar" id="sidebar">
-  <div class="sidebar-brand">
+  <div class="sidebar-brand {% if current_user.is_authenticated and current_user.is_verified %}developer-toggle{% endif %}"
+       {% if current_user.is_authenticated and current_user.is_verified %}id="developerModeToggle" role="button" tabindex="0" aria-label="Toggle creator sections"{% endif %}>
     <div class="brand-logo">
       <img src="{{ url_for('static', filename='logo.png') }}" alt="StudyFlow Logo" class="brand-logo-img" />
     </div>
@@ -107,6 +108,29 @@
         <span class="nav-badge flowcoin-badge">{{ flowcoin_balance }}</span>
       </a>
     </li>
+    {% if current_user.is_authenticated and current_user.is_verified %}
+    <li class="developer-nav-item">
+      <a href="{{ url_for('admin_dashboard') }}"
+         class="nav-item {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+        <span class="nav-icon">📊</span>
+        <span>Admin Dashboard</span>
+      </a>
+    </li>
+    <li class="developer-nav-item">
+      <a href="{{ url_for('support_inbox') }}"
+         class="nav-item {% if request.endpoint == 'support_inbox' %}active{% endif %}">
+        <span class="nav-icon">📥</span>
+        <span>Support Inbox</span>
+      </a>
+    </li>
+    <li class="developer-nav-item">
+      <a href="{{ url_for('audit_logs') }}"
+         class="nav-item {% if request.endpoint == 'audit_logs' %}active{% endif %}">
+        <span class="nav-icon">🧾</span>
+        <span>Audit Logs</span>
+      </a>
+    </li>
+    {% endif %}
   </ul>
 
   <div class="sidebar-footer">
@@ -179,6 +203,9 @@
       Messages: 'message-circle',
       Notifications: 'bell',
       Redeem: 'coins',
+      'Admin Dashboard': 'shield-gauge',
+      'Support Inbox': 'inbox',
+      'Audit Logs': 'scroll-text',
       Settings: 'settings'
     };
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -280,6 +307,29 @@
 
   window.addEventListener('DOMContentLoaded', installStudyFlowIcons);
   window.addEventListener('load', installStudyFlowIcons);
+
+  {% if current_user.is_authenticated and current_user.is_verified %}
+  (function() {
+    const toggle = document.getElementById('developerModeToggle');
+    const key = 'sfCreatorSections:{{ current_user.id }}';
+    const creatorEndpoints = ['admin_dashboard', 'support_inbox', 'audit_logs'];
+    const isCreatorPage = creatorEndpoints.includes('{{ request.endpoint }}');
+    function apply(enabled) {
+      document.body.classList.toggle('creator-sections-open', enabled);
+      localStorage.setItem(key, enabled ? '1' : '0');
+    }
+    apply(isCreatorPage || localStorage.getItem(key) === '1');
+    toggle?.addEventListener('click', () => {
+      apply(!document.body.classList.contains('creator-sections-open'));
+    });
+    toggle?.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        apply(!document.body.classList.contains('creator-sections-open'));
+      }
+    });
+  })();
+  {% endif %}
 
   {% if current_user.is_authenticated %}
   (function() {

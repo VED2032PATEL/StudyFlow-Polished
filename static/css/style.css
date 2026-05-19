@@ -109,6 +109,9 @@ input,textarea{cursor:text}
   position:relative;z-index:1;
   border-bottom:1px solid rgba(255,255,255,.09);
 }
+.sidebar-brand.developer-toggle {
+  cursor:pointer;
+}
 .brand-logo{
   width:46px;height:46px;flex-shrink:0;
   border-radius:14px;
@@ -137,6 +140,13 @@ input,textarea{cursor:text}
 
 .nav-links{list-style:none;padding:4px 10px;flex:1;position:relative;z-index:1}
 .nav-links li{margin-bottom:2px}
+.developer-nav-item {
+  display:none;
+}
+
+body.creator-sections-open .developer-nav-item {
+  display:list-item;
+}
 
 .nav-item{
   display:flex;align-items:center;gap:11px;
@@ -4788,6 +4798,102 @@ select.form-input,
   display:flex;
   gap:10px;
   align-items:center;
+}
+
+/* Creator tools */
+.admin-stat-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:14px;
+  margin-bottom:22px;
+}
+
+.admin-log-list,
+.admin-ticket-list {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.admin-log-row,
+.admin-ticket-row,
+.admin-audit-row,
+.admin-audit-head {
+  border:1px solid var(--border-l);
+  border-radius:10px;
+  background:var(--surface);
+  padding:12px;
+}
+
+.admin-log-row {
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.admin-log-row span,
+.admin-audit-row small {
+  color:var(--t2);
+  font-size:12px;
+}
+
+.admin-ticket-row {
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+  justify-content:space-between;
+}
+
+.admin-ticket-main {
+  flex:1;
+  min-width:0;
+}
+
+.admin-ticket-top {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+}
+
+.admin-ticket-row p {
+  color:var(--t2);
+  font-size:13px;
+}
+
+.admin-ticket-actions {
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+.admin-ticket-actions .form-input {
+  height:34px;
+  min-width:130px;
+}
+
+.admin-audit-table {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.admin-audit-head,
+.admin-audit-row {
+  display:grid;
+  grid-template-columns:1.4fr 1fr 1fr 1fr;
+  gap:12px;
+  align-items:center;
+}
+
+.admin-audit-head {
+  background:var(--surface-2);
+  color:var(--t2);
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.06em;
 }
 
 /* Messaging */

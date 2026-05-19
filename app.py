@@ -327,6 +327,20 @@ def _clean_uploaded_data_url(value, max_bytes, label):
     return f"data:{content_type};base64,{encoded}"
 
 
+def _creator_required():
+    if not getattr(current_user, "is_verified", 0):
+        flash("This section is only available to StudyFlow creators.", "error")
+        return False
+    return True
+
+
+def _log_creator_action(action, target_type="", target_id="", detail=""):
+    try:
+        db.log_admin_audit(current_user.id, action, target_type, target_id, detail)
+    except Exception:
+        logging.exception("Failed to write admin audit log")
+
+
 @app.route("/users/user/<int:user_id>")
 @login_required
 def user_profile_by_id(user_id):
@@ -353,6 +367,50 @@ def user_connections(user_id, kind):
         return redirect(url_for("user_profile_by_id", user_id=user_id))
     people = db.get_followers(user_id) if kind == "followers" else db.get_following(user_id)
     return render_template("connections.html", profile=profile, people=people, kind=kind)
+
+
+@app.route("/creator/admin")
+@login_required
+def admin_dashboard():
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    _log_creator_action("view_admin_dashboard", "page", "creator/admin", request.path)
+    return render_template(
+        "admin_dashboard.html",
+        summary=db.get_admin_summary(),
+        recent_users=db.get_recent_users(),
+        tickets=db.get_support_tickets(limit=5),
+        audit_logs=db.get_audit_logs(limit=6),
+    )
+
+
+@app.route("/creator/support", methods=["GET", "POST"])
+@login_required
+def support_inbox():
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        try:
+            ticket_id = int(request.form.get("ticket_id", 0))
+        except ValueError:
+            ticket_id = 0
+        status = request.form.get("status", "open")
+        if status in {"open", "reviewing", "resolved"} and ticket_id:
+            db.update_support_ticket_status(ticket_id, status)
+            _log_creator_action("update_support_ticket", "support_ticket", ticket_id, f"status={status}")
+            flash("Support ticket updated.", "success")
+        return redirect(url_for("support_inbox"))
+    _log_creator_action("view_support_inbox", "page", "creator/support", request.path)
+    return render_template("support_inbox.html", tickets=db.get_support_tickets())
+
+
+@app.route("/creator/audit")
+@login_required
+def audit_logs():
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    _log_creator_action("view_audit_logs", "page", "creator/audit", request.path)
+    return render_template("audit_logs.html", audit_logs=db.get_audit_logs())
 
 
 @app.route("/users/<int:user_id>/follow", methods=["POST"])

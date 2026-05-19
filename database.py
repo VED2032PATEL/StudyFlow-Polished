@@ -190,6 +190,24 @@ _CREATE = [
         read_at TEXT NOT NULL DEFAULT (datetime('now')),
         PRIMARY KEY (user_id, notification_key)
     )""",
+    """CREATE TABLE IF NOT EXISTS support_tickets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        action TEXT NOT NULL,
+        target_type TEXT NOT NULL DEFAULT '',
+        target_id TEXT NOT NULL DEFAULT '',
+        detail TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -1262,6 +1280,99 @@ def get_weekly_report(user_id):
         "week_start": week_ago,
         "week_end": today.isoformat(),
     }
+
+
+# Creator/admin tools
+
+def log_admin_audit(actor_id, action, target_type="", target_id="", detail=""):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO admin_audit_logs (actor_id,action,target_type,target_id,detail)
+               VALUES (?,?,?,?,?)""",
+            [actor_id, action, target_type or "", str(target_id or ""), detail or ""],
+        )
+    finally:
+        conn.close()
+
+
+def get_admin_summary():
+    conn = get_db()
+    try:
+        def scalar(sql, params=None):
+            return conn.execute(sql, params or []).rows[0][0] or 0
+
+        return {
+            "total_users": int(scalar("SELECT COUNT(*) FROM users")),
+            "verified_users": int(scalar("SELECT COUNT(*) FROM users WHERE is_verified=1")),
+            "total_subjects": int(scalar("SELECT COUNT(*) FROM subjects")),
+            "total_topics": int(scalar("SELECT COUNT(*) FROM topics")),
+            "completed_topics": int(scalar("SELECT COUNT(*) FROM topics WHERE is_completed=1")),
+            "messages": int(scalar("SELECT COUNT(*) FROM messages")),
+            "open_support": int(scalar("SELECT COUNT(*) FROM support_tickets WHERE status='open'")),
+            "flowcoins": int(scalar("SELECT COALESCE(SUM(amount),0) FROM flowcoin_ledger")),
+            "redemptions": int(scalar("SELECT COUNT(*) FROM flowcoin_redemptions")),
+        }
+    finally:
+        conn.close()
+
+
+def get_recent_users(limit=8):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            """SELECT id,username,email,avatar_data_url,is_verified,created_at
+               FROM users ORDER BY created_at DESC,id DESC LIMIT ?""",
+            [limit],
+        ))
+    finally:
+        conn.close()
+
+
+def get_support_tickets(status=None, limit=80):
+    conn = get_db()
+    try:
+        where = ""
+        params = []
+        if status and status != "all":
+            where = "WHERE st.status=?"
+            params.append(status)
+        params.append(limit)
+        return _rows_to_dicts(conn.execute(
+            f"""SELECT st.*,u.username,u.avatar_data_url,u.is_verified
+                FROM support_tickets st
+                LEFT JOIN users u ON u.id=st.user_id
+                {where}
+                ORDER BY st.created_at DESC,st.id DESC LIMIT ?""",
+            params,
+        ))
+    finally:
+        conn.close()
+
+
+def update_support_ticket_status(ticket_id, status):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE support_tickets SET status=?,updated_at=datetime('now') WHERE id=?",
+            [status, ticket_id],
+        )
+    finally:
+        conn.close()
+
+
+def get_audit_logs(limit=100):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            """SELECT al.*,u.username,u.avatar_data_url,u.is_verified
+               FROM admin_audit_logs al
+               LEFT JOIN users u ON u.id=al.actor_id
+               ORDER BY al.created_at DESC,al.id DESC LIMIT ?""",
+            [limit],
+        ))
+    finally:
+        conn.close()
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────

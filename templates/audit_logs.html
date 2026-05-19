@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Audit Logs{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">Audit Logs</h1>
+    <p class="page-sub">Creator/admin actions recorded for transparency</p>
+  </div>
+</div>
+
+<div class="card anim d1">
+  {% if audit_logs %}
+  <div class="admin-audit-table">
+    <div class="admin-audit-head">
+      <span>Action</span>
+      <span>Actor</span>
+      <span>Target</span>
+      <span>Time</span>
+    </div>
+    {% for log in audit_logs %}
+    <div class="admin-audit-row">
+      <span>
+        <strong>{{ log.action.replace('_', ' ')|title }}</strong>
+        {% if log.detail %}<small>{{ log.detail }}</small>{% endif %}
+      </span>
+      <span>{{ log.username or 'System' }} {% if log.username %}{{ ui.verified_badge(log) }}{% endif %}</span>
+      <span>{{ log.target_type or 'page' }}{% if log.target_id %}: {{ log.target_id }}{% endif %}</span>
+      <span>{{ log.created_at }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state compact-empty"><p>No audit logs yet.</p></div>
+  {% endif %}
+</div>
+
+{% endblock %}

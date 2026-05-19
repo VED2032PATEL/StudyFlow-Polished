@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Support Inbox{% endblock %}
+
+{% block content %}
+
+<div class="page-header anim">
+  <div>
+    <h1 class="page-title">Support Inbox</h1>
+    <p class="page-sub">User help requests and moderation follow-ups</p>
+  </div>
+  <span class="badge badge-primary">{{ tickets|length }} tickets</span>
+</div>
+
+<div class="card anim d1">
+  {% if tickets %}
+  <div class="admin-ticket-list">
+    {% for ticket in tickets %}
+    <div class="admin-ticket-row">
+      <div class="admin-ticket-main">
+        <div class="admin-ticket-top">
+          <strong>{{ ticket.subject }}</strong>
+          <span class="badge badge-primary">{{ ticket.status }}</span>
+        </div>
+        <p>{{ ticket.body }}</p>
+        <div class="person-meta">
+          {{ ticket.username or 'Deleted user' }} {% if ticket.username %}{{ ui.verified_badge(ticket) }}{% endif %} · {{ ticket.created_at }}
+        </div>
+      </div>
+      <form method="POST" class="admin-ticket-actions">
+        <input type="hidden" name="ticket_id" value="{{ ticket.id }}"/>
+        <select name="status" class="form-input">
+          {% for status in ['open', 'reviewing', 'resolved'] %}
+          <option value="{{ status }}" {% if ticket.status == status %}selected{% endif %}>{{ status|title }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm">Update</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon">📥</span>
+    <p>No support tickets yet.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
