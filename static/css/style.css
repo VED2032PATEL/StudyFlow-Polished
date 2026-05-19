@@ -4778,16 +4778,14 @@ select.form-input,
 }
 
 .decorated-avatar.has-avatar-decoration .avatar-core {
-  width:76%;
-  height:76%;
+  width:96%;
+  height:96%;
   border-radius:999px;
-  box-shadow:0 0 0 3px var(--surface);
 }
 
 .profile-avatar-large.has-avatar-decoration .avatar-core {
-  width:74%;
-  height:74%;
-  box-shadow:0 0 0 5px var(--surface);
+  width:96%;
+  height:96%;
 }
 
 .person-avatar.has-avatar-decoration .avatar-core,
@@ -4795,9 +4793,8 @@ select.form-input,
 .conversation-avatar.has-avatar-decoration .avatar-core,
 .chat-row-avatar.has-avatar-decoration .avatar-core,
 .user-avatar.has-avatar-decoration .avatar-core {
-  width:76%;
-  height:76%;
-  box-shadow:0 0 0 2px var(--surface);
+  width:94%;
+  height:94%;
 }
 
 .decorated-avatar .avatar-photo-img {
