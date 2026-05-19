@@ -4718,18 +4718,17 @@ select.form-input,
 
 .profile-hero-body {
   display:flex;
-  align-items:flex-end;
+  align-items:flex-start;
   justify-content:space-between;
   gap:18px;
-  padding:0 24px 24px;
+  padding:18px 24px 24px;
 }
 
 .profile-hero-left {
   display:flex;
-  align-items:flex-end;
+  align-items:flex-start;
   gap:18px;
   min-width:0;
-  margin-top:-46px;
 }
 
 .profile-avatar-large {
@@ -4739,6 +4738,7 @@ select.form-input,
   font-size:36px;
   border:5px solid var(--surface);
   box-shadow:0 12px 28px rgba(99,91,255,.20);
+  margin-top:-74px;
 }
 
 .profile-name {
@@ -6434,12 +6434,12 @@ select.form-input,
 
   .profile-hero-left {
     align-items:flex-start;
-    margin-top:-42px;
   }
 
   .profile-avatar-large {
     width:92px;
     height:92px;
+    margin-top:-60px;
   }
 
   .people-search-form .btn,
