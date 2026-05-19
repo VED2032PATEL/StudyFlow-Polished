@@ -176,7 +176,7 @@
         </div>
       </div>
 
-      {% set current_decoration = user.profile_decoration if user.profile_decoration in profile_decoration_assets else '' %}
+      {% set current_decoration = user.profile_decoration if user.profile_decoration in profile_decoration_assets and (user.profile_decoration in owned_profile_decoration_ids or current_user.is_verified) else '' %}
       <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data" class="profile-photo-form">
         <input type="hidden" name="action" value="avatar"/>
         <input type="hidden" name="avatar_data" id="avatarDataInput"/>
@@ -214,7 +214,7 @@
       <form method="POST" action="{{ url_for('settings') }}" class="profile-decoration-form">
         <input type="hidden" name="action" value="decoration"/>
         <div class="profile-photo-title">Profile Decoration</div>
-        <p class="form-hint">Choose an overlay that sits on top of your profile photo.</p>
+        <p class="form-hint">Choose from avatar decorations you have redeemed with FlowCoins.</p>
         <div class="decoration-picker">
           <label class="decoration-option">
             <input type="radio" name="profile_decoration" value="" {% if not current_decoration %}checked{% endif %}/>
@@ -222,7 +222,7 @@
               <span class="decoration-none">None</span>
             </span>
           </label>
-          {% for decoration in profile_decorations %}
+          {% for decoration in available_profile_decorations %}
           <label class="decoration-option">
             <input type="radio" name="profile_decoration" value="{{ decoration.id }}" {% if current_decoration == decoration.id %}checked{% endif %}/>
             <span class="decoration-card">
@@ -241,6 +241,10 @@
           </label>
           {% endfor %}
         </div>
+        {% if not available_profile_decorations %}
+          <p class="form-hint">No avatar decorations unlocked yet. Redeem one with FlowCoins to use it here.</p>
+          <a href="{{ url_for('redeem') }}" class="btn btn-outline btn-sm">Browse Decorations</a>
+        {% endif %}
         <button type="submit" class="btn btn-primary btn-sm">Save Decoration</button>
       </form>
 

@@ -6560,6 +6560,29 @@ select.form-input,
   background:#facc15;
 }
 
+.avatar-decoration-reward {
+  overflow:hidden;
+}
+
+.avatar-reward-preview {
+  min-height:92px;
+  border:1px solid var(--border-l);
+  border-radius:12px;
+  background:
+    radial-gradient(circle at 50% 34%,rgba(99,102,241,.14),transparent 58%),
+    var(--surface-2);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:12px;
+}
+
+.decoration-redeem-sample {
+  width:86px;
+  height:86px;
+  font-size:28px;
+}
+
 .coupon-code {
   display:inline-flex;
   width:max-content;

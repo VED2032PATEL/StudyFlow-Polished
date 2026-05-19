@@ -22,14 +22,51 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
 PROFILE_DECORATIONS = [
-    {"id": "night_study", "name": "Night Study", "filename": "profile-decorations/night-study-frame.png"},
-    {"id": "golden_books", "name": "Golden Books", "filename": "profile-decorations/golden-books-frame.png"},
-    {"id": "science_neon", "name": "Science Neon", "filename": "profile-decorations/science-neon-frame.png"},
-    {"id": "graduation_gold", "name": "Graduation Gold", "filename": "profile-decorations/graduation-gold-frame.png"},
-    {"id": "school_supplies", "name": "School Supplies", "filename": "profile-decorations/school-supplies-frame.png"},
-    {"id": "pastel_study", "name": "Pastel Study", "filename": "profile-decorations/pastel-study-frame.png"},
+    {
+        "id": "night_study",
+        "name": "Night Study",
+        "filename": "profile-decorations/night-study-frame.png",
+        "cost": 420,
+        "description": "A detailed late-night study frame with lamp, notes, moon, and books.",
+    },
+    {
+        "id": "golden_books",
+        "name": "Golden Books",
+        "filename": "profile-decorations/golden-books-frame.png",
+        "cost": 520,
+        "description": "A premium scholar frame with gold ribbons, books, papers, and pen.",
+    },
+    {
+        "id": "science_neon",
+        "name": "Science Neon",
+        "filename": "profile-decorations/science-neon-frame.png",
+        "cost": 460,
+        "description": "A bright STEM frame with neon science, DNA, microscope, and calculator details.",
+    },
+    {
+        "id": "graduation_gold",
+        "name": "Graduation Gold",
+        "filename": "profile-decorations/graduation-gold-frame.png",
+        "cost": 500,
+        "description": "A formal achievement frame with gold laurels, stars, and graduation cap.",
+    },
+    {
+        "id": "school_supplies",
+        "name": "School Supplies",
+        "filename": "profile-decorations/school-supplies-frame.png",
+        "cost": 180,
+        "description": "A colorful everyday study frame with pencils, ruler, compass, and highlighter.",
+    },
+    {
+        "id": "pastel_study",
+        "name": "Pastel Study",
+        "filename": "profile-decorations/pastel-study-frame.png",
+        "cost": 240,
+        "description": "A soft pastel study frame with books, paper plane, flowers, and stationery.",
+    },
 ]
 PROFILE_DECORATION_ASSETS = {item["id"]: item["filename"] for item in PROFILE_DECORATIONS}
+PROFILE_DECORATION_REWARD_PREFIX = "avatar-decoration-"
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -44,6 +81,20 @@ DELIVERY_COUPONS = [
     "VEDREALLYLOVESDIYU",
     "VEDHEARTU",
     "V143D",
+]
+
+AVATAR_DECORATION_REWARDS = [
+    {
+        "id": f"{PROFILE_DECORATION_REWARD_PREFIX}{item['id']}",
+        "title": f"{item['name']} Frame",
+        "cost": item["cost"],
+        "description": item["description"],
+        "icon": "sparkles",
+        "visual": "avatar_decoration",
+        "decoration": item,
+        "one_time": True,
+    }
+    for item in PROFILE_DECORATIONS
 ]
 
 REDEEM_ITEMS = [
@@ -84,7 +135,7 @@ REDEEM_ITEMS = [
         "description": "Reserve a premium 90 minute deep work session reward.",
         "icon": "brain",
     },
-]
+] + AVATAR_DECORATION_REWARDS
 
 
 def _is_safe_redirect_url(target):
@@ -111,6 +162,47 @@ def _coupon_for_redemption(user_id, reward):
         return ""
     claimed = db.count_reward_redemptions(user_id, reward["id"])
     return codes[claimed % len(codes)]
+
+
+def _decoration_id_from_reward(reward_id):
+    if not reward_id.startswith(PROFILE_DECORATION_REWARD_PREFIX):
+        return ""
+    decoration_id = reward_id[len(PROFILE_DECORATION_REWARD_PREFIX):]
+    return decoration_id if decoration_id in PROFILE_DECORATION_ASSETS else ""
+
+
+def _owned_profile_decoration_ids(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return set()
+    if getattr(user, "is_verified", 0):
+        return set(PROFILE_DECORATION_ASSETS.keys())
+    reward_ids = db.get_redeemed_reward_ids(user.id)
+    return {
+        _decoration_id_from_reward(reward_id)
+        for reward_id in reward_ids
+        if _decoration_id_from_reward(reward_id)
+    }
+
+
+def _available_profile_decorations(user):
+    owned_ids = _owned_profile_decoration_ids(user)
+    return [item for item in PROFILE_DECORATIONS if item["id"] in owned_ids]
+
+
+def _can_use_profile_decoration(user, decoration_id):
+    if not decoration_id:
+        return True
+    return decoration_id in _owned_profile_decoration_ids(user)
+
+
+def _owned_reward_ids(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return set()
+    reward_ids = db.get_redeemed_reward_ids(user.id)
+    if getattr(user, "is_verified", 0):
+        reward_ids = set(reward_ids)
+        reward_ids.update(item["id"] for item in AVATAR_DECORATION_REWARDS)
+    return reward_ids
 
 
 def _filter_cse_videos(query="", subject=""):
@@ -222,11 +314,18 @@ def inject_notification_count():
     base_context = {
         "profile_decorations": PROFILE_DECORATIONS,
         "profile_decoration_assets": PROFILE_DECORATION_ASSETS,
+        "available_profile_decorations": [],
+        "owned_profile_decoration_ids": set(),
     }
     if current_user.is_authenticated:
         try:
+            owned_profile_decoration_ids = _owned_profile_decoration_ids(current_user)
             return {
                 **base_context,
+                "available_profile_decorations": [
+                    item for item in PROFILE_DECORATIONS if item["id"] in owned_profile_decoration_ids
+                ],
+                "owned_profile_decoration_ids": owned_profile_decoration_ids,
                 "notification_count": db.get_notification_count(current_user.id),
                 "unread_message_count": db.get_unread_message_count(current_user.id),
                 "flowcoin_balance": db.get_flowcoin_balance(current_user.id),
@@ -247,6 +346,10 @@ def enforce_account_status():
         logout_user()
         flash(f"Your account is {status}. Contact support if this looks wrong.", "error")
         return redirect(url_for("login"))
+    if current_user.profile_decoration and not _can_use_profile_decoration(current_user, current_user.profile_decoration):
+        db.update_profile_decoration(current_user.id, "")
+        row = db.get_user_by_id(current_user.id)
+        login_user(User(row), remember=True)
     return None
 
 
@@ -914,10 +1017,12 @@ def video_library():
 @app.route("/redeem")
 @login_required
 def redeem():
+    owned_reward_ids = _owned_reward_ids(current_user)
     return render_template(
         "redeem.html",
         rewards=REDEEM_ITEMS,
         balance=db.get_flowcoin_balance(current_user.id),
+        owned_reward_ids=owned_reward_ids,
         activity=db.get_flowcoin_activity(current_user.id),
         redemptions=db.get_redemptions(current_user.id),
     )
@@ -930,6 +1035,10 @@ def redeem_reward(reward_id):
     if not reward:
         flash("Reward not found.", "error")
         return redirect(url_for("redeem"))
+    owned_reward_ids = _owned_reward_ids(current_user)
+    if reward.get("one_time") and reward["id"] in owned_reward_ids:
+        flash(f"You already own {reward['title']}.", "info")
+        return redirect(url_for("redeem"))
     coupon_code = _coupon_for_redemption(current_user.id, reward)
     ok, balance = db.redeem_flowcoin_reward(
         current_user.id,
@@ -939,6 +1048,13 @@ def redeem_reward(reward_id):
         coupon_code,
     )
     if ok:
+        decoration_id = reward.get("decoration", {}).get("id") if reward.get("visual") == "avatar_decoration" else ""
+        if decoration_id:
+            db.update_profile_decoration(current_user.id, decoration_id)
+            row = db.get_user_by_id(current_user.id)
+            login_user(User(row), remember=True)
+            flash(f"Unlocked and equipped {reward['title']} for {reward['cost']} FlowCoins.", "success")
+            return redirect(url_for("redeem"))
         if coupon_code:
             flash(f"Redeemed {reward['title']} for {reward['cost']} FlowCoins. Coupon: {coupon_code}", "success")
         else:
@@ -1343,10 +1459,13 @@ def settings():
             decoration = request.form.get("profile_decoration", "")
             if decoration not in {"", *PROFILE_DECORATION_ASSETS.keys()}:
                 decoration = ""
-            db.update_profile_decoration(uid, decoration)
-            row = db.get_user_by_id(uid)
-            login_user(User(row), remember=True)
-            flash("Profile decoration updated!", "success")
+            if decoration and not _can_use_profile_decoration(current_user, decoration):
+                flash("Redeem that avatar decoration before using it.", "error")
+            else:
+                db.update_profile_decoration(uid, decoration)
+                row = db.get_user_by_id(uid)
+                login_user(User(row), remember=True)
+                flash("Profile decoration updated!", "success")
 
         elif action == "password":
             from werkzeug.security import check_password_hash, generate_password_hash
@@ -1367,6 +1486,10 @@ def settings():
         return redirect(url_for("settings"))
 
     user_row = db.get_user_by_id(uid)
+    if user_row.get("profile_decoration") and not _can_use_profile_decoration(current_user, user_row["profile_decoration"]):
+        db.update_profile_decoration(uid, "")
+        user_row = db.get_user_by_id(uid)
+        login_user(User(user_row), remember=True)
     return render_template("settings.html", prefs=prefs, user=user_row)
 
 

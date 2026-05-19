@@ -1279,6 +1279,18 @@ def count_reward_redemptions(user_id, reward_id):
         conn.close()
 
 
+def get_redeemed_reward_ids(user_id):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT reward_id FROM flowcoin_redemptions WHERE user_id=?",
+            [user_id],
+        ).rows
+        return {row[0] for row in rows}
+    finally:
+        conn.close()
+
+
 def redeem_flowcoin_reward(user_id, reward_id, title, cost, coupon_code=""):
     balance = get_flowcoin_balance(user_id)
     if balance < cost:

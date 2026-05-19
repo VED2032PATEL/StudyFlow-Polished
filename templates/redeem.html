@@ -28,11 +28,25 @@
 
 <div class="redeem-grid anim d2">
   {% for reward in rewards %}
-  <div class="redeem-card {% if reward.visual == 'delivery' %}delivery-reward{% endif %}">
+  {% set owned = reward.id in owned_reward_ids %}
+  <div class="redeem-card {% if reward.visual == 'delivery' %}delivery-reward{% elif reward.visual == 'avatar_decoration' %}avatar-decoration-reward{% endif %}">
     {% if reward.visual == 'delivery' %}
       <div class="delivery-reward-art" aria-label="Swiggy and Blinkit reward">
         <span class="delivery-logo swiggy-logo">Swiggy</span>
         <span class="delivery-logo blinkit-logo">Blinkit</span>
+      </div>
+    {% elif reward.visual == 'avatar_decoration' %}
+      <div class="avatar-reward-preview" aria-label="{{ reward.title }} preview">
+        <span class="profile-photo-preview decorated-avatar has-avatar-decoration avatar-decoration--{{ reward.decoration.id }} decoration-redeem-sample">
+          <span class="avatar-core">
+            {% if current_user.avatar_data_url %}
+              <img src="{{ current_user.avatar_data_url }}" alt="{{ current_user.username }} profile photo preview" class="profile-photo-img avatar-photo-img"/>
+            {% else %}
+              <span class="avatar-initial">{{ current_user.username[0].upper() }}</span>
+            {% endif %}
+          </span>
+          <img src="{{ url_for('static', filename=reward.decoration.filename) }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
+        </span>
       </div>
     {% else %}
       <div class="redeem-icon" data-lucide="{{ reward.icon }}"></div>
@@ -44,8 +58,8 @@
     <div class="redeem-footer">
       <span class="coin-cost">{{ reward.cost }} FC</span>
       <form method="POST" action="{{ url_for('redeem_reward', reward_id=reward.id) }}">
-        <button type="submit" class="btn btn-primary btn-sm" {% if balance < reward.cost %}disabled{% endif %}>
-          Redeem
+        <button type="submit" class="btn btn-primary btn-sm" {% if owned or balance < reward.cost %}disabled{% endif %}>
+          {% if owned %}Owned{% else %}Redeem{% endif %}
         </button>
       </form>
     </div>
