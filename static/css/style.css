@@ -3729,8 +3729,6 @@ a:hover { text-decoration:none; }
   transform:none;
 }
 
-.sidebar-ai-status,
-.dark-mode-toggle,
 .sidebar-user {
   border-radius:8px !important;
   background:rgba(255,255,255,.07) !important;
@@ -3748,7 +3746,7 @@ a:hover { text-decoration:none; }
   box-shadow:1px 0 0 rgba(255,255,255,.08),20px 0 42px rgba(17,24,39,.20);
 }
 
-.sidebar :is(.brand-text,.nav-section-label,.nav-item > span:not(.nav-icon):not(.nav-badge),.sidebar-user-info,.sidebar-ai-status,.dark-mode-toggle,.settings-btn) {
+.sidebar :is(.brand-text,.nav-section-label,.nav-item > span:not(.nav-icon):not(.nav-badge),.sidebar-user-info,.settings-btn) {
   transition:opacity .16s ease, transform .16s ease, width .16s ease, margin .16s ease;
 }
 
@@ -3811,18 +3809,6 @@ a:hover { text-decoration:none; }
   top:4px;
   right:4px;
   margin:0;
-}
-
-.sidebar:not(:hover):not(:focus-within) .sidebar-ai-status,
-.sidebar:not(:hover):not(:focus-within) .dark-mode-toggle {
-  height:0;
-  min-height:0;
-  margin:0;
-  padding:0;
-  border:0;
-  opacity:0;
-  overflow:hidden;
-  pointer-events:none;
 }
 
 .sidebar:not(:hover):not(:focus-within) .sidebar-footer {

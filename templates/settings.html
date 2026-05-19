@@ -327,12 +327,6 @@ function applyThemePref(val) {
     document.documentElement.setAttribute('data-theme', val);
     localStorage.setItem('sfDarkMode', val === 'dark' ? '1' : '0');
   }
-  // Sync the sidebar dark-mode toggle label
-  const label   = document.querySelector('.dm-label');
-  const sunIcon = document.querySelector('.dm-icon-sun');
-  const isDark  = document.documentElement.getAttribute('data-theme') === 'dark';
-  if (label)   label.textContent  = isDark ? 'Dark Mode'  : 'Light Mode';
-  if (sunIcon) sunIcon.textContent = isDark ? '🌙' : '☀️';
 }
 
 /* Password helpers */

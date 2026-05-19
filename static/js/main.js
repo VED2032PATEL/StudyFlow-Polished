@@ -696,7 +696,6 @@ function clearSchedSearch() {
 // Extend existing DOMContentLoaded — safe to add another listener
 document.addEventListener('DOMContentLoaded', () => {
   renderCountdowns();
-  initDarkMode();
 
   // Init search counts on pages that have search toolbars
   if (document.getElementById('topicCount'))  filterTopics();
