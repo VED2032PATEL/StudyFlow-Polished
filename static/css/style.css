@@ -4769,7 +4769,7 @@ select.form-input,
   display:block;
   border-radius:inherit;
   position:relative;
-  z-index:1;
+  z-index:2;
 }
 
 .decorated-avatar .avatar-initial {
@@ -4780,31 +4780,72 @@ select.form-input,
   justify-content:center;
   border-radius:inherit;
   position:relative;
-  z-index:1;
+  z-index:2;
 }
 
 .decorated-avatar .avatar-decoration-img {
   position:absolute;
-  inset:-25%;
-  width:150%;
-  height:150%;
+  top:50%;
+  left:50%;
+  width:158%;
+  height:158%;
   object-fit:contain;
-  z-index:3;
+  transform:translate(-50%,-50%);
+  z-index:0;
   pointer-events:none;
 }
 
-.profile-avatar-large .avatar-decoration-img {
-  inset:-30%;
+.avatar-decoration--night_study .avatar-decoration-img {
+  width:164%;
+  height:164%;
+  transform:translate(-50%,-52%);
+}
+
+.avatar-decoration--golden_books .avatar-decoration-img {
   width:160%;
   height:160%;
+  transform:translate(-50%,-50%);
+}
+
+.avatar-decoration--science_neon .avatar-decoration-img {
+  width:158%;
+  height:158%;
+  transform:translate(-50%,-50%);
+}
+
+.avatar-decoration--graduation_gold .avatar-decoration-img {
+  width:160%;
+  height:160%;
+  transform:translate(-50%,-48%);
+}
+
+.avatar-decoration--school_supplies .avatar-decoration-img {
+  width:158%;
+  height:158%;
+  transform:translate(-50%,-50%);
+}
+
+.profile-avatar-large.avatar-decoration--night_study .avatar-decoration-img {
+  width:166%;
+  height:166%;
+  transform:translate(-50%,-51%);
 }
 
 .user-avatar .avatar-decoration-img,
 .conversation-avatar .avatar-decoration-img,
-.chat-row-avatar .avatar-decoration-img {
-  inset:-28%;
-  width:156%;
-  height:156%;
+.chat-row-avatar .avatar-decoration-img,
+.people-mini-avatar .avatar-decoration-img {
+  width:150%;
+  height:150%;
+}
+
+.user-avatar.avatar-decoration--night_study .avatar-decoration-img,
+.conversation-avatar.avatar-decoration--night_study .avatar-decoration-img,
+.chat-row-avatar.avatar-decoration--night_study .avatar-decoration-img,
+.people-mini-avatar.avatar-decoration--night_study .avatar-decoration-img {
+  width:154%;
+  height:154%;
+  transform:translate(-50%,-51%);
 }
 
 .person-main {

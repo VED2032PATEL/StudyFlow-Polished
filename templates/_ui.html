@@ -8,7 +8,7 @@
 
 {% macro decorated_avatar(user, class_name, alt='profile photo') -%}
   {% set decoration_asset = profile_decoration_assets.get(user.profile_decoration) if user and user.profile_decoration else '' %}
-  <span class="{{ class_name }} decorated-avatar {% if decoration_asset %}has-avatar-decoration{% endif %}">
+  <span class="{{ class_name }} decorated-avatar {% if decoration_asset %}has-avatar-decoration avatar-decoration--{{ user.profile_decoration }}{% endif %}">
     {% if user and user.avatar_data_url %}
       <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
     {% else %}

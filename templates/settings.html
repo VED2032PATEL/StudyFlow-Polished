@@ -181,7 +181,7 @@
         <input type="hidden" name="action" value="avatar"/>
         <input type="hidden" name="avatar_data" id="avatarDataInput"/>
         <div class="profile-photo-row">
-          <div class="profile-photo-preview {% if current_decoration %}decorated-avatar has-avatar-decoration{% endif %}" id="avatarPreview">
+          <div class="profile-photo-preview {% if current_decoration %}decorated-avatar has-avatar-decoration avatar-decoration--{{ current_decoration }}{% endif %}" id="avatarPreview">
             {% if user.avatar_data_url %}
               <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
             {% else %}
@@ -224,7 +224,7 @@
           <label class="decoration-option">
             <input type="radio" name="profile_decoration" value="{{ decoration.id }}" {% if current_decoration == decoration.id %}checked{% endif %}/>
             <span class="decoration-card">
-              <span class="profile-photo-preview decorated-avatar has-avatar-decoration decoration-sample">
+              <span class="profile-photo-preview decorated-avatar has-avatar-decoration avatar-decoration--{{ decoration.id }} decoration-sample">
                 {% if user.avatar_data_url %}
                   <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
                 {% else %}
