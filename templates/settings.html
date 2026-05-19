@@ -177,8 +177,9 @@
 
       <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data" class="profile-photo-form">
         <input type="hidden" name="action" value="avatar"/>
+        <input type="hidden" name="avatar_data" id="avatarDataInput"/>
         <div class="profile-photo-row">
-          <div class="profile-photo-preview">
+          <div class="profile-photo-preview" id="avatarPreview">
             {% if user.avatar_data_url %}
               <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img"/>
             {% else %}
@@ -192,11 +193,40 @@
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Photo
                 <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif"
-                       onchange="previewProfilePhoto(this)"/>
+                       onchange="openImageCropper(this, 'avatar')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Photo</button>
               {% if user.avatar_data_url %}
               <button type="submit" name="remove_avatar" value="1" class="btn btn-ghost btn-sm">Remove</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <form method="POST" action="{{ url_for('settings') }}" class="profile-photo-form">
+        <input type="hidden" name="action" value="banner"/>
+        <input type="hidden" name="banner_data" id="bannerDataInput"/>
+        <div class="profile-photo-row profile-banner-row">
+          <div class="profile-banner-preview" id="bannerPreview">
+            {% if user.banner_data_url %}
+              <img src="{{ user.banner_data_url }}" alt="{{ user.username }} profile banner" class="profile-banner-img"/>
+            {% else %}
+              <span>Banner</span>
+            {% endif %}
+          </div>
+          <div class="profile-photo-copy">
+            <div class="profile-photo-title">Profile Banner</div>
+            <p class="form-hint">Shown behind your profile photo. Crop to a wide cover before saving.</p>
+            <div class="profile-photo-actions">
+              <label class="btn btn-outline btn-sm profile-file-btn">
+                Choose Banner
+                <input type="file" accept="image/png,image/jpeg,image/webp"
+                       onchange="openImageCropper(this, 'banner')"/>
+              </label>
+              <button type="submit" class="btn btn-primary btn-sm">Save Banner</button>
+              {% if user.banner_data_url %}
+              <button type="submit" name="remove_banner" value="1" class="btn btn-ghost btn-sm">Remove</button>
               {% endif %}
             </div>
           </div>
@@ -311,6 +341,27 @@
 
 </div><!-- end settings-grid -->
 
+<div class="image-crop-modal" id="imageCropModal" hidden>
+  <div class="image-crop-panel" role="dialog" aria-modal="true" aria-labelledby="cropTitle">
+    <div class="image-crop-header">
+      <div>
+        <h2 id="cropTitle">Crop image</h2>
+        <p>Drag the image and use zoom to frame it.</p>
+      </div>
+      <button type="button" class="modal-close" onclick="closeImageCropper()">×</button>
+    </div>
+    <canvas id="cropCanvas" width="520" height="320"></canvas>
+    <label class="crop-zoom-label">
+      Zoom
+      <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1"/>
+    </label>
+    <div class="image-crop-actions">
+      <button type="button" class="btn btn-outline btn-sm" onclick="closeImageCropper()">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="saveCroppedImage()">Use Image</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* Theme picker — live preview */
 function applyThemePref(val) {
@@ -353,21 +404,138 @@ function checkStrength(val) {
   hint.style.color = colors[score] || 'var(--t3)';
 }
 
-function previewProfilePhoto(input) {
+const cropState = {
+  mode: 'avatar',
+  image: null,
+  fileInput: null,
+  scale: 1,
+  minScale: 1,
+  x: 0,
+  y: 0,
+  dragging: false,
+  lastX: 0,
+  lastY: 0
+};
+
+function openImageCropper(input, mode) {
   const file = input.files && input.files[0];
-  const preview = document.querySelector('.profile-photo-preview');
-  if (!file || !preview) return;
-  if (file.size > 1024 * 1024) {
-    alert('Profile photo must be 1 MB or smaller.');
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Please choose an image file.');
     input.value = '';
     return;
   }
   const reader = new FileReader();
   reader.onload = e => {
-    preview.innerHTML = `<img src="${e.target.result}" alt="Profile photo preview" class="profile-photo-img"/>`;
+    const img = new Image();
+    img.onload = () => {
+      cropState.mode = mode;
+      cropState.image = img;
+      cropState.fileInput = input;
+      cropState.scale = 1;
+      cropState.x = 0;
+      cropState.y = 0;
+      document.getElementById('cropTitle').textContent = mode === 'banner' ? 'Crop banner' : 'Crop profile photo';
+      document.getElementById('cropZoom').value = '1';
+      document.getElementById('imageCropModal').hidden = false;
+      setupCropCanvas();
+      drawCropCanvas();
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
+
+function setupCropCanvas() {
+  const canvas = document.getElementById('cropCanvas');
+  const target = cropState.mode === 'banner' ? { width: 960, height: 320 } : { width: 420, height: 420 };
+  canvas.width = target.width;
+  canvas.height = target.height;
+  const cover = Math.max(canvas.width / cropState.image.width, canvas.height / cropState.image.height);
+  cropState.minScale = cover;
+  cropState.scale = cover;
+  cropState.x = (canvas.width - cropState.image.width * cover) / 2;
+  cropState.y = (canvas.height - cropState.image.height * cover) / 2;
+  const zoom = document.getElementById('cropZoom');
+  zoom.min = cover.toFixed(2);
+  zoom.max = (cover * 3).toFixed(2);
+  zoom.value = cover.toFixed(2);
+}
+
+function clampCropPosition() {
+  const canvas = document.getElementById('cropCanvas');
+  const drawW = cropState.image.width * cropState.scale;
+  const drawH = cropState.image.height * cropState.scale;
+  cropState.x = Math.min(0, Math.max(canvas.width - drawW, cropState.x));
+  cropState.y = Math.min(0, Math.max(canvas.height - drawH, cropState.y));
+}
+
+function drawCropCanvas() {
+  const canvas = document.getElementById('cropCanvas');
+  const ctx = canvas.getContext('2d');
+  clampCropPosition();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    cropState.image,
+    cropState.x,
+    cropState.y,
+    cropState.image.width * cropState.scale,
+    cropState.image.height * cropState.scale
+  );
+}
+
+function closeImageCropper() {
+  document.getElementById('imageCropModal').hidden = true;
+  if (cropState.fileInput) cropState.fileInput.value = '';
+}
+
+function saveCroppedImage() {
+  const canvas = document.getElementById('cropCanvas');
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+  if (cropState.mode === 'banner') {
+    document.getElementById('bannerDataInput').value = dataUrl;
+    document.getElementById('bannerPreview').innerHTML = `<img src="${dataUrl}" alt="Banner preview" class="profile-banner-img"/>`;
+  } else {
+    document.getElementById('avatarDataInput').value = dataUrl;
+    document.getElementById('avatarPreview').innerHTML = `<img src="${dataUrl}" alt="Profile photo preview" class="profile-photo-img"/>`;
+  }
+  closeImageCropper();
+}
+
+(function wireCropCanvas() {
+  const canvas = document.getElementById('cropCanvas');
+  const zoom = document.getElementById('cropZoom');
+  if (!canvas || !zoom) return;
+  zoom.addEventListener('input', () => {
+    const oldScale = cropState.scale;
+    const nextScale = Number(zoom.value);
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    cropState.x = cx - ((cx - cropState.x) / oldScale) * nextScale;
+    cropState.y = cy - ((cy - cropState.y) / oldScale) * nextScale;
+    cropState.scale = nextScale;
+    drawCropCanvas();
+  });
+  canvas.addEventListener('pointerdown', event => {
+    cropState.dragging = true;
+    cropState.lastX = event.clientX;
+    cropState.lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (!cropState.dragging) return;
+    cropState.x += event.clientX - cropState.lastX;
+    cropState.y += event.clientY - cropState.lastY;
+    cropState.lastX = event.clientX;
+    cropState.lastY = event.clientY;
+    drawCropCanvas();
+  });
+  canvas.addEventListener('pointerup', () => {
+    cropState.dragging = false;
+  });
+})();
 
 document.getElementById('pwForm').addEventListener('submit', function(e) {
   const np = document.getElementById('newPw').value;

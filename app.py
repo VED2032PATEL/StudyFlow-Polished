@@ -26,7 +26,7 @@ app = Flask(__name__,
             template_folder=os.path.join(_BASE, "templates"),
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
-app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
 
 DELIVERY_COUPONS = [
     "VEDLOVESDIYU",
@@ -164,6 +164,7 @@ class User(UserMixin):
         self.username = row["username"]
         self.email    = row["email"]
         self.avatar_data_url = row.get("avatar_data_url", "")
+        self.banner_data_url = row.get("banner_data_url", "")
 
     def get_id(self):
         return str(self.id)
@@ -306,6 +307,25 @@ def _profile_response(profile):
     return render_template("profile.html", profile=profile)
 
 
+def _clean_uploaded_data_url(value, max_bytes, label):
+    value = (value or "").strip()
+    if not value:
+        return ""
+    if not value.startswith("data:image/") or ";base64," not in value:
+        raise ValueError(f"{label} must be a cropped image.")
+    header, encoded = value.split(",", 1)
+    content_type = header[5:].split(";", 1)[0].lower()
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise ValueError(f"{label} must be JPG, PNG, or WebP.")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except Exception as exc:
+        raise ValueError(f"{label} could not be read.") from exc
+    if len(raw) > max_bytes:
+        raise ValueError(f"{label} is too large after cropping.")
+    return f"data:{content_type};base64,{encoded}"
+
+
 @app.route("/users/user/<int:user_id>")
 @login_required
 def user_profile_by_id(user_id):
@@ -316,6 +336,22 @@ def user_profile_by_id(user_id):
 @login_required
 def user_profile(username):
     return _profile_response(db.get_public_profile(username, current_user.id))
+
+
+@app.route("/users/user/<int:user_id>/<kind>")
+@login_required
+def user_connections(user_id, kind):
+    if kind not in {"followers", "following"}:
+        return redirect(url_for("user_profile_by_id", user_id=user_id))
+    profile = db.get_public_profile_by_id(user_id, current_user.id)
+    if not profile:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    if not profile["can_view_connections"]:
+        flash("Only followers can view this list.", "error")
+        return redirect(url_for("user_profile_by_id", user_id=user_id))
+    people = db.get_followers(user_id) if kind == "followers" else db.get_following(user_id)
+    return render_template("connections.html", profile=profile, people=people, kind=kind)
 
 
 @app.route("/users/<int:user_id>/follow", methods=["POST"])
@@ -1022,12 +1058,22 @@ def settings():
 
         elif action == "avatar":
             remove_avatar = request.form.get("remove_avatar")
+            cropped_avatar = request.form.get("avatar_data", "")
             photo = request.files.get("avatar")
             if remove_avatar:
                 db.update_avatar(uid, "")
                 row = db.get_user_by_id(uid)
                 login_user(User(row), remember=True)
                 flash("Profile photo removed.", "info")
+            elif cropped_avatar:
+                try:
+                    db.update_avatar(uid, _clean_uploaded_data_url(cropped_avatar, 1024 * 1024, "Profile photo"))
+                except ValueError as exc:
+                    flash(str(exc), "error")
+                else:
+                    row = db.get_user_by_id(uid)
+                    login_user(User(row), remember=True)
+                    flash("Profile photo updated!", "success")
             elif not photo or not photo.filename:
                 flash("Choose an image file first.", "error")
             else:
@@ -1044,6 +1090,26 @@ def settings():
                     row = db.get_user_by_id(uid)
                     login_user(User(row), remember=True)
                     flash("Profile photo updated!", "success")
+
+        elif action == "banner":
+            remove_banner = request.form.get("remove_banner")
+            cropped_banner = request.form.get("banner_data", "")
+            if remove_banner:
+                db.update_banner(uid, "")
+                row = db.get_user_by_id(uid)
+                login_user(User(row), remember=True)
+                flash("Profile banner removed.", "info")
+            elif not cropped_banner:
+                flash("Choose a banner image first.", "error")
+            else:
+                try:
+                    db.update_banner(uid, _clean_uploaded_data_url(cropped_banner, 1536 * 1024, "Profile banner"))
+                except ValueError as exc:
+                    flash(str(exc), "error")
+                else:
+                    row = db.get_user_by_id(uid)
+                    login_user(User(row), remember=True)
+                    flash("Profile banner updated!", "success")
 
         elif action == "password":
             from werkzeug.security import check_password_hash, generate_password_hash

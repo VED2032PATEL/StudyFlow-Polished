@@ -203,6 +203,7 @@ _MIGRATIONS = [
     ("users",      "show_completed",       "ALTER TABLE users ADD COLUMN show_completed INTEGER NOT NULL DEFAULT 1"),
     ("users",      "default_difficulty",   "ALTER TABLE users ADD COLUMN default_difficulty INTEGER NOT NULL DEFAULT 3"),
     ("users",      "avatar_data_url",       "ALTER TABLE users ADD COLUMN avatar_data_url TEXT NOT NULL DEFAULT ''"),
+    ("users",      "banner_data_url",       "ALTER TABLE users ADD COLUMN banner_data_url TEXT NOT NULL DEFAULT ''"),
     ("messages",   "edited_at",             "ALTER TABLE messages ADD COLUMN edited_at TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_name",       "ALTER TABLE messages ADD COLUMN attachment_name TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_type",       "ALTER TABLE messages ADD COLUMN attachment_type TEXT NOT NULL DEFAULT ''"),
@@ -332,6 +333,14 @@ def update_avatar(user_id, avatar_data_url):
         conn.close()
 
 
+def update_banner(user_id, banner_data_url):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE users SET banner_data_url=? WHERE id=?", [banner_data_url, user_id])
+    finally:
+        conn.close()
+
+
 def search_users(query, current_user_id, limit=12):
     query = (query or "").strip()
     if not query:
@@ -435,6 +444,8 @@ def _build_public_profile(user, viewer_id):
     streak = get_streak(user_id)
     counts = get_follow_counts(user_id)
     subjects = get_all_subjects(user_id)
+    is_self = viewer_id == user_id
+    is_viewer_following = is_following(viewer_id, user_id) if not is_self else False
     pct = int((stats["completed_topics"] / stats["total_topics"]) * 100) if stats["total_topics"] else 0
     return {
         "user": user,
@@ -443,8 +454,9 @@ def _build_public_profile(user, viewer_id):
         "counts": counts,
         "subjects": subjects[:6],
         "progress_pct": pct,
-        "is_following": is_following(viewer_id, user_id) if viewer_id != user_id else False,
-        "is_self": viewer_id == user_id,
+        "is_following": is_viewer_following,
+        "is_self": is_self,
+        "can_view_connections": is_self or is_viewer_following,
     }
 
 
