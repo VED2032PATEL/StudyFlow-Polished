@@ -182,11 +182,13 @@
         <input type="hidden" name="avatar_data" id="avatarDataInput"/>
         <div class="profile-photo-row">
           <div class="profile-photo-preview {% if current_decoration %}decorated-avatar has-avatar-decoration avatar-decoration--{{ current_decoration }}{% endif %}" id="avatarPreview">
-            {% if user.avatar_data_url %}
-              <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
-            {% else %}
-              <span class="avatar-initial">{{ user.username[0].upper() }}</span>
-            {% endif %}
+            <span class="avatar-core">
+              {% if user.avatar_data_url %}
+                <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
+              {% else %}
+                <span class="avatar-initial">{{ user.username[0].upper() }}</span>
+              {% endif %}
+            </span>
             {% if current_decoration %}
               <img src="{{ url_for('static', filename=profile_decoration_assets[current_decoration]) }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
             {% endif %}
@@ -225,11 +227,13 @@
             <input type="radio" name="profile_decoration" value="{{ decoration.id }}" {% if current_decoration == decoration.id %}checked{% endif %}/>
             <span class="decoration-card">
               <span class="profile-photo-preview decorated-avatar has-avatar-decoration avatar-decoration--{{ decoration.id }} decoration-sample">
-                {% if user.avatar_data_url %}
-                  <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
-                {% else %}
-                  <span class="avatar-initial">{{ user.username[0].upper() }}</span>
-                {% endif %}
+                <span class="avatar-core">
+                  {% if user.avatar_data_url %}
+                    <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
+                  {% else %}
+                    <span class="avatar-initial">{{ user.username[0].upper() }}</span>
+                  {% endif %}
+                </span>
                 <img src="{{ url_for('static', filename=decoration.filename) }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
               </span>
               <strong>{{ decoration.name }}</strong>
@@ -537,7 +541,7 @@ function saveCroppedImage() {
     document.getElementById('avatarDataInput').value = dataUrl;
     const avatarPreview = document.getElementById('avatarPreview');
     const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
-    avatarPreview.innerHTML = `<img src="${dataUrl}" alt="Profile photo preview" class="profile-photo-img avatar-photo-img"/>${decoration}`;
+    avatarPreview.innerHTML = `<span class="avatar-core"><img src="${dataUrl}" alt="Profile photo preview" class="profile-photo-img avatar-photo-img"/></span>${decoration}`;
   }
   closeImageCropper();
 }

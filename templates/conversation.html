@@ -225,7 +225,9 @@ function renderIncomingAvatar() {
   const decoration = decorationUrl ? `<img src="${decorationUrl}" alt="" class="avatar-decoration-img" aria-hidden="true"/>` : '';
   return `
     <span class="chat-row-avatar decorated-avatar ${decoration ? `has-avatar-decoration avatar-decoration--${otherDecoration}` : ''}">
-      ${otherAvatarUrl ? `<img src="${escapeHtml(otherAvatarUrl)}" alt="Profile photo" class="avatar-photo-img"/>` : `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`}
+      <span class="avatar-core">
+        ${otherAvatarUrl ? `<img src="${escapeHtml(otherAvatarUrl)}" alt="Profile photo" class="avatar-photo-img"/>` : `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`}
+      </span>
       ${decoration}
     </span>
   `;

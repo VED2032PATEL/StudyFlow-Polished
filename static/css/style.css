@@ -4762,14 +4762,50 @@ select.form-input,
   isolation:isolate;
 }
 
+.decorated-avatar .avatar-core {
+  position:relative;
+  z-index:1;
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:inherit;
+  background:inherit;
+  color:inherit;
+  font:inherit;
+  overflow:hidden;
+}
+
+.decorated-avatar.has-avatar-decoration .avatar-core {
+  width:76%;
+  height:76%;
+  border-radius:999px;
+  box-shadow:0 0 0 3px var(--surface);
+}
+
+.profile-avatar-large.has-avatar-decoration .avatar-core {
+  width:74%;
+  height:74%;
+  box-shadow:0 0 0 5px var(--surface);
+}
+
+.person-avatar.has-avatar-decoration .avatar-core,
+.people-mini-avatar.has-avatar-decoration .avatar-core,
+.conversation-avatar.has-avatar-decoration .avatar-core,
+.chat-row-avatar.has-avatar-decoration .avatar-core,
+.user-avatar.has-avatar-decoration .avatar-core {
+  width:76%;
+  height:76%;
+  box-shadow:0 0 0 2px var(--surface);
+}
+
 .decorated-avatar .avatar-photo-img {
   width:100%;
   height:100%;
   object-fit:cover;
   display:block;
   border-radius:inherit;
-  position:relative;
-  z-index:2;
 }
 
 .decorated-avatar .avatar-initial {
@@ -4779,55 +4815,53 @@ select.form-input,
   align-items:center;
   justify-content:center;
   border-radius:inherit;
-  position:relative;
-  z-index:2;
 }
 
 .decorated-avatar .avatar-decoration-img {
   position:absolute;
   top:50%;
   left:50%;
-  width:158%;
-  height:158%;
+  width:122%;
+  height:122%;
   object-fit:contain;
   transform:translate(-50%,-50%);
-  z-index:0;
+  z-index:2;
   pointer-events:none;
 }
 
 .avatar-decoration--night_study .avatar-decoration-img {
-  width:164%;
-  height:164%;
-  transform:translate(-50%,-52%);
+  width:132%;
+  height:132%;
+  transform:translate(-50%,-51%);
 }
 
 .avatar-decoration--golden_books .avatar-decoration-img {
-  width:160%;
-  height:160%;
+  width:126%;
+  height:126%;
   transform:translate(-50%,-50%);
 }
 
 .avatar-decoration--science_neon .avatar-decoration-img {
-  width:158%;
-  height:158%;
+  width:126%;
+  height:126%;
   transform:translate(-50%,-50%);
 }
 
 .avatar-decoration--graduation_gold .avatar-decoration-img {
-  width:160%;
-  height:160%;
-  transform:translate(-50%,-48%);
+  width:127%;
+  height:127%;
+  transform:translate(-50%,-49%);
 }
 
 .avatar-decoration--school_supplies .avatar-decoration-img {
-  width:158%;
-  height:158%;
+  width:126%;
+  height:126%;
   transform:translate(-50%,-50%);
 }
 
 .profile-avatar-large.avatar-decoration--night_study .avatar-decoration-img {
-  width:166%;
-  height:166%;
+  width:134%;
+  height:134%;
   transform:translate(-50%,-51%);
 }
 
@@ -4835,16 +4869,16 @@ select.form-input,
 .conversation-avatar .avatar-decoration-img,
 .chat-row-avatar .avatar-decoration-img,
 .people-mini-avatar .avatar-decoration-img {
-  width:150%;
-  height:150%;
+  width:132%;
+  height:132%;
 }
 
 .user-avatar.avatar-decoration--night_study .avatar-decoration-img,
 .conversation-avatar.avatar-decoration--night_study .avatar-decoration-img,
 .chat-row-avatar.avatar-decoration--night_study .avatar-decoration-img,
 .people-mini-avatar.avatar-decoration--night_study .avatar-decoration-img {
-  width:154%;
-  height:154%;
+  width:136%;
+  height:136%;
   transform:translate(-50%,-51%);
 }
 
