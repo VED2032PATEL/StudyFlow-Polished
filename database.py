@@ -9,6 +9,7 @@ Production : set TURSO_DB_URL and TURSO_DB_TOKEN environment variables.
 
 import os
 import datetime
+import json
 import libsql_client
 
 # ── Connection config ─────────────────────────────────────────────────────────
@@ -208,6 +209,24 @@ _CREATE = [
         detail TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )""",
+    """CREATE TABLE IF NOT EXISTS cse_video_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        youtube_id TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        channel TEXT NOT NULL DEFAULT '',
+        subject TEXT NOT NULL,
+        duration TEXT NOT NULL DEFAULT '',
+        level TEXT NOT NULL DEFAULT 'Beginner',
+        topics_json TEXT NOT NULL DEFAULT '[]',
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS cse_video_hidden (
+        youtube_id TEXT PRIMARY KEY,
+        hidden_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -223,6 +242,7 @@ _MIGRATIONS = [
     ("users",      "avatar_data_url",       "ALTER TABLE users ADD COLUMN avatar_data_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "banner_data_url",       "ALTER TABLE users ADD COLUMN banner_data_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "is_verified",           "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0"),
+    ("users",      "moderation_status",     "ALTER TABLE users ADD COLUMN moderation_status TEXT NOT NULL DEFAULT 'active'"),
     ("messages",   "edited_at",             "ALTER TABLE messages ADD COLUMN edited_at TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_name",       "ALTER TABLE messages ADD COLUMN attachment_name TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_type",       "ALTER TABLE messages ADD COLUMN attachment_type TEXT NOT NULL DEFAULT ''"),
@@ -370,6 +390,17 @@ def update_banner(user_id, banner_data_url):
         conn.close()
 
 
+def update_user_moderation_status(user_id, status):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE users SET moderation_status=? WHERE id=? AND is_verified=0",
+            [status, user_id],
+        )
+    finally:
+        conn.close()
+
+
 def search_users(query, current_user_id, limit=12):
     query = (query or "").strip()
     if not query:
@@ -377,9 +408,9 @@ def search_users(query, current_user_id, limit=12):
     conn = get_db()
     try:
         rows = _rows_to_dicts(conn.execute(
-            """SELECT id,username,email,avatar_data_url,is_verified,created_at
+            """SELECT id,username,email,avatar_data_url,is_verified,moderation_status,created_at
                FROM users
-               WHERE id<>? AND username LIKE ? COLLATE NOCASE
+               WHERE id<>? AND moderation_status<>'banned' AND username LIKE ? COLLATE NOCASE
                ORDER BY username LIMIT ?""",
             [current_user_id, f"%{query}%", limit],
         ))
@@ -1176,6 +1207,10 @@ def add_flowcoins(user_id, amount, reason, source_key):
         conn.close()
 
 
+def adjust_flowcoins(user_id, amount, reason, source_key):
+    return add_flowcoins(user_id, amount, reason, source_key)
+
+
 def award_topic_flowcoins(user_id, topic):
     amount = calculate_topic_flowcoins(topic)
     return add_flowcoins(
@@ -1321,7 +1356,7 @@ def get_recent_users(limit=8):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT id,username,email,avatar_data_url,is_verified,created_at
+            """SELECT id,username,email,avatar_data_url,is_verified,moderation_status,created_at
                FROM users ORDER BY created_at DESC,id DESC LIMIT ?""",
             [limit],
         ))
@@ -1371,6 +1406,85 @@ def get_audit_logs(limit=100):
                ORDER BY al.created_at DESC,al.id DESC LIMIT ?""",
             [limit],
         ))
+    finally:
+        conn.close()
+
+
+def get_hidden_cse_video_ids():
+    conn = get_db()
+    try:
+        return {
+            row[0]
+            for row in conn.execute("SELECT youtube_id FROM cse_video_hidden").rows
+        }
+    finally:
+        conn.close()
+
+
+def _decode_topics(topics_json):
+    try:
+        topics = json.loads(topics_json or "[]")
+    except json.JSONDecodeError:
+        topics = []
+    return [str(topic).strip() for topic in topics if str(topic).strip()]
+
+
+def get_cse_video_links():
+    conn = get_db()
+    try:
+        rows = _rows_to_dicts(conn.execute(
+            """SELECT cv.*,u.username AS creator_name
+               FROM cse_video_links cv
+               LEFT JOIN users u ON u.id=cv.created_by
+               ORDER BY cv.created_at DESC,cv.id DESC"""
+        ))
+        for row in rows:
+            row["topics"] = _decode_topics(row.get("topics_json", "[]"))
+            row["source"] = "custom"
+        return rows
+    finally:
+        conn.close()
+
+
+def add_cse_video_link(youtube_id, title, channel, subject, duration, level, topics, creator_id):
+    topics_json = json.dumps([topic.strip() for topic in topics if topic.strip()])
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM cse_video_hidden WHERE youtube_id=?", [youtube_id])
+        conn.execute(
+            """INSERT INTO cse_video_links
+               (youtube_id,title,channel,subject,duration,level,topics_json,created_by)
+               VALUES (?,?,?,?,?,?,?,?)
+               ON CONFLICT(youtube_id) DO UPDATE SET
+                 title=excluded.title,
+                 channel=excluded.channel,
+                 subject=excluded.subject,
+                 duration=excluded.duration,
+                 level=excluded.level,
+                 topics_json=excluded.topics_json,
+                 created_by=excluded.created_by""",
+            [youtube_id, title, channel, subject, duration, level, topics_json, creator_id],
+        )
+    finally:
+        conn.close()
+
+
+def remove_cse_video_link(youtube_id, actor_id, reason="Removed by creator"):
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM cse_video_links WHERE youtube_id=?",
+            [youtube_id],
+        )
+        if existing.rows:
+            conn.execute("DELETE FROM cse_video_links WHERE youtube_id=?", [youtube_id])
+            return "custom"
+        conn.execute(
+            """INSERT OR REPLACE INTO cse_video_hidden (youtube_id,hidden_by,reason)
+               VALUES (?,?,?)""",
+            [youtube_id, actor_id, reason],
+        )
+        return "core"
     finally:
         conn.close()
 

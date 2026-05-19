@@ -20,6 +20,55 @@
   <div class="stat-card"><div class="stat-number">{{ summary.flowcoins }}</div><div class="stat-label">FlowCoins Net</div></div>
 </div>
 
+<div class="card anim d2">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">CSE Video Library</h2>
+      <p class="page-sub">Add, remove, and organize searchable full-length videos</p>
+    </div>
+    <span class="badge badge-primary">{{ cse_videos|length }} videos</span>
+  </div>
+
+  <form method="POST" action="{{ url_for('creator_add_video') }}" class="admin-video-form">
+    <input class="form-input" name="youtube_url" placeholder="YouTube link or video ID" required/>
+    <input class="form-input" name="title" placeholder="Video title" required/>
+    <input class="form-input" name="channel" placeholder="Channel"/>
+    <input class="form-input" name="subject" placeholder="Category / subject" required/>
+    <input class="form-input" name="topics" placeholder="Topics, comma separated"/>
+    <select class="form-input" name="level">
+      <option>Beginner</option>
+      <option>Intermediate</option>
+      <option>Advanced</option>
+    </select>
+    <input class="form-input" name="duration" placeholder="Duration e.g. 4h"/>
+    <button type="submit" class="btn btn-primary">Add Video</button>
+  </form>
+
+  <div class="admin-video-list">
+    {% for video in cse_videos[:10] %}
+    <div class="admin-video-row">
+      <img src="{{ video.thumbnail }}" alt="{{ video.title }} thumbnail"/>
+      <div class="admin-video-main">
+        <strong>{{ video.title }}</strong>
+        <span>{{ video.subject }} · {{ video.channel }} · {{ video.level }}</span>
+      </div>
+      <form method="POST" action="{{ url_for('creator_update_video', youtube_id=video.youtube_id) }}" class="admin-video-edit">
+        <input class="form-input" name="title" value="{{ video.title }}" aria-label="Video title"/>
+        <input class="form-input" name="subject" value="{{ video.subject }}" aria-label="Subject"/>
+        <input class="form-input" name="topics" value="{{ video.topics|join(', ') }}" aria-label="Topics"/>
+        <input type="hidden" name="channel" value="{{ video.channel }}"/>
+        <input type="hidden" name="duration" value="{{ video.duration }}"/>
+        <input type="hidden" name="level" value="{{ video.level }}"/>
+        <button type="submit" class="btn btn-outline btn-sm">Save</button>
+      </form>
+      <form method="POST" action="{{ url_for('creator_remove_video', youtube_id=video.youtube_id) }}">
+        <button type="submit" class="btn btn-ghost btn-sm">Remove</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="two-col">
   <div class="card anim d2">
     <div class="card-header">

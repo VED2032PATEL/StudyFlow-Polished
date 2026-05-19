@@ -661,6 +661,7 @@ body.creator-sections-open .user-nav-item {
 }
 .badge-primary{background:rgba(99,102,241,.12);color:var(--p1)}
 .badge-amber{background:var(--amber-bg);color:#92400e}
+.badge-rose{background:var(--rose-bg);color:var(--rose)}
 
 .deadline-chip{
   display:inline-flex;align-items:center;gap:4px;
@@ -3577,6 +3578,14 @@ body.creator-sections-open .user-nav-item {
   .practice-generate-btn { width: 100%; justify-content: center; }
   .paper-header { flex-direction: column; }
   .paper-controls { width: 100%; }
+  .admin-video-form,
+  .admin-video-edit {
+    grid-template-columns:1fr;
+  }
+  .admin-video-row {
+    align-items:flex-start;
+    flex-direction:column;
+  }
 }
 
 /* ── Practice page error banner ───────────────────────── */
@@ -4804,6 +4813,82 @@ select.form-input,
   align-items:center;
 }
 
+.profile-admin-menu {
+  position:absolute;
+  top:14px;
+  right:14px;
+  z-index:5;
+}
+
+.profile-admin-menu summary {
+  list-style:none;
+  width:38px;
+  height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  background:rgba(15,23,42,.30);
+  color:#fff;
+  cursor:pointer;
+  backdrop-filter:blur(10px);
+}
+
+.profile-admin-menu summary::-webkit-details-marker {
+  display:none;
+}
+
+.profile-admin-panel {
+  position:absolute;
+  top:46px;
+  right:0;
+  width:280px;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  box-shadow:var(--sh);
+}
+
+.profile-admin-action {
+  width:100%;
+  border:0;
+  background:transparent;
+  color:var(--t1);
+  font-weight:800;
+  text-align:left;
+  padding:10px 8px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.profile-admin-action:hover {
+  background:var(--surface-2);
+}
+
+.profile-admin-action.danger {
+  color:var(--rose);
+}
+
+.profile-admin-flowcoin {
+  border-top:1px solid var(--border);
+  margin-top:8px;
+  padding-top:10px;
+  display:grid;
+  gap:8px;
+}
+
+.profile-admin-flowcoin label span {
+  display:block;
+  color:var(--t2);
+  font-size:11px;
+  font-weight:800;
+  margin-bottom:4px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
 /* Creator tools */
 .admin-stat-grid {
   display:grid;
@@ -4898,6 +4983,68 @@ select.form-input,
   font-weight:900;
   text-transform:uppercase;
   letter-spacing:.06em;
+}
+
+.admin-video-form {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.admin-video-form button {
+  justify-content:center;
+}
+
+.admin-video-list {
+  display:grid;
+  gap:10px;
+}
+
+.admin-video-row {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border:1px solid var(--border-l);
+  border-radius:10px;
+  padding:10px;
+  background:var(--surface-2);
+}
+
+.admin-video-row img {
+  width:88px;
+  aspect-ratio:16/9;
+  object-fit:cover;
+  border-radius:7px;
+  flex-shrink:0;
+}
+
+.admin-video-main {
+  flex:1;
+  min-width:0;
+}
+
+.admin-video-main strong,
+.admin-video-main span {
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.admin-video-main span {
+  color:var(--t2);
+  font-size:12px;
+  margin-top:3px;
+}
+
+.admin-video-edit {
+  display:grid;
+  grid-template-columns:minmax(150px,1.4fr) minmax(100px,.8fr) minmax(140px,1fr) auto;
+  gap:8px;
+  align-items:center;
+  flex:1.4;
+  min-width:0;
 }
 
 /* Messaging */

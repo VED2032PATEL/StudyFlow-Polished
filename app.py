@@ -15,6 +15,7 @@ import os
 import logging
 import base64
 import uuid
+import re
 
 logging.basicConfig(level=logging.INFO)
 
@@ -106,7 +107,7 @@ def _filter_cse_videos(query="", subject=""):
     query = (query or "").strip().lower()
     subject = (subject or "").strip()
     videos = []
-    for video in CSE_VIDEO_LIBRARY:
+    for video in _all_cse_videos():
         if subject and video["subject"] != subject:
             continue
         haystack = " ".join([
@@ -125,6 +126,33 @@ def _filter_cse_videos(query="", subject=""):
             "watch_url": f"https://www.youtube.com/watch?v={video['youtube_id']}",
         })
     return videos
+
+
+def _all_cse_videos():
+    hidden = db.get_hidden_cse_video_ids()
+    custom = {video["youtube_id"]: video for video in db.get_cse_video_links()}
+    videos = []
+    for video in CSE_VIDEO_LIBRARY:
+        if video["youtube_id"] in hidden:
+            continue
+        videos.append(custom.pop(video["youtube_id"], {**video, "source": "core"}))
+    videos.extend(custom.values())
+    return videos
+
+
+def _extract_youtube_id(value):
+    value = (value or "").strip()
+    if not value:
+        return ""
+    patterns = [
+        r"(?:v=|/embed/|youtu\.be/|/shorts/)([A-Za-z0-9_-]{11})",
+        r"^([A-Za-z0-9_-]{11})$",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, value)
+        if match:
+            return match.group(1)
+    return ""
 
 
 def _format_chat_timestamp(value):
@@ -166,6 +194,7 @@ class User(UserMixin):
         self.avatar_data_url = row.get("avatar_data_url", "")
         self.banner_data_url = row.get("banner_data_url", "")
         self.is_verified = row.get("is_verified", 0)
+        self.moderation_status = row.get("moderation_status", "active")
 
     def get_id(self):
         return str(self.id)
@@ -189,6 +218,20 @@ def inject_notification_count():
         except Exception:
             return {"notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
     return {"notification_count": 0, "unread_message_count": 0, "flowcoin_balance": 0}
+
+
+@app.before_request
+def enforce_account_status():
+    if not current_user.is_authenticated:
+        return None
+    if request.endpoint in {"static", "logout"}:
+        return None
+    if getattr(current_user, "moderation_status", "active") in {"suspended", "banned"}:
+        status = current_user.moderation_status
+        logout_user()
+        flash(f"Your account is {status}. Contact support if this looks wrong.", "error")
+        return redirect(url_for("login"))
+    return None
 
 
 # Initialise DB on first run
@@ -252,6 +295,9 @@ def login():
 
         # Allow login by username OR email
         row = db.get_user_by_username(identifier) or db.get_user_by_email(identifier)
+        if row and row.get("moderation_status", "active") in {"suspended", "banned"}:
+            flash(f"This account is {row['moderation_status']}. Contact support if this looks wrong.", "error")
+            return render_template("login.html", identifier=identifier)
         if row and check_password_hash(row["password_hash"], password):
             login_user(User(row), remember=remember)
             flash(f"Welcome back, {row['username']}! 👋", "success")
@@ -381,6 +427,7 @@ def admin_dashboard():
         recent_users=db.get_recent_users(),
         tickets=db.get_support_tickets(limit=5),
         audit_logs=db.get_audit_logs(limit=6),
+        cse_videos=_filter_cse_videos(),
     )
 
 
@@ -411,6 +458,110 @@ def audit_logs():
         return redirect(url_for("dashboard"))
     _log_creator_action("view_audit_logs", "page", "creator/audit", request.path)
     return render_template("audit_logs.html", audit_logs=db.get_audit_logs())
+
+
+@app.route("/creator/users/<int:user_id>/moderation", methods=["POST"])
+@login_required
+def moderate_user(user_id):
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    target = db.get_user_by_id(user_id)
+    if not target:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    if target.get("is_verified") or target["id"] == current_user.id:
+        flash("Creator accounts cannot be moderated from this menu.", "error")
+        return redirect(url_for("user_profile_by_id", user_id=user_id))
+    action = request.form.get("action", "suspend")
+    status = "banned" if action == "ban" else "suspended"
+    reason = request.form.get("reason", "").strip() or f"Account {status} by creator"
+    db.update_user_moderation_status(user_id, status)
+    _log_creator_action(status, "user", user_id, reason)
+    flash(f"{target['username']} has been {status}.", "success")
+    return redirect(url_for("user_profile_by_id", user_id=user_id))
+
+
+@app.route("/creator/users/<int:user_id>/flowcoins", methods=["POST"])
+@login_required
+def creator_adjust_flowcoins(user_id):
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    target = db.get_user_by_id(user_id)
+    if not target:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    if target.get("is_verified") or target["id"] == current_user.id:
+        flash("Creator account FlowCoins cannot be changed from this menu.", "error")
+        return redirect(url_for("user_profile_by_id", user_id=user_id))
+    try:
+        amount = int(request.form.get("amount", 0))
+    except ValueError:
+        amount = 0
+    reason = request.form.get("reason", "").strip()
+    if not amount or not reason:
+        flash("Add an amount and reason for the FlowCoin adjustment.", "error")
+        return redirect(url_for("user_profile_by_id", user_id=user_id))
+    db.adjust_flowcoins(
+        user_id,
+        amount,
+        f"Creator adjustment: {reason}",
+        f"creator_adjust:{current_user.id}:{user_id}:{uuid.uuid4().hex}",
+    )
+    _log_creator_action("adjust_flowcoins", "user", user_id, f"{amount}: {reason}")
+    flash(f"FlowCoins updated for {target['username']}.", "success")
+    return redirect(url_for("user_profile_by_id", user_id=user_id))
+
+
+@app.route("/creator/videos", methods=["POST"])
+@login_required
+def creator_add_video():
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    youtube_id = _extract_youtube_id(request.form.get("youtube_url", ""))
+    title = request.form.get("title", "").strip()
+    subject = request.form.get("subject", "").strip()
+    channel = request.form.get("channel", "").strip() or "YouTube"
+    duration = request.form.get("duration", "").strip()
+    level = request.form.get("level", "Beginner").strip() or "Beginner"
+    topics = [topic.strip() for topic in request.form.get("topics", "").split(",") if topic.strip()]
+    if not youtube_id or not title or not subject:
+        flash("Add a valid YouTube link, title, and subject.", "error")
+        return redirect(url_for("admin_dashboard"))
+    db.add_cse_video_link(youtube_id, title, channel, subject, duration, level, topics, current_user.id)
+    _log_creator_action("add_cse_video", "video", youtube_id, title)
+    flash("CSE video added to the library.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/creator/videos/<youtube_id>/remove", methods=["POST"])
+@login_required
+def creator_remove_video(youtube_id):
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    removed_type = db.remove_cse_video_link(youtube_id, current_user.id)
+    _log_creator_action("remove_cse_video", "video", youtube_id, removed_type)
+    flash("CSE video removed from the library.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/creator/videos/<youtube_id>/update", methods=["POST"])
+@login_required
+def creator_update_video(youtube_id):
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    title = request.form.get("title", "").strip()
+    subject = request.form.get("subject", "").strip()
+    channel = request.form.get("channel", "").strip() or "YouTube"
+    duration = request.form.get("duration", "").strip()
+    level = request.form.get("level", "Beginner").strip() or "Beginner"
+    topics = [topic.strip() for topic in request.form.get("topics", "").split(",") if topic.strip()]
+    if not title or not subject:
+        flash("Video title and subject are required.", "error")
+        return redirect(url_for("admin_dashboard"))
+    db.add_cse_video_link(youtube_id, title, channel, subject, duration, level, topics, current_user.id)
+    _log_creator_action("update_cse_video", "video", youtube_id, title)
+    flash("CSE video details updated.", "success")
+    return redirect(url_for("admin_dashboard"))
 
 
 @app.route("/users/<int:user_id>/follow", methods=["POST"])
@@ -730,7 +881,8 @@ def video_library():
     query = request.args.get("q", "")
     subject = request.args.get("subject", "")
     videos = _filter_cse_videos(query, subject)
-    subjects = sorted({video["subject"] for video in CSE_VIDEO_LIBRARY})
+    all_videos = _all_cse_videos()
+    subjects = sorted({video["subject"] for video in all_videos})
     return render_template(
         "videos.html",
         videos=videos,
@@ -738,7 +890,7 @@ def video_library():
         query=query,
         current_subject=subject,
         subjects=subjects,
-        total_videos=len(CSE_VIDEO_LIBRARY),
+        total_videos=len(all_videos),
     )
 
 

@@ -5,6 +5,34 @@
 {% block content %}
 
 <div class="profile-hero anim">
+  {% if current_user.is_verified and not profile.is_self and not profile.user.is_verified %}
+  <details class="profile-admin-menu">
+    <summary aria-label="User management">
+      <span data-lucide="more-horizontal"></span>
+    </summary>
+    <div class="profile-admin-panel">
+      <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
+        <input type="hidden" name="action" value="suspend"/>
+        <button type="submit" class="profile-admin-action">Suspend</button>
+      </form>
+      <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
+        <input type="hidden" name="action" value="ban"/>
+        <button type="submit" class="profile-admin-action danger">Ban</button>
+      </form>
+      <form method="POST" action="{{ url_for('creator_adjust_flowcoins', user_id=profile.user.id) }}" class="profile-admin-flowcoin">
+        <label>
+          <span>FlowCoin</span>
+          <input type="number" name="amount" class="form-input" placeholder="+500 or -100" required/>
+        </label>
+        <label>
+          <span>Reason</span>
+          <input type="text" name="reason" class="form-input" placeholder="Manual reward, correction..." required/>
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      </form>
+    </div>
+  </details>
+  {% endif %}
   <div class="profile-banner {% if not profile.user.banner_data_url %}profile-banner-empty{% endif %}">
     {% if profile.user.banner_data_url %}
       <img src="{{ profile.user.banner_data_url }}" alt="{{ profile.user.username }} profile banner"/>
@@ -23,6 +51,9 @@
         <a href="{{ url_for('people') }}" class="back-link">← People</a>
         <h1 class="profile-name">{{ profile.user.username }} {{ ui.verified_badge(profile.user) }}</h1>
         <p class="profile-sub">Member since {{ profile.user.created_at[:10] }}</p>
+        {% if current_user.is_verified and profile.user.moderation_status and profile.user.moderation_status != 'active' %}
+          <span class="badge badge-rose">{{ profile.user.moderation_status|title }}</span>
+        {% endif %}
         <div class="profile-follow-meta">
           {% if profile.can_view_connections %}
             <a href="{{ url_for('user_connections', user_id=profile.user.id, kind='followers') }}">{{ profile.counts.followers }} followers</a>
