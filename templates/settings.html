@@ -180,11 +180,14 @@
         <input type="hidden" name="action" value="avatar"/>
         <input type="hidden" name="avatar_data" id="avatarDataInput"/>
         <div class="profile-photo-row">
-          <div class="profile-photo-preview" id="avatarPreview">
+          <div class="profile-photo-preview {% if user.profile_decoration %}decorated-avatar has-avatar-decoration{% endif %}" id="avatarPreview">
             {% if user.avatar_data_url %}
-              <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img"/>
+              <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
             {% else %}
-              <span>{{ user.username[0].upper() }}</span>
+              <span class="avatar-initial">{{ user.username[0].upper() }}</span>
+            {% endif %}
+            {% if user.profile_decoration == 'study_ghost' %}
+              <img src="{{ url_for('static', filename='profile-decorations/study-ghost.svg') }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
             {% endif %}
           </div>
           <div class="profile-photo-copy">
@@ -203,6 +206,35 @@
             </div>
           </div>
         </div>
+      </form>
+
+      <form method="POST" action="{{ url_for('settings') }}" class="profile-decoration-form">
+        <input type="hidden" name="action" value="decoration"/>
+        <div class="profile-photo-title">Profile Decoration</div>
+        <p class="form-hint">Choose an overlay that sits on top of your profile photo.</p>
+        <div class="decoration-picker">
+          <label class="decoration-option">
+            <input type="radio" name="profile_decoration" value="" {% if not user.profile_decoration %}checked{% endif %}/>
+            <span class="decoration-card">
+              <span class="decoration-none">None</span>
+            </span>
+          </label>
+          <label class="decoration-option">
+            <input type="radio" name="profile_decoration" value="study_ghost" {% if user.profile_decoration == 'study_ghost' %}checked{% endif %}/>
+            <span class="decoration-card">
+              <span class="profile-photo-preview decorated-avatar has-avatar-decoration decoration-sample">
+                {% if user.avatar_data_url %}
+                  <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
+                {% else %}
+                  <span class="avatar-initial">{{ user.username[0].upper() }}</span>
+                {% endif %}
+                <img src="{{ url_for('static', filename='profile-decorations/study-ghost.svg') }}" alt="" class="avatar-decoration-img" aria-hidden="true"/>
+              </span>
+              <strong>Study Ghost</strong>
+            </span>
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Save Decoration</button>
       </form>
 
       <form method="POST" action="{{ url_for('settings') }}" class="profile-photo-form">
@@ -500,7 +532,9 @@ function saveCroppedImage() {
     document.getElementById('bannerPreview').innerHTML = `<img src="${dataUrl}" alt="Banner preview" class="profile-banner-img"/>`;
   } else {
     document.getElementById('avatarDataInput').value = dataUrl;
-    document.getElementById('avatarPreview').innerHTML = `<img src="${dataUrl}" alt="Profile photo preview" class="profile-photo-img"/>`;
+    const avatarPreview = document.getElementById('avatarPreview');
+    const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
+    avatarPreview.innerHTML = `<img src="${dataUrl}" alt="Profile photo preview" class="profile-photo-img avatar-photo-img"/>${decoration}`;
   }
   closeImageCropper();
 }

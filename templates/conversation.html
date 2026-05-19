@@ -4,13 +4,7 @@
     <div class="chat-user-head">
       <a href="{{ url_for('messages') }}" class="back-link">← Messages</a>
       <div class="chat-user-line">
-        <span class="conversation-avatar">
-          {% if other.avatar_data_url %}
-            <img src="{{ other.avatar_data_url }}" alt="{{ other.username }} profile photo"/>
-          {% else %}
-            {{ other.username[0].upper() }}
-          {% endif %}
-        </span>
+        {{ ui.decorated_avatar(other, 'conversation-avatar') }}
         <div>
           <h1 class="chat-title">{{ other.username }} {{ ui.verified_badge(other) }}</h1>
           <a href="{{ url_for('user_profile_by_id', user_id=other.id) }}" class="chat-profile-link">View profile</a>
@@ -43,13 +37,7 @@
       {% endif %}
       <div class="chat-bubble-row {% if msg.sender_id == current_user.id %}chat-mine{% else %}chat-theirs{% endif %}" data-message-id="{{ msg.id }}">
         {% if msg.sender_id != current_user.id %}
-        <span class="chat-row-avatar">
-          {% if other.avatar_data_url %}
-            <img src="{{ other.avatar_data_url }}" alt="{{ other.username }} profile photo"/>
-          {% else %}
-            {{ other.username[0].upper() }}
-          {% endif %}
-        </span>
+        {{ ui.decorated_avatar(other, 'chat-row-avatar') }}
         {% endif %}
         <div class="message-hover-tools">
           <button type="button" class="message-tool-btn" data-action="react-menu" data-id="{{ msg.id }}" aria-label="React">☺</button>
@@ -185,6 +173,8 @@ const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 const otherAvatarUrl = {{ (other.avatar_data_url or '')|tojson }};
+const otherDecoration = {{ (other.profile_decoration or '')|tojson }};
+const studyGhostDecorationUrl = {{ url_for('static', filename='profile-decorations/study-ghost.svg')|tojson }};
 const otherInitial = {{ other.username[0].upper()|tojson }};
 const maxAttachmentBytes = 1400 * 1024;
 let lastRendered = '';
@@ -227,9 +217,13 @@ function formatMessageBody(value) {
 }
 
 function renderIncomingAvatar() {
+  const decoration = otherDecoration === 'study_ghost'
+    ? `<img src="${studyGhostDecorationUrl}" alt="" class="avatar-decoration-img" aria-hidden="true"/>`
+    : '';
   return `
-    <span class="chat-row-avatar">
-      ${otherAvatarUrl ? `<img src="${escapeHtml(otherAvatarUrl)}" alt="Profile photo"/>` : escapeHtml(otherInitial)}
+    <span class="chat-row-avatar decorated-avatar ${decoration ? 'has-avatar-decoration' : ''}">
+      ${otherAvatarUrl ? `<img src="${escapeHtml(otherAvatarUrl)}" alt="Profile photo" class="avatar-photo-img"/>` : `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`}
+      ${decoration}
     </span>
   `;
 }

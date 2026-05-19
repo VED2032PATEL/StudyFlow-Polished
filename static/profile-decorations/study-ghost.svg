@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Study ghost profile decoration">
+  <defs>
+    <linearGradient id="ghostBody" x1="45" y1="34" x2="111" y2="132" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d9dce2"/>
+      <stop offset=".48" stop-color="#8b9098"/>
+      <stop offset="1" stop-color="#4d535b"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="34" y1="48" x2="124" y2="126" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827" stop-opacity=".1"/>
+      <stop offset="1" stop-color="#020617" stop-opacity=".55"/>
+    </linearGradient>
+    <filter id="softShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#020617" flood-opacity=".38"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    <path d="M47 127c8-59 20-89 47-91 28-2 44 35 48 94-11-5-20-4-28 2-7-8-17-9-28-2-9-8-20-8-39-3z" fill="url(#ghostBody)"/>
+    <path d="M47 127c6-43 18-75 36-88-11 25-7 68 35 91-8-3-16-2-23 3-9-9-20-10-31-3-5-4-10-5-17-3z" fill="url(#shade)"/>
+    <circle cx="82" cy="83" r="6" fill="#686e76" opacity=".55"/>
+    <circle cx="105" cy="78" r="6" fill="#686e76" opacity=".55"/>
+    <path d="M87 105c8 5 19 5 26-2" fill="none" stroke="#6b7179" stroke-width="4" stroke-linecap="round" opacity=".45"/>
+  </g>
+  <g filter="url(#softShadow)">
+    <path d="M27 119l48 5 44-8 18 5-58 16-56-9z" fill="#c9c9c6"/>
+    <path d="M75 124l44-8 18 5-56 12z" fill="#f0f0eb"/>
+    <path d="M38 121l39 4 42-8" fill="none" stroke="#6e737b" stroke-width="2" opacity=".55"/>
+  </g>
+  <g filter="url(#softShadow)">
+    <path d="M17 89l26-7 9 38-28 7z" fill="#7f1d1d"/>
+    <path d="M21 92l24-6 7 31-26 7z" fill="#991b1b"/>
+    <path d="M22 95l24-6M26 110l24-6M35 89l8 32M28 91l8 32" fill="none" stroke="#ef4444" stroke-width="1.2" opacity=".72"/>
+    <path d="M26 82l3 25M36 78l1 25M45 80l-2 25" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="26" cy="82" r="2" fill="#f59e0b"/>
+    <circle cx="36" cy="78" r="2" fill="#22c55e"/>
+    <circle cx="45" cy="80" r="2" fill="#38bdf8"/>
+  </g>
+  <g filter="url(#softShadow)">
+    <path d="M104 38c12-21 34-17 43-2l-5 4c-8-10-22-12-32 4z" fill="#92400e"/>
+    <path d="M102 42c16-13 33-12 47 0l-8 13c-10-9-22-10-36-1z" fill="#b45309"/>
+    <path d="M103 41c11-8 24-9 38-3" fill="none" stroke="#f97316" stroke-width="4" stroke-linecap="round"/>
+    <path d="M121 45c-1 18-9 30-24 37" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="95" cy="84" r="6" fill="#fbbf24"/>
+    <path d="M92 82l6 5M98 82l-6 5" stroke="#92400e" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M140 19c7 12 1 24-12 29" fill="none" stroke="#78350f" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="141" cy="18" r="4" fill="#d97706"/>
+  </g>
+</svg>

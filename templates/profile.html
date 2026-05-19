@@ -40,13 +40,7 @@
   </div>
   <div class="profile-hero-body">
     <div class="profile-hero-left">
-      <div class="profile-avatar-large">
-        {% if profile.user.avatar_data_url %}
-          <img src="{{ profile.user.avatar_data_url }}" alt="{{ profile.user.username }} profile photo"/>
-        {% else %}
-          {{ profile.user.username[0].upper() }}
-        {% endif %}
-      </div>
+      {{ ui.decorated_avatar(profile.user, 'profile-avatar-large') }}
       <div>
         <a href="{{ url_for('people') }}" class="back-link">← People</a>
         <h1 class="profile-name">{{ profile.user.username }} {{ ui.verified_badge(profile.user) }}</h1>

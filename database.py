@@ -243,6 +243,7 @@ _MIGRATIONS = [
     ("users",      "banner_data_url",       "ALTER TABLE users ADD COLUMN banner_data_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "is_verified",           "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0"),
     ("users",      "moderation_status",     "ALTER TABLE users ADD COLUMN moderation_status TEXT NOT NULL DEFAULT 'active'"),
+    ("users",      "profile_decoration",    "ALTER TABLE users ADD COLUMN profile_decoration TEXT NOT NULL DEFAULT ''"),
     ("messages",   "edited_at",             "ALTER TABLE messages ADD COLUMN edited_at TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_name",       "ALTER TABLE messages ADD COLUMN attachment_name TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_type",       "ALTER TABLE messages ADD COLUMN attachment_type TEXT NOT NULL DEFAULT ''"),
@@ -390,6 +391,14 @@ def update_banner(user_id, banner_data_url):
         conn.close()
 
 
+def update_profile_decoration(user_id, decoration):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE users SET profile_decoration=? WHERE id=?", [decoration, user_id])
+    finally:
+        conn.close()
+
+
 def update_user_moderation_status(user_id, status):
     conn = get_db()
     try:
@@ -408,7 +417,7 @@ def search_users(query, current_user_id, limit=12):
     conn = get_db()
     try:
         rows = _rows_to_dicts(conn.execute(
-            """SELECT id,username,email,avatar_data_url,is_verified,moderation_status,created_at
+            """SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,moderation_status,created_at
                FROM users
                WHERE id<>? AND moderation_status<>'banned' AND username LIKE ? COLLATE NOCASE
                ORDER BY username LIMIT ?""",
@@ -474,7 +483,7 @@ def get_following(user_id):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.is_verified,u.created_at,f.created_at AS followed_at
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.created_at,f.created_at AS followed_at
                FROM follows f JOIN users u ON u.id=f.following_id
                WHERE f.follower_id=? ORDER BY f.created_at DESC""",
             [user_id],
@@ -487,7 +496,7 @@ def get_followers(user_id):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.is_verified,u.created_at,f.created_at AS followed_at
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.created_at,f.created_at AS followed_at
                FROM follows f JOIN users u ON u.id=f.follower_id
                WHERE f.following_id=? ORDER BY f.created_at DESC""",
             [user_id],
@@ -733,7 +742,7 @@ def create_call(call_id, caller_id, receiver_id, kind):
 def _call_to_dict(row, viewer_id, conn):
     peer_id = row["receiver_id"] if row["caller_id"] == viewer_id else row["caller_id"]
     peer = _rows_to_dicts(conn.execute(
-        "SELECT id,username,email,avatar_data_url,is_verified FROM users WHERE id=?",
+        "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified FROM users WHERE id=?",
         [peer_id],
     ))
     data = dict(row)
@@ -851,7 +860,7 @@ def get_conversations(user_id):
             peer_id = peer["peer_id"]
             purge_expired_messages(user_id, peer_id)
             user_rows = _rows_to_dicts(conn.execute(
-                "SELECT id,username,email,avatar_data_url,is_verified FROM users WHERE id=?",
+                "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified FROM users WHERE id=?",
                 [peer_id],
             ))
             if not user_rows:
@@ -1356,7 +1365,7 @@ def get_recent_users(limit=8):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT id,username,email,avatar_data_url,is_verified,moderation_status,created_at
+            """SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,moderation_status,created_at
                FROM users ORDER BY created_at DESC,id DESC LIMIT ?""",
             [limit],
         ))

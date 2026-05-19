@@ -27,13 +27,7 @@
       <a href="{{ url_for('conversation_by_user_id', user_id=convo.user.id) }}"
          class="conversation-row {% if other and convo.user.id == other.id %}active{% endif %} {% if convo.unread %}conversation-unread{% endif %}"
          data-search="{{ convo.user.username|lower }}">
-        <span class="conversation-avatar">
-          {% if convo.user.avatar_data_url %}
-            <img src="{{ convo.user.avatar_data_url }}" alt="{{ convo.user.username }} profile photo"/>
-          {% else %}
-            {{ convo.user.username[0].upper() }}
-          {% endif %}
-        </span>
+        {{ ui.decorated_avatar(convo.user, 'conversation-avatar') }}
         <span class="conversation-main">
           <span class="conversation-top">
             <strong>{{ convo.user.username }} {{ ui.verified_badge(convo.user) }}</strong>

@@ -193,6 +193,7 @@ class User(UserMixin):
         self.email    = row["email"]
         self.avatar_data_url = row.get("avatar_data_url", "")
         self.banner_data_url = row.get("banner_data_url", "")
+        self.profile_decoration = row.get("profile_decoration", "")
         self.is_verified = row.get("is_verified", 0)
         self.moderation_status = row.get("moderation_status", "active")
 
@@ -787,6 +788,7 @@ def _public_call(call):
             "id": peer.get("id"),
             "username": peer.get("username", "Unknown"),
             "avatar_data_url": peer.get("avatar_data_url", ""),
+            "profile_decoration": peer.get("profile_decoration", ""),
         },
     }
 
@@ -1321,6 +1323,15 @@ def settings():
                     row = db.get_user_by_id(uid)
                     login_user(User(row), remember=True)
                     flash("Profile banner updated!", "success")
+
+        elif action == "decoration":
+            decoration = request.form.get("profile_decoration", "")
+            if decoration not in {"", "study_ghost"}:
+                decoration = ""
+            db.update_profile_decoration(uid, decoration)
+            row = db.get_user_by_id(uid)
+            login_user(User(row), remember=True)
+            flash("Profile decoration updated!", "success")
 
         elif action == "password":
             from werkzeug.security import check_password_hash, generate_password_hash

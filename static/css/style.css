@@ -2535,6 +2535,75 @@ body.creator-sections-open .user-nav-item {
   box-shadow:0 8px 18px rgba(99,91,255,.18);
 }
 
+.profile-photo-preview.decorated-avatar {
+  overflow:visible;
+}
+
+.profile-decoration-form {
+  margin:6px 0 20px;
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface-2);
+}
+
+.decoration-picker {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin:12px 0;
+}
+
+.decoration-option {
+  cursor:pointer;
+}
+
+.decoration-option input {
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+
+.decoration-card {
+  min-height:118px;
+  border:1.5px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:12px;
+  transition:border-color .18s,box-shadow .18s,transform .18s;
+}
+
+.decoration-option input:checked + .decoration-card {
+  border-color:var(--p1);
+  box-shadow:0 0 0 3px rgba(99,102,241,.12);
+}
+
+.decoration-option:hover .decoration-card {
+  transform:translateY(-1px);
+}
+
+.decoration-none {
+  width:72px;
+  height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:16px;
+  border:1px dashed var(--border);
+  color:var(--t2);
+  font-weight:800;
+}
+
+.decoration-sample {
+  width:72px;
+  height:72px;
+}
+
 .profile-banner-preview {
   width:min(210px,42%);
   min-height:86px;
@@ -4678,6 +4747,64 @@ select.form-input,
   height:100%;
   object-fit:cover;
   display:block;
+}
+
+.avatar-link {
+  display:inline-flex;
+  color:inherit;
+  text-decoration:none;
+  flex-shrink:0;
+}
+
+.decorated-avatar {
+  position:relative;
+  overflow:visible;
+  isolation:isolate;
+}
+
+.decorated-avatar .avatar-photo-img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  border-radius:inherit;
+  position:relative;
+  z-index:1;
+}
+
+.decorated-avatar .avatar-initial {
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:inherit;
+  position:relative;
+  z-index:1;
+}
+
+.decorated-avatar .avatar-decoration-img {
+  position:absolute;
+  inset:-25%;
+  width:150%;
+  height:150%;
+  object-fit:contain;
+  z-index:3;
+  pointer-events:none;
+}
+
+.profile-avatar-large .avatar-decoration-img {
+  inset:-30%;
+  width:160%;
+  height:160%;
+}
+
+.user-avatar .avatar-decoration-img,
+.conversation-avatar .avatar-decoration-img,
+.chat-row-avatar .avatar-decoration-img {
+  inset:-28%;
+  width:156%;
+  height:156%;
 }
 
 .person-main {
