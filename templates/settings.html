@@ -180,6 +180,7 @@
       <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data" class="profile-photo-form">
         <input type="hidden" name="action" value="avatar"/>
         <input type="hidden" name="avatar_data" id="avatarDataInput"/>
+        <input type="hidden" name="avatar_media_duration" id="avatarMediaDurationInput"/>
         <div class="profile-photo-row">
           <div class="profile-photo-preview {% if current_decoration %}decorated-avatar has-avatar-decoration avatar-decoration--{{ current_decoration }}{% endif %}" id="avatarPreview">
             <span class="avatar-core">
@@ -199,11 +200,17 @@
           </div>
           <div class="profile-photo-copy">
             <div class="profile-photo-title">Profile Photo</div>
-            <p class="form-hint">Upload a JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to 2 MB.</p>
+            <p class="form-hint">
+              {% if current_user.is_verified %}
+                Upload JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to 2 MB. Animated media must be 20 seconds or shorter.
+              {% else %}
+                Upload a JPG, PNG, or WebP up to 2 MB. Animated media is verified-only.
+              {% endif %}
+            </p>
             <div class="profile-photo-actions">
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Photo
-                <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                <input type="file" name="avatar" accept="{% if current_user.is_verified %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
                        onchange="openImageCropper(this, 'avatar')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Photo</button>
@@ -259,6 +266,7 @@
       <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data" class="profile-photo-form">
         <input type="hidden" name="action" value="banner"/>
         <input type="hidden" name="banner_data" id="bannerDataInput"/>
+        <input type="hidden" name="banner_media_duration" id="bannerMediaDurationInput"/>
         <div class="profile-photo-row profile-banner-row">
           <div class="profile-banner-preview" id="bannerPreview">
             {% if user.banner_data_url %}
@@ -273,11 +281,17 @@
           </div>
           <div class="profile-photo-copy">
             <div class="profile-photo-title">Profile Banner</div>
-            <p class="form-hint">Shown behind your profile photo. Images can be cropped; GIF/video loops automatically.</p>
+            <p class="form-hint">
+              {% if current_user.is_verified %}
+                Images can be cropped; GIF/video banners loop automatically and must be 20 seconds or shorter.
+              {% else %}
+                Upload a JPG, PNG, or WebP banner. Animated banners are verified-only.
+              {% endif %}
+            </p>
             <div class="profile-photo-actions">
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Banner
-                <input type="file" name="banner" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                <input type="file" name="banner" accept="{% if current_user.is_verified %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
                        onchange="openImageCropper(this, 'banner')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Banner</button>
@@ -472,18 +486,73 @@ const cropState = {
   lastX: 0,
   lastY: 0
 };
+const profileAnimationAllowed = {{ current_user.is_verified|tojson }};
+const profileMediaMaxSeconds = 20;
 
 function openImageCropper(input, mode) {
   const file = input.files && input.files[0];
   if (!file) return;
   const animatedMedia = file.type === 'image/gif' || file.type.startsWith('video/');
   if (animatedMedia) {
+    if (!profileAnimationAllowed) {
+      alert('Animated profile photos and banners are only available to verified accounts.');
+      input.value = '';
+      return;
+    }
     const maxBytes = mode === 'banner' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
     if (file.size > maxBytes) {
       alert(`${mode === 'banner' ? 'Profile banner' : 'Profile photo'} media is too large.`);
       input.value = '';
       return;
     }
+    const durationInput = document.getElementById(mode === 'banner' ? 'bannerMediaDurationInput' : 'avatarMediaDurationInput');
+    const applyAnimatedMedia = (duration = 0) => {
+      if (durationInput) durationInput.value = duration ? String(duration) : '';
+      const reader = new FileReader();
+      reader.onload = e => {
+        const dataUrl = e.target.result;
+        if (mode === 'banner') {
+          document.getElementById('bannerDataInput').value = dataUrl;
+          document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');
+        } else {
+          document.getElementById('avatarDataInput').value = dataUrl;
+          const avatarPreview = document.getElementById('avatarPreview');
+          const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
+          avatarPreview.innerHTML = `<span class="avatar-core">${renderProfileMedia(dataUrl, 'Profile photo preview', 'profile-photo-img avatar-photo-img')}</span>${decoration}`;
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+
+    if (file.type.startsWith('video/')) {
+      const probe = document.createElement('video');
+      const objectUrl = URL.createObjectURL(file);
+      probe.preload = 'metadata';
+      probe.onloadedmetadata = () => {
+        const duration = probe.duration || 0;
+        URL.revokeObjectURL(objectUrl);
+        if (!Number.isFinite(duration) || duration <= 0) {
+          alert('Could not verify the video duration.');
+          input.value = '';
+          return;
+        }
+        if (duration > profileMediaMaxSeconds) {
+          alert(`Video must be ${profileMediaMaxSeconds} seconds or shorter.`);
+          input.value = '';
+          return;
+        }
+        applyAnimatedMedia(duration);
+      };
+      probe.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        alert('Could not read this video file.');
+        input.value = '';
+      };
+      probe.src = objectUrl;
+      return;
+    }
+
+    if (durationInput) durationInput.value = '';
     const reader = new FileReader();
     reader.onload = e => {
       const dataUrl = e.target.result;
@@ -500,6 +569,8 @@ function openImageCropper(input, mode) {
     reader.readAsDataURL(file);
     return;
   }
+  const durationInput = document.getElementById(mode === 'banner' ? 'bannerMediaDurationInput' : 'avatarMediaDurationInput');
+  if (durationInput) durationInput.value = '';
   if (!file.type.startsWith('image/')) {
     alert('Please choose an image, GIF, or short video file.');
     input.value = '';
