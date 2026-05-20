@@ -68,6 +68,10 @@ PROFILE_DECORATIONS = [
 PROFILE_DECORATION_ASSETS = {item["id"]: item["filename"] for item in PROFILE_DECORATIONS}
 PROFILE_DECORATION_REWARD_PREFIX = "avatar-decoration-"
 PROFILE_MEDIA_MAX_SECONDS = 20
+PROFILE_AVATAR_MEDIA_MAX_BYTES = 2 * 1024 * 1024
+PROFILE_BANNER_MEDIA_MAX_BYTES = int(2.5 * 1024 * 1024)
+PROFILE_AVATAR_MEDIA_MAX_MB = "2"
+PROFILE_BANNER_MEDIA_MAX_MB = "2.5"
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -75,7 +79,7 @@ app = Flask(__name__,
             template_folder=os.path.join(_BASE, "templates"),
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
-app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
 
 
 @app.route("/service-worker.js")
@@ -324,6 +328,11 @@ def inject_notification_count():
         "profile_decoration_assets": PROFILE_DECORATION_ASSETS,
         "available_profile_decorations": [],
         "owned_profile_decoration_ids": set(),
+        "profile_media_max_seconds": PROFILE_MEDIA_MAX_SECONDS,
+        "profile_avatar_media_max_bytes": PROFILE_AVATAR_MEDIA_MAX_BYTES,
+        "profile_banner_media_max_bytes": PROFILE_BANNER_MEDIA_MAX_BYTES,
+        "profile_avatar_media_max_mb": PROFILE_AVATAR_MEDIA_MAX_MB,
+        "profile_banner_media_max_mb": PROFILE_BANNER_MEDIA_MAX_MB,
     }
     if current_user.is_authenticated:
         try:
@@ -1475,7 +1484,7 @@ def settings():
                 try:
                     db.update_avatar(uid, _clean_profile_media_data_url(
                         cropped_avatar,
-                        5 * 1024 * 1024,
+                        PROFILE_AVATAR_MEDIA_MAX_BYTES,
                         "Profile photo",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=avatar_duration,
@@ -1495,7 +1504,7 @@ def settings():
                 try:
                     db.update_avatar(uid, _clean_profile_media_data_url(
                         f"data:{content_type};base64,{encoded}",
-                        5 * 1024 * 1024,
+                        PROFILE_AVATAR_MEDIA_MAX_BYTES,
                         "Profile photo",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=avatar_duration,
@@ -1521,7 +1530,7 @@ def settings():
                 try:
                     db.update_banner(uid, _clean_profile_media_data_url(
                         cropped_banner,
-                        7 * 1024 * 1024,
+                        PROFILE_BANNER_MEDIA_MAX_BYTES,
                         "Profile banner",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=banner_duration,
@@ -1541,7 +1550,7 @@ def settings():
                 try:
                     db.update_banner(uid, _clean_profile_media_data_url(
                         f"data:{content_type};base64,{encoded}",
-                        7 * 1024 * 1024,
+                        PROFILE_BANNER_MEDIA_MAX_BYTES,
                         "Profile banner",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=banner_duration,

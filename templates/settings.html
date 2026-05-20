@@ -202,9 +202,9 @@
             <div class="profile-photo-title">Profile Photo</div>
             <p class="form-hint">
               {% if current_user.is_verified %}
-                Upload JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to 5 MB. Animated media must be 20 seconds or shorter.
+                Upload JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to {{ profile_avatar_media_max_mb }} MB. Animated media must be {{ profile_media_max_seconds }} seconds or shorter.
               {% else %}
-                Upload a JPG, PNG, or WebP up to 5 MB. Animated media is verified-only.
+                Upload a JPG, PNG, or WebP up to {{ profile_avatar_media_max_mb }} MB. Animated media is verified-only.
               {% endif %}
             </p>
             <div class="profile-photo-actions">
@@ -283,9 +283,9 @@
             <div class="profile-photo-title">Profile Banner</div>
             <p class="form-hint">
               {% if current_user.is_verified %}
-                Images can be cropped; GIF/video banners loop automatically, up to 7 MB, and must be 20 seconds or shorter.
+                Images can be cropped; GIF/video banners loop automatically, up to {{ profile_banner_media_max_mb }} MB, and must be {{ profile_media_max_seconds }} seconds or shorter.
               {% else %}
-                Upload a JPG, PNG, or WebP banner up to 7 MB. Animated banners are verified-only.
+                Upload a JPG, PNG, or WebP banner up to {{ profile_banner_media_max_mb }} MB. Animated banners are verified-only.
               {% endif %}
             </p>
             <div class="profile-photo-actions">
@@ -487,7 +487,11 @@ const cropState = {
   lastY: 0
 };
 const profileAnimationAllowed = {{ current_user.is_verified|tojson }};
-const profileMediaMaxSeconds = 20;
+const profileMediaMaxSeconds = {{ profile_media_max_seconds|tojson }};
+const profileAvatarMediaMaxBytes = {{ profile_avatar_media_max_bytes|tojson }};
+const profileBannerMediaMaxBytes = {{ profile_banner_media_max_bytes|tojson }};
+const profileAvatarMediaMaxMb = {{ profile_avatar_media_max_mb|tojson }};
+const profileBannerMediaMaxMb = {{ profile_banner_media_max_mb|tojson }};
 
 function openImageCropper(input, mode) {
   const file = input.files && input.files[0];
@@ -499,9 +503,10 @@ function openImageCropper(input, mode) {
       input.value = '';
       return;
     }
-    const maxBytes = mode === 'banner' ? 7 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxBytes = mode === 'banner' ? profileBannerMediaMaxBytes : profileAvatarMediaMaxBytes;
     if (file.size > maxBytes) {
-      alert(`${mode === 'banner' ? 'Profile banner' : 'Profile photo'} media is too large.`);
+      const maxMb = mode === 'banner' ? profileBannerMediaMaxMb : profileAvatarMediaMaxMb;
+      alert(`${mode === 'banner' ? 'Profile banner' : 'Profile photo'} media must be ${maxMb} MB or smaller.`);
       input.value = '';
       return;
     }
