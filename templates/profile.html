@@ -109,7 +109,10 @@
   </div>
   <div class="profile-hero-body">
     <div class="profile-hero-left">
-      {{ ui.decorated_avatar(profile.user, 'profile-avatar-large', live=True) }}
+      <span class="avatar-presence-wrap profile-presence-wrap">
+        {{ ui.decorated_avatar(profile.user, 'profile-avatar-large', live=True) }}
+        <span class="online-dot {% if user_is_online(profile.user.id) %}is-online{% endif %}" aria-label="{% if user_is_online(profile.user.id) %}Online{% else %}Offline{% endif %}"></span>
+      </span>
       <div>
         <a href="{{ url_for('people') }}" class="back-link">← People</a>
         <h1 class="profile-name">{{ profile.user.username }} {{ ui.verified_badge(profile.user) }}</h1>

@@ -137,8 +137,20 @@ _CREATE = [
         attachment_name TEXT NOT NULL DEFAULT '',
         attachment_type TEXT NOT NULL DEFAULT '',
         attachment_data_url TEXT NOT NULL DEFAULT '',
+        reply_to_message_id INTEGER REFERENCES messages(id) ON DELETE SET NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         CHECK (sender_id != receiver_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS user_presence (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS chat_typing (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        peer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, peer_id),
+        CHECK (user_id != peer_id)
     )""",
     """CREATE TABLE IF NOT EXISTS chat_settings (
         user_one_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -256,6 +268,7 @@ _MIGRATIONS = [
     ("messages",   "attachment_name",       "ALTER TABLE messages ADD COLUMN attachment_name TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_type",       "ALTER TABLE messages ADD COLUMN attachment_type TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_data_url",   "ALTER TABLE messages ADD COLUMN attachment_data_url TEXT NOT NULL DEFAULT ''"),
+    ("messages",   "reply_to_message_id",   "ALTER TABLE messages ADD COLUMN reply_to_message_id INTEGER REFERENCES messages(id) ON DELETE SET NULL"),
     ("flowcoin_redemptions", "coupon_code",  "ALTER TABLE flowcoin_redemptions ADD COLUMN coupon_code TEXT NOT NULL DEFAULT ''"),
 ]
 
@@ -635,6 +648,91 @@ def _attach_message_reactions(conn, messages, viewer_id):
     return messages
 
 
+def _attach_reply_previews(conn, messages):
+    ids = sorted({msg.get("reply_to_message_id") for msg in messages if msg.get("reply_to_message_id")})
+    if not ids:
+        for msg in messages:
+            msg["reply_to"] = None
+        return messages
+    placeholders = ",".join("?" for _ in ids)
+    rows = _rows_to_dicts(conn.execute(
+        f"""SELECT m.id,m.sender_id,m.body,m.attachment_name,u.username
+            FROM messages m
+            JOIN users u ON u.id=m.sender_id
+            WHERE m.id IN ({placeholders})""",
+        ids,
+    ))
+    previews = {row["id"]: row for row in rows}
+    for msg in messages:
+        reply = previews.get(msg.get("reply_to_message_id"))
+        if not reply:
+            msg["reply_to"] = None
+            continue
+        text = (reply.get("body") or reply.get("attachment_name") or "Attachment").strip()
+        msg["reply_to"] = {
+            "id": reply["id"],
+            "sender_id": reply["sender_id"],
+            "username": reply.get("username", "User"),
+            "preview": text[:110],
+        }
+    return messages
+
+
+def touch_presence(user_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO user_presence (user_id,last_seen_at)
+               VALUES (?,datetime('now'))
+               ON CONFLICT(user_id) DO UPDATE SET last_seen_at=datetime('now')""",
+            [user_id],
+        )
+    finally:
+        conn.close()
+
+
+def is_user_online(user_id, within_seconds=90):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT 1 FROM user_presence
+               WHERE user_id=? AND last_seen_at >= datetime('now', ?)""",
+            [user_id, f"-{int(within_seconds)} seconds"],
+        ).rows
+        return bool(rows)
+    finally:
+        conn.close()
+
+
+def set_typing_status(user_id, peer_id, typing):
+    conn = get_db()
+    try:
+        if typing:
+            conn.execute(
+                """INSERT INTO chat_typing (user_id,peer_id,updated_at)
+                   VALUES (?,?,datetime('now'))
+                   ON CONFLICT(user_id,peer_id) DO UPDATE SET updated_at=datetime('now')""",
+                [user_id, peer_id],
+            )
+        else:
+            conn.execute("DELETE FROM chat_typing WHERE user_id=? AND peer_id=?", [user_id, peer_id])
+    finally:
+        conn.close()
+
+
+def is_user_typing(user_id, peer_id, within_seconds=5):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT 1 FROM chat_typing
+               WHERE user_id=? AND peer_id=? AND updated_at >= datetime('now', ?)""",
+            [user_id, peer_id, f"-{int(within_seconds)} seconds"],
+        ).rows
+        return bool(rows)
+    finally:
+        conn.close()
+
+
 def get_disappearing_mode(user_id, other_user_id):
     one, two = _chat_pair(user_id, other_user_id)
     conn = get_db()
@@ -696,7 +794,18 @@ def purge_expired_messages(user_id, other_user_id):
         conn.close()
 
 
-def send_message(sender_id, receiver_id, body, attachment=None):
+def _message_belongs_to_chat(conn, message_id, user_id, other_user_id):
+    if not message_id:
+        return None
+    rows = _rows_to_dicts(conn.execute(
+        """SELECT id FROM messages
+           WHERE id=? AND ((sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?))""",
+        [message_id, user_id, other_user_id, other_user_id, user_id],
+    ))
+    return rows[0]["id"] if rows else None
+
+
+def send_message(sender_id, receiver_id, body, attachment=None, reply_to_message_id=None):
     body = (body or "").strip()
     attachment = attachment or {}
     attachment_data_url = (attachment.get("data_url") or "").strip()
@@ -706,10 +815,11 @@ def send_message(sender_id, receiver_id, body, attachment=None):
         return None
     conn = get_db()
     try:
+        reply_id = _message_belongs_to_chat(conn, reply_to_message_id, sender_id, receiver_id)
         res = conn.execute(
             """INSERT INTO messages
-               (sender_id,receiver_id,body,attachment_name,attachment_type,attachment_data_url)
-               VALUES (?,?,?,?,?,?)""",
+               (sender_id,receiver_id,body,attachment_name,attachment_type,attachment_data_url,reply_to_message_id)
+               VALUES (?,?,?,?,?,?,?)""",
             [
                 sender_id,
                 receiver_id,
@@ -717,8 +827,10 @@ def send_message(sender_id, receiver_id, body, attachment=None):
                 attachment_name[:180],
                 attachment_type[:120],
                 attachment_data_url,
+                reply_id,
             ],
         )
+        conn.execute("DELETE FROM chat_typing WHERE user_id=? AND peer_id=?", [sender_id, receiver_id])
         return res.last_insert_rowid
     finally:
         conn.close()
@@ -947,10 +1059,26 @@ def get_conversations(user_id):
                 "user": user_rows[0],
                 "last": last_rows[0] if last_rows else None,
                 "unread": unread,
+                "is_typing": is_user_typing(peer_id, user_id),
+                "is_online": is_user_online(peer_id),
             })
         return conversations
     finally:
         conn.close()
+
+
+def get_conversation_summaries(user_id):
+    conversations = get_conversations(user_id)
+    return [
+        {
+            "user_id": convo["user"]["id"],
+            "is_typing": bool(convo.get("is_typing")),
+            "is_online": bool(convo.get("is_online")),
+            "unread": int(convo.get("unread") or 0),
+            "last": convo.get("last"),
+        }
+        for convo in conversations
+    ]
 
 
 def get_message_thread(user_id, other_user_id, limit=100):
@@ -963,7 +1091,7 @@ def get_message_thread(user_id, other_user_id, limit=100):
                ORDER BY created_at DESC,id DESC LIMIT ?""",
             [user_id, other_user_id, other_user_id, user_id, limit],
         ))[::-1]
-        return _attach_message_reactions(conn, messages, user_id)
+        return _attach_reply_previews(conn, _attach_message_reactions(conn, messages, user_id))
     finally:
         conn.close()
 

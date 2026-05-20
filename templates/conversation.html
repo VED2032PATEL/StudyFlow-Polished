@@ -4,10 +4,13 @@
     <div class="chat-user-head">
       <a href="{{ url_for('messages') }}" class="back-link">← Messages</a>
       <div class="chat-user-line">
-        {{ ui.decorated_avatar(other, 'conversation-avatar') }}
+        <span class="avatar-presence-wrap">
+          {{ ui.decorated_avatar(other, 'conversation-avatar') }}
+          <span class="online-dot {% if user_is_online(other.id) %}is-online{% endif %}" id="chatOnlineDot" aria-label="Online status"></span>
+        </span>
         <div>
           <h1 class="chat-title">{{ other.username }} {{ ui.verified_badge(other) }}</h1>
-          <a href="{{ url_for('user_profile_by_id', user_id=other.id) }}" class="chat-profile-link">View profile</a>
+          <a href="{{ url_for('user_profile_by_id', user_id=other.id) }}" class="chat-profile-link" id="chatStatusLine">{% if user_is_online(other.id) %}Online{% else %}View profile{% endif %}</a>
         </div>
       </div>
     </div>
@@ -29,6 +32,7 @@
   <div class="chat-messages-list" id="chatMessages"
        data-thread-url="{{ url_for('api_message_thread_by_user_id', user_id=other.id) }}"
        data-send-url="{{ url_for('api_send_message_by_user_id', user_id=other.id) }}"
+       data-typing-url="{{ url_for('api_set_typing', user_id=other.id) }}"
        data-disappearing-url="{{ url_for('api_set_disappearing_mode', user_id=other.id) }}">
     {% if thread %}
       {% for msg in thread %}
@@ -41,6 +45,7 @@
         {% endif %}
         <div class="message-hover-tools">
           <button type="button" class="message-tool-btn" data-action="react-menu" data-id="{{ msg.id }}" aria-label="React">☺</button>
+          <button type="button" class="message-tool-btn" data-action="reply" data-id="{{ msg.id }}" aria-label="Reply"><i data-lucide="reply" width="15" height="15"></i></button>
           <button type="button" class="message-tool-btn" data-action="more-menu" data-id="{{ msg.id }}" aria-label="More options">...</button>
           <div class="message-reaction-menu" data-menu="react" hidden>
             {% for emoji in ['❤️','😂','😮','😢','🔥','👍'] %}
@@ -56,6 +61,12 @@
           </div>
         </div>
         <div class="chat-bubble">
+          {% if msg.reply_to %}
+          <button type="button" class="chat-reply-preview" data-jump-message="{{ msg.reply_to.id }}">
+            <span>{{ 'You' if msg.reply_to.sender_id == current_user.id else msg.reply_to.username }}</span>
+            <strong>{{ msg.reply_to.preview }}</strong>
+          </button>
+          {% endif %}
           <div class="chat-body">{{ msg.body }}</div>
           {% if msg.attachment_data_url %}
           <a class="chat-attachment {% if msg.attachment_type.startswith('image/') %}image-attachment{% endif %}"
@@ -80,16 +91,33 @@
           {% endif %}
         </div>
       </div>
+      {% if msg.sender_id == current_user.id and msg.read_at and loop.last %}
+      <div class="chat-seen-label">Seen</div>
+      {% endif %}
       {% endfor %}
     {% else %}
       <div class="empty-state compact-empty">
         <p>No messages yet. Send the first one.</p>
       </div>
     {% endif %}
+    <div class="chat-bubble-row chat-theirs typing-row" id="typingIndicator" hidden>
+      {{ ui.decorated_avatar(other, 'chat-row-avatar') }}
+      <div class="chat-typing-bubble" aria-label="{{ other.username }} is typing">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
   </div>
 
   <form method="POST" action="{{ url_for('conversation_by_user_id', user_id=other.id) }}" class="chat-compose" id="chatCompose">
+    <input type="hidden" name="reply_to_message_id" id="replyToMessageInput"/>
     <div class="chat-input-wrap">
+      <div class="chat-reply-compose" id="replyComposer" hidden>
+        <span>
+          Replying to <strong id="replyComposerName"></strong>
+          <small id="replyComposerPreview"></small>
+        </span>
+        <button type="button" id="clearReplyBtn" aria-label="Cancel reply">&times;</button>
+      </div>
       <textarea name="body" class="form-input" rows="3" maxlength="2000" id="chatBody"
                 placeholder="Write a message..."></textarea>
       <input type="file" id="chatAttachmentInput" class="chat-file-input"
@@ -155,6 +183,13 @@ const emojiPicker = document.getElementById('emojiPicker');
 const chatAttachToggle = document.getElementById('chatAttachToggle');
 const chatAttachmentInput = document.getElementById('chatAttachmentInput');
 const chatAttachmentPreview = document.getElementById('chatAttachmentPreview');
+const replyToMessageInput = document.getElementById('replyToMessageInput');
+const replyComposer = document.getElementById('replyComposer');
+const replyComposerName = document.getElementById('replyComposerName');
+const replyComposerPreview = document.getElementById('replyComposerPreview');
+const clearReplyBtn = document.getElementById('clearReplyBtn');
+const chatOnlineDot = document.getElementById('chatOnlineDot');
+const chatStatusLine = document.getElementById('chatStatusLine');
 const disappearingToggle = document.getElementById('disappearingToggle');
 const disappearingLabel = document.getElementById('disappearingLabel');
 const voiceCallBtn = document.getElementById('voiceCallBtn');
@@ -180,6 +215,7 @@ const profileDecorationAssets = {
   {% endfor %}
 };
 const otherInitial = {{ other.username[0].upper()|tojson }};
+const otherName = {{ other.username|tojson }};
 const maxAttachmentBytes = 1400 * 1024;
 let lastRendered = '';
 let messageCache = new Map();
@@ -193,6 +229,10 @@ let callPollTimer = null;
 let offerSent = false;
 let activeEditMessageId = null;
 let pendingUnsendMessageId = null;
+let replyToMessageId = null;
+let otherTyping = false;
+let typingStopTimer = null;
+let typingPingTimer = 0;
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, ch => ({
@@ -298,6 +338,39 @@ function renderAttachment(msg) {
   `;
 }
 
+function messagePreviewText(message) {
+  if (!message) return '';
+  return (message.body || message.attachment_name || 'Attachment').trim();
+}
+
+function renderReplyPreview(reply) {
+  if (!reply) return '';
+  return `
+    <button type="button" class="chat-reply-preview" data-jump-message="${reply.id}">
+      <span>${escapeHtml(reply.sender_id === {{ current_user.id|tojson }} ? 'You' : (reply.username || otherName))}</span>
+      <strong>${escapeHtml(reply.preview || 'Message')}</strong>
+    </button>
+  `;
+}
+
+function renderSeenLabel(msg, messages, index) {
+  if (!msg.is_mine || !msg.read_at) return '';
+  const hasLaterMine = messages.slice(index + 1).some(item => item.is_mine);
+  return hasLaterMine ? '' : '<div class="chat-seen-label">Seen</div>';
+}
+
+function renderTypingIndicator() {
+  if (!otherTyping) return '';
+  return `
+    <div class="chat-bubble-row chat-theirs typing-row">
+      ${renderIncomingAvatar()}
+      <div class="chat-typing-bubble" aria-label="{{ other.username }} is typing">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  `;
+}
+
 function formatMessageTimestamp(value) {
   if (!value) return '';
   const normalized = value.includes('T') ? value : value.replace(' ', 'T') + 'Z';
@@ -324,11 +397,11 @@ function shouldShowTimeDivider(message, previous) {
 
 function renderMessages(messages) {
   messageCache = new Map(messages.map(msg => [String(msg.id), msg]));
-  const signature = messages.map(m => `${m.id}:${m.edited_at || ''}:${m.body}:${m.attachment_data_url || ''}:${JSON.stringify(m.reactions || [])}`).join('|');
+  const signature = `${otherTyping}|` + messages.map(m => `${m.id}:${m.edited_at || ''}:${m.read_at || ''}:${m.body}:${m.attachment_data_url || ''}:${m.reply_to?.id || ''}:${JSON.stringify(m.reactions || [])}`).join('|');
   if (signature === lastRendered) return;
   lastRendered = signature;
   if (!messages.length) {
-    chatMessages.innerHTML = '<div class="empty-state compact-empty"><p>No messages yet. Send the first one.</p></div>';
+    chatMessages.innerHTML = '<div class="empty-state compact-empty"><p>No messages yet. Send the first one.</p></div>' + renderTypingIndicator();
     return;
   }
   chatMessages.innerHTML = messages.map((msg, index) => `
@@ -337,6 +410,7 @@ function renderMessages(messages) {
       ${msg.is_mine ? '' : renderIncomingAvatar()}
       <div class="message-hover-tools">
         <button type="button" class="message-tool-btn" data-action="react-menu" data-id="${msg.id}" aria-label="React">☺</button>
+        <button type="button" class="message-tool-btn" data-action="reply" data-id="${msg.id}" aria-label="Reply"><i data-lucide="reply" width="15" height="15"></i></button>
         <button type="button" class="message-tool-btn" data-action="more-menu" data-id="${msg.id}" aria-label="More options">...</button>
         <div class="message-reaction-menu" data-menu="react" hidden>
           ${reactionOptions.map(emoji => `<button type="button" data-action="react" data-id="${msg.id}" data-emoji="${emoji}">${emoji}</button>`).join('')}
@@ -350,15 +424,22 @@ function renderMessages(messages) {
         </div>
       </div>
       <div class="chat-bubble">
+        ${renderReplyPreview(msg.reply_to)}
         <div class="chat-body">${formatMessageBody(msg.body)}</div>
         ${renderAttachment(msg)}
         ${renderReactions(msg.reactions || [])}
       </div>
     </div>
-  `).join('');
+    ${renderSeenLabel(msg, messages, index)}
+  `).join('') + renderTypingIndicator();
   window.refreshProfileMediaHoverZones?.();
   window.lucide?.createIcons();
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function updateChatPresence(isOnline) {
+  chatOnlineDot?.classList.toggle('is-online', isOnline);
+  if (chatStatusLine) chatStatusLine.textContent = isOnline ? 'Online' : 'View profile';
 }
 
 async function refreshMessages() {
@@ -372,6 +453,8 @@ async function refreshMessages() {
       disappearingToggle.checked = Boolean(data.disappearing.enabled);
       updateDisappearingLabel();
     }
+    otherTyping = Boolean(data.other_typing);
+    updateChatPresence(Boolean(data.other_online));
     if (activeEditMessageId) return;
     renderMessages(data.messages || []);
   } catch (_) {}
@@ -389,11 +472,13 @@ chatCompose.addEventListener('submit', async (event) => {
     const res = await fetch(chatMessages.dataset.sendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body, attachment: pendingAttachment })
+      body: JSON.stringify({ body, attachment: pendingAttachment, reply_to_message_id: replyToMessageId })
     });
     if (res.ok) {
       chatBody.value = '';
+      clearReplyTarget();
       clearAttachment();
+      sendTypingStatus(false);
       await refreshMessages();
     } else {
       chatCompose.submit();
@@ -601,7 +686,58 @@ chatBody.addEventListener('keydown', event => {
   }
 });
 
+function setReplyTarget(message) {
+  if (!message) return;
+  replyToMessageId = message.id;
+  if (replyToMessageInput) replyToMessageInput.value = message.id;
+  replyComposerName.textContent = message.is_mine ? 'yourself' : otherName;
+  replyComposerPreview.textContent = messagePreviewText(message).slice(0, 100);
+  replyComposer.hidden = false;
+  chatBody.focus();
+}
+
+function clearReplyTarget() {
+  replyToMessageId = null;
+  if (replyToMessageInput) replyToMessageInput.value = '';
+  if (replyComposer) replyComposer.hidden = true;
+}
+
+async function sendTypingStatus(isTyping) {
+  try {
+    await fetch(chatMessages.dataset.typingUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ typing: Boolean(isTyping) })
+    });
+  } catch (_) {}
+}
+
+chatBody.addEventListener('input', () => {
+  const now = Date.now();
+  if (chatBody.value.trim() && now - typingPingTimer > 1800) {
+    typingPingTimer = now;
+    sendTypingStatus(true);
+  }
+  clearTimeout(typingStopTimer);
+  typingStopTimer = setTimeout(() => sendTypingStatus(false), 1800);
+});
+
+chatBody.addEventListener('blur', () => {
+  clearTimeout(typingStopTimer);
+  sendTypingStatus(false);
+});
+
+clearReplyBtn?.addEventListener('click', clearReplyTarget);
+
 chatMessages.addEventListener('click', async event => {
+  const replyPreview = event.target.closest('[data-jump-message]');
+  if (replyPreview) {
+    const target = chatMessages.querySelector(`.chat-bubble-row[data-message-id="${replyPreview.dataset.jumpMessage}"]`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target?.classList.add('message-highlight');
+    setTimeout(() => target?.classList.remove('message-highlight'), 900);
+    return;
+  }
   const button = event.target.closest('[data-action]');
   if (!button) return;
   event.stopPropagation();
@@ -621,6 +757,13 @@ chatMessages.addEventListener('click', async event => {
   }
 
   const message = messageCache.get(id);
+
+  if (button.dataset.action === 'reply') {
+    setReplyTarget(message);
+    document.querySelectorAll('.message-reaction-menu, .message-more-menu').forEach(menu => menu.hidden = true);
+    row?.classList.remove('menu-open');
+    return;
+  }
 
   if (button.dataset.action === 'react') {
     if (!message) return;

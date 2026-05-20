@@ -215,6 +215,15 @@ function renderMarkdown(text) {
    1. FLOATING AI CHAT
 ═══════════════════════════════════════════════════════ */
 
+(function initPresenceHeartbeat() {
+  if (!document.querySelector('.sidebar-user')) return;
+  const ping = () => {
+    fetch('/api/presence/ping', { method: 'POST', keepalive: true }).catch(() => {});
+  };
+  ping();
+  setInterval(ping, 30000);
+})();
+
 (function initFloatingChat() {
   const botLogoSvg = `
     <svg class="ai-bot-logo" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
@@ -264,7 +273,6 @@ function renderMarkdown(text) {
     chatOpen = !chatOpen;
     panel.classList.toggle('open', chatOpen);
     fab.classList.toggle('chat-open', chatOpen);
-    fab.innerHTML = chatOpen ? '✕' : '🤖';
     fab.innerHTML = chatOpen ? '<span class="ai-fab-close" aria-hidden="true">&times;</span>' : botLogoSvg;
     if (chatOpen) document.getElementById('aiChatInput').focus();
   });

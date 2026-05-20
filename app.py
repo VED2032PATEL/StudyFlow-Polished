@@ -349,6 +349,7 @@ def inject_notification_count():
         "profile_banner_media_url": _profile_banner_media_url,
         "profile_avatar_poster_url": _profile_avatar_poster_url,
         "profile_banner_poster_url": _profile_banner_poster_url,
+        "user_is_online": db.is_user_online,
     }
     if current_user.is_authenticated:
         try:
@@ -383,6 +384,7 @@ def enforce_account_status():
         db.update_profile_decoration(current_user.id, "")
         row = db.get_user_by_id(current_user.id)
         login_user(User(row), remember=True)
+    db.touch_presence(current_user.id)
     return None
 
 
@@ -915,10 +917,14 @@ def _conversation_response(other):
 
     if request.method == "POST":
         body = request.form.get("body", "").strip()
+        try:
+            reply_to_message_id = int(request.form.get("reply_to_message_id") or 0) or None
+        except ValueError:
+            reply_to_message_id = None
         if not body:
             flash("Message cannot be empty.", "error")
         else:
-            db.send_message(current_user.id, other["id"], body)
+            db.send_message(current_user.id, other["id"], body, reply_to_message_id=reply_to_message_id)
         return redirect(url_for("conversation_by_user_id", user_id=other["id"]))
 
     thread = _prepare_chat_thread_display(db.get_message_thread(current_user.id, other["id"]))
@@ -953,8 +959,11 @@ def _message_thread_response(other):
     thread = db.get_message_thread(current_user.id, other["id"])
     if request.args.get("mark_read") == "1":
         db.mark_thread_read(current_user.id, other["id"])
+        thread = db.get_message_thread(current_user.id, other["id"])
     return jsonify({
         "disappearing": db.get_disappearing_mode(current_user.id, other["id"]),
+        "other_typing": db.is_user_typing(other["id"], current_user.id),
+        "other_online": db.is_user_online(other["id"]),
         "messages": [
             {
                 "id": msg["id"],
@@ -966,6 +975,8 @@ def _message_thread_response(other):
                 "attachment_data_url": msg.get("attachment_data_url", ""),
                 "created_at": msg["created_at"],
                 "edited_at": msg.get("edited_at", ""),
+                "read_at": msg.get("read_at", ""),
+                "reply_to": msg.get("reply_to"),
                 "reactions": msg.get("reactions", []),
                 "is_mine": msg["sender_id"] == current_user.id,
                 "can_edit": msg["sender_id"] == current_user.id,
@@ -994,13 +1005,18 @@ def _send_message_response(other):
     data = request.get_json(silent=True) or {}
     body = (data.get("body") or "").strip()
     attachment = data.get("attachment") or {}
+    reply_to_message_id = data.get("reply_to_message_id")
+    try:
+        reply_to_message_id = int(reply_to_message_id) if reply_to_message_id else None
+    except (TypeError, ValueError):
+        reply_to_message_id = None
     if not isinstance(attachment, dict):
         attachment = {}
     if not body and not attachment.get("data_url"):
         return jsonify({"error": "Message cannot be empty."}), 400
     if attachment.get("data_url") and len(attachment.get("data_url", "")) > 2_000_000:
         return jsonify({"error": "Attachment is too large."}), 400
-    msg_id = db.send_message(current_user.id, other["id"], body, attachment)
+    msg_id = db.send_message(current_user.id, other["id"], body, attachment, reply_to_message_id)
     return jsonify({"status": "sent", "id": msg_id})
 
 
@@ -1015,6 +1031,41 @@ def api_send_message_by_user_id(user_id):
 def api_send_message(username):
     other = db.get_user_by_username(username) or db.get_user_by_username_loose(username)
     return _send_message_response(other)
+
+
+@app.route("/api/presence/ping", methods=["POST"])
+@login_required
+def api_presence_ping():
+    db.touch_presence(current_user.id)
+    return jsonify({"status": "online"})
+
+
+@app.route("/api/messages/summary")
+@login_required
+def api_message_summaries():
+    return jsonify({
+        "conversations": [
+            {
+                "user_id": item["user_id"],
+                "is_typing": item["is_typing"],
+                "is_online": item["is_online"],
+                "unread": item["unread"],
+                "last": item["last"],
+            }
+            for item in db.get_conversation_summaries(current_user.id)
+        ]
+    })
+
+
+@app.route("/api/messages/user/<int:user_id>/typing", methods=["POST"])
+@login_required
+def api_set_typing(user_id):
+    other = db.get_user_by_id(user_id)
+    if not other or other["id"] == current_user.id:
+        return jsonify({"error": "not found"}), 404
+    data = request.get_json(silent=True) or {}
+    db.set_typing_status(current_user.id, other["id"], bool(data.get("typing")))
+    return jsonify({"status": "ok"})
 
 
 @app.route("/api/messages/<int:message_id>", methods=["PATCH"])
