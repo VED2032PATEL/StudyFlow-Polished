@@ -901,6 +901,8 @@ def messages():
     return render_template(
         "messages.html",
         conversations=conversations,
+        message_notes=db.get_visible_user_notes(current_user.id),
+        my_note=db.get_user_note(current_user.id),
         other=None,
         thread=[],
         disappearing={"enabled": False, "hours": 0},
@@ -934,10 +936,28 @@ def _conversation_response(other):
     return render_template(
         "messages.html",
         conversations=conversations,
+        message_notes=db.get_visible_user_notes(current_user.id),
+        my_note=db.get_user_note(current_user.id),
         other=other,
         thread=thread,
         disappearing=disappearing,
     )
+
+
+@app.route("/messages/notes", methods=["POST"])
+@login_required
+def update_message_note():
+    if request.form.get("delete"):
+        db.delete_user_note(current_user.id)
+        flash("Note removed.", "info")
+    else:
+        body = request.form.get("body", "")
+        db.set_user_note(current_user.id, body)
+        flash("Note updated." if body.strip() else "Note removed.", "success" if body.strip() else "info")
+    next_page = request.form.get("next")
+    if _is_safe_redirect_url(next_page):
+        return redirect(next_page)
+    return redirect(url_for("messages"))
 
 
 @app.route("/messages/user/<int:user_id>", methods=["GET", "POST"])

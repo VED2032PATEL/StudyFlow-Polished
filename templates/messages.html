@@ -21,6 +21,23 @@
       <input type="search" id="messageSearchInput" placeholder="Search chats" autocomplete="off"/>
     </label>
 
+    <div class="message-notes-strip" aria-label="Notes">
+      <button type="button" class="message-note-card message-note-own" id="openNoteComposer">
+        <span class="message-note-bubble">{{ my_note.body if my_note else "First note in a while..." }}</span>
+        {{ ui.decorated_avatar(current_user, 'note-avatar') }}
+        <span class="message-note-name">Your note</span>
+      </button>
+      {% for note in message_notes %}
+        {% if not note.is_self %}
+        <a href="{{ url_for('conversation_by_user_id', user_id=note.id) }}" class="message-note-card">
+          <span class="message-note-bubble">{{ note.body }}</span>
+          {{ ui.decorated_avatar(note, 'note-avatar') }}
+          <span class="message-note-name">{{ note.username }}</span>
+        </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+
     {% if conversations %}
     <div class="conversation-list split-conversation-list" id="splitConversationList">
       {% for convo in conversations %}
@@ -82,17 +99,67 @@
   </section>
 </div>
 
+<div class="note-modal" id="noteModal" hidden>
+  <form method="POST" action="{{ url_for('update_message_note') }}" class="note-modal-panel">
+    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+    <div class="note-modal-header">
+      <div>
+        <h2>Your note</h2>
+        <p>Visible for 24 hours above your chats.</p>
+      </div>
+      <button type="button" class="note-modal-close" id="closeNoteComposer" aria-label="Close note composer">
+        <i data-lucide="x" width="18" height="18"></i>
+      </button>
+    </div>
+    <textarea name="body" id="noteBodyInput" maxlength="60" rows="3" placeholder="Share a study thought...">{{ my_note.body if my_note else "" }}</textarea>
+    <div class="note-modal-footer">
+      {% if my_note %}
+      <button type="submit" name="delete" value="1" class="btn btn-ghost btn-sm">Delete</button>
+      {% endif %}
+      <span id="noteCount">0/60</span>
+      <button type="submit" class="btn btn-primary btn-sm">Share</button>
+    </div>
+  </form>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('messageSearchInput');
   const rows = Array.from(document.querySelectorAll('#splitConversationList .conversation-row'));
-  if (!input || !rows.length) return;
-  input.addEventListener('input', () => {
-    const query = input.value.trim().toLowerCase();
-    rows.forEach(row => {
-      row.hidden = query && !(row.dataset.search || '').includes(query);
+
+  if (input && rows.length) {
+    input.addEventListener('input', () => {
+      const query = input.value.trim().toLowerCase();
+      rows.forEach(row => {
+        row.hidden = query && !(row.dataset.search || '').includes(query);
+      });
     });
+  }
+
+  const noteModal = document.getElementById('noteModal');
+  const openNote = document.getElementById('openNoteComposer');
+  const closeNote = document.getElementById('closeNoteComposer');
+  const noteInput = document.getElementById('noteBodyInput');
+  const noteCount = document.getElementById('noteCount');
+
+  function syncNoteCount() {
+    if (noteInput && noteCount) noteCount.textContent = `${noteInput.value.length}/60`;
+  }
+
+  openNote?.addEventListener('click', () => {
+    if (!noteModal) return;
+    noteModal.hidden = false;
+    syncNoteCount();
+    noteInput?.focus();
   });
+  closeNote?.addEventListener('click', () => {
+    if (noteModal) noteModal.hidden = true;
+  });
+  noteModal?.addEventListener('click', event => {
+    if (event.target === noteModal) noteModal.hidden = true;
+  });
+  noteInput?.addEventListener('input', syncNoteCount);
+  syncNoteCount();
 
   async function refreshConversationSummary() {
     try {
@@ -132,8 +199,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (_) {}
   }
 
-  refreshConversationSummary();
-  setInterval(refreshConversationSummary, 3000);
+  if (rows.length) {
+    refreshConversationSummary();
+    setInterval(refreshConversationSummary, 3000);
+  }
 });
 </script>
 

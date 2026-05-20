@@ -152,6 +152,12 @@ _CREATE = [
         PRIMARY KEY (user_id, peer_id),
         CHECK (user_id != peer_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS user_notes (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        expires_at TEXT NOT NULL DEFAULT (datetime('now','+24 hours'))
+    )""",
     """CREATE TABLE IF NOT EXISTS chat_settings (
         user_one_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         user_two_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1104,6 +1110,96 @@ def mark_thread_read(user_id, other_user_id):
                WHERE sender_id=? AND receiver_id=? AND read_at=''""",
             [other_user_id, user_id],
         )
+    finally:
+        conn.close()
+
+
+def _purge_expired_user_notes(conn):
+    conn.execute("DELETE FROM user_notes WHERE expires_at <= datetime('now')")
+
+
+def get_user_note(user_id):
+    conn = get_db()
+    try:
+        _purge_expired_user_notes(conn)
+        rows = _rows_to_dicts(conn.execute(
+            """SELECT n.user_id AS id,u.username,u.email,u.avatar_data_url,u.profile_decoration,
+                      u.is_verified,n.body,n.created_at,n.expires_at
+               FROM user_notes n
+               JOIN users u ON u.id=n.user_id
+               WHERE n.user_id=? AND n.expires_at > datetime('now')""",
+            [user_id],
+        ))
+        if not rows:
+            return None
+        rows[0]["is_self"] = True
+        return rows[0]
+    finally:
+        conn.close()
+
+
+def get_visible_user_notes(viewer_id, limit=12):
+    conn = get_db()
+    try:
+        _purge_expired_user_notes(conn)
+        user_ids = {viewer_id}
+        for row in conn.execute(
+            "SELECT following_id FROM follows WHERE follower_id=?",
+            [viewer_id],
+        ).rows:
+            user_ids.add(row[0])
+        for row in conn.execute(
+            """SELECT DISTINCT CASE WHEN sender_id=? THEN receiver_id ELSE sender_id END AS peer_id
+               FROM messages
+               WHERE sender_id=? OR receiver_id=?""",
+            [viewer_id, viewer_id, viewer_id],
+        ).rows:
+            user_ids.add(row[0])
+
+        placeholders = ",".join("?" for _ in user_ids)
+        params = list(user_ids) + [viewer_id, limit]
+        rows = _rows_to_dicts(conn.execute(
+            f"""SELECT n.user_id AS id,u.username,u.email,u.avatar_data_url,u.profile_decoration,
+                       u.is_verified,n.body,n.created_at,n.expires_at
+                FROM user_notes n
+                JOIN users u ON u.id=n.user_id
+                WHERE n.expires_at > datetime('now') AND n.user_id IN ({placeholders})
+                ORDER BY CASE WHEN n.user_id=? THEN 0 ELSE 1 END, n.created_at DESC
+                LIMIT ?""",
+            params,
+        ))
+        for row in rows:
+            row["is_self"] = row["id"] == viewer_id
+        return rows
+    finally:
+        conn.close()
+
+
+def set_user_note(user_id, body):
+    body = (body or "").strip()
+    if not body:
+        delete_user_note(user_id)
+        return None
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO user_notes (user_id,body,created_at,expires_at)
+               VALUES (?,?,datetime('now'),datetime('now','+24 hours'))
+               ON CONFLICT(user_id) DO UPDATE SET
+               body=excluded.body,
+               created_at=datetime('now'),
+               expires_at=datetime('now','+24 hours')""",
+            [user_id, body[:60]],
+        )
+        return True
+    finally:
+        conn.close()
+
+
+def delete_user_note(user_id):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM user_notes WHERE user_id=?", [user_id])
     finally:
         conn.close()
 
