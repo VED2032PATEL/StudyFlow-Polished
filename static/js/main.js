@@ -1643,21 +1643,33 @@ const PROFILE_MEDIA_HOVER_ROOTS = [
   '.sidebar-user',
   '.sidebar-account-link',
   '.profile-photo-row',
+  '.decoration-option',
   '.decoration-card',
+  '.redeem-card.avatar-decoration-reward',
   '.avatar-reward-preview',
   '.conversation-row',
   '.chat-bubble-row',
   '.person-row',
   '.people-mini-row',
   '.avatar-link',
-  '.decorated-avatar',
   '.profile-banner-preview'
-].join(',');
+];
+
+const PROFILE_MEDIA_FALLBACK_HOVER_ROOTS = [
+  '.decorated-avatar',
+  '.profile-hover-media'
+];
 
 function closestProfileMediaHoverRoot(target) {
-  const root = target?.closest?.(PROFILE_MEDIA_HOVER_ROOTS);
-  if (!root || !root.querySelector?.('.avatar-animated-media, .profile-hover-media')) return null;
-  return root;
+  if (!target?.closest) return null;
+  const selectors = [...PROFILE_MEDIA_HOVER_ROOTS, ...PROFILE_MEDIA_FALLBACK_HOVER_ROOTS];
+  for (const selector of selectors) {
+    const root = target.closest(selector);
+    if (!root) continue;
+    if (root.matches?.('.avatar-animated-media, .profile-hover-media')) return root;
+    if (root.querySelector?.('.avatar-animated-media, .profile-hover-media')) return root;
+  }
+  return null;
 }
 
 function isAlwaysLiveProfileMedia(root) {
