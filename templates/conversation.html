@@ -356,6 +356,7 @@ function renderMessages(messages) {
       </div>
     </div>
   `).join('');
+  window.refreshProfileMediaHoverZones?.();
   window.lucide?.createIcons();
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }

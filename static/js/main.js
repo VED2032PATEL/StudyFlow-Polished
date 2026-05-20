@@ -1660,14 +1660,16 @@ const PROFILE_MEDIA_FALLBACK_HOVER_ROOTS = [
   '.profile-hover-media'
 ];
 
+const PROFILE_MEDIA_SELECTOR = '.avatar-animated-media, .profile-hover-media';
+
 function closestProfileMediaHoverRoot(target) {
   if (!target?.closest) return null;
   const selectors = [...PROFILE_MEDIA_HOVER_ROOTS, ...PROFILE_MEDIA_FALLBACK_HOVER_ROOTS];
   for (const selector of selectors) {
     const root = target.closest(selector);
     if (!root) continue;
-    if (root.matches?.('.avatar-animated-media, .profile-hover-media')) return root;
-    if (root.querySelector?.('.avatar-animated-media, .profile-hover-media')) return root;
+    if (root.matches?.(PROFILE_MEDIA_SELECTOR)) return root;
+    if (root.querySelector?.(PROFILE_MEDIA_SELECTOR)) return root;
   }
   return null;
 }
@@ -1676,10 +1678,49 @@ function isAlwaysLiveProfileMedia(root) {
   return Boolean(root?.classList?.contains('profile-animation-live') || root?.querySelector?.('.profile-animation-live'));
 }
 
+function bindProfileMediaHoverZones() {
+  const preferredSelector = PROFILE_MEDIA_HOVER_ROOTS.join(',');
+  const fallbackSelector = PROFILE_MEDIA_FALLBACK_HOVER_ROOTS.join(',');
+  document.querySelectorAll(preferredSelector).forEach(root => {
+    if (root.dataset.profileMediaHoverBound === '1') return;
+    if (!root.querySelector?.(PROFILE_MEDIA_SELECTOR)) return;
+    root.dataset.profileMediaHoverBound = '1';
+    root.addEventListener('mouseenter', () => {
+      if (!isAlwaysLiveProfileMedia(root)) setAnimatedAvatarLive(root, true);
+    });
+    root.addEventListener('mouseleave', () => {
+      if (!isAlwaysLiveProfileMedia(root)) setAnimatedAvatarLive(root, false);
+    });
+    root.addEventListener('focusin', () => {
+      if (!isAlwaysLiveProfileMedia(root)) setAnimatedAvatarLive(root, true);
+    });
+    root.addEventListener('focusout', () => {
+      if (!isAlwaysLiveProfileMedia(root)) setAnimatedAvatarLive(root, false);
+    });
+  });
+
+  document.querySelectorAll(fallbackSelector).forEach(root => {
+    if (root.dataset.profileMediaHoverBound === '1') return;
+    if (root.closest?.(preferredSelector)) return;
+    if (!root.matches?.(PROFILE_MEDIA_SELECTOR) && !root.querySelector?.(PROFILE_MEDIA_SELECTOR)) return;
+    root.dataset.profileMediaHoverBound = '1';
+    root.addEventListener('mouseenter', () => {
+      if (!isAlwaysLiveProfileMedia(root)) setAnimatedAvatarLive(root, true);
+    });
+    root.addEventListener('mouseleave', () => {
+      if (!isAlwaysLiveProfileMedia(root)) setAnimatedAvatarLive(root, false);
+    });
+  });
+}
+
 function wireAnimatedProfileMedia() {
   document.querySelectorAll('.profile-animation-live').forEach(root => {
     setAnimatedAvatarLive(root, true);
   });
+  bindProfileMediaHoverZones();
+
+  const observer = new MutationObserver(() => bindProfileMediaHoverZones());
+  observer.observe(document.body, { childList: true, subtree: true });
 
   document.addEventListener('pointerover', event => {
     const root = closestProfileMediaHoverRoot(event.target);
@@ -1707,6 +1748,8 @@ function wireAnimatedProfileMedia() {
     setAnimatedAvatarLive(root, false);
   });
 }
+
+window.refreshProfileMediaHoverZones = bindProfileMediaHoverZones;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', wireAnimatedProfileMedia);
