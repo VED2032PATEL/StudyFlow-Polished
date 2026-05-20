@@ -83,7 +83,7 @@
         </a>
         <div class="person-main">
           <a href="{{ url_for('user_profile_by_id', user_id=user.id) }}" class="person-name">{{ user.username }} {{ ui.verified_badge(user) }}</a>
-          <div class="person-meta">{{ user.email }}</div>
+          <div class="person-meta">{{ user.email }} &middot; Code {{ user.user_code or 'pending' }}</div>
         </div>
       </div>
       {% endfor %}

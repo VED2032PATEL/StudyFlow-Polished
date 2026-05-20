@@ -10,6 +10,7 @@ Production : set TURSO_DB_URL and TURSO_DB_TOKEN environment variables.
 import os
 import datetime
 import json
+import secrets
 import libsql_client
 
 # ── Connection config ─────────────────────────────────────────────────────────
@@ -58,10 +59,16 @@ def _table_columns(conn, table):
 _CREATE = [
     """CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_code TEXT NOT NULL DEFAULT '',
         username TEXT NOT NULL UNIQUE COLLATE NOCASE,
         email TEXT NOT NULL UNIQUE COLLATE NOCASE,
         password_hash TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )""",
     """CREATE TABLE IF NOT EXISTS subjects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -244,6 +251,7 @@ _MIGRATIONS = [
     ("users",      "is_verified",           "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0"),
     ("users",      "moderation_status",     "ALTER TABLE users ADD COLUMN moderation_status TEXT NOT NULL DEFAULT 'active'"),
     ("users",      "profile_decoration",    "ALTER TABLE users ADD COLUMN profile_decoration TEXT NOT NULL DEFAULT ''"),
+    ("users",      "user_code",             "ALTER TABLE users ADD COLUMN user_code TEXT NOT NULL DEFAULT ''"),
     ("messages",   "edited_at",             "ALTER TABLE messages ADD COLUMN edited_at TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_name",       "ALTER TABLE messages ADD COLUMN attachment_name TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_type",       "ALTER TABLE messages ADD COLUMN attachment_type TEXT NOT NULL DEFAULT ''"),
@@ -262,17 +270,75 @@ def init_db():
                     conn.execute(sql)
                 except Exception:
                     pass
-        _seed_verified_creators(conn)
+        _ensure_user_codes(conn)
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_user_code ON users(user_code)")
+        _bootstrap_creator_verification(conn)
+        _sync_verified_creator_codes(conn)
     finally:
         conn.close()
 
 
-def _seed_verified_creators(conn):
-    conn.execute("UPDATE users SET is_verified=0")
+def _generate_user_code(conn):
+    while True:
+        code = f"SF-{secrets.token_hex(4).upper()}"
+        exists = conn.execute("SELECT 1 FROM users WHERE user_code=? LIMIT 1", [code]).rows
+        if not exists:
+            return code
+
+
+def _ensure_user_codes(conn):
+    rows = conn.execute("SELECT id FROM users WHERE user_code='' OR user_code IS NULL").rows
+    for row in rows:
+        conn.execute("UPDATE users SET user_code=? WHERE id=?", [_generate_user_code(conn), row[0]])
+
+
+def _bootstrap_creator_verification(conn):
+    done = conn.execute(
+        "SELECT value FROM app_meta WHERE key='creator_verification_bootstrap_v1'"
+    ).rows
+    if done:
+        return
+    _ensure_user_codes(conn)
+    creator_names = ["ved", "vedxos", "deepshikha rani", "deesphikha rani"]
+    creator_emails = ["ved2032patel@gmail.com"]
+    rows = conn.execute(
+        f"""SELECT DISTINCT user_code FROM users
+            WHERE lower(trim(username)) IN ({','.join('?' for _ in creator_names)})
+               OR lower(trim(email)) IN ({','.join('?' for _ in creator_emails)})""",
+        creator_names + creator_emails,
+    ).rows
+    creator_codes = [row[0] for row in rows if row[0]]
+    if creator_codes:
+        conn.execute(
+            """INSERT OR REPLACE INTO app_meta (key,value,updated_at)
+               VALUES ('verified_creator_codes_v1',?,datetime('now'))""",
+            [json.dumps(creator_codes)],
+        )
+        _sync_verified_creator_codes(conn, creator_codes)
     conn.execute(
-        """UPDATE users SET is_verified=1
-           WHERE lower(trim(username)) IN (?,?)""",
-        ["vedxos", "deepshikha rani"],
+        """INSERT OR REPLACE INTO app_meta (key,value,updated_at)
+           VALUES ('creator_verification_bootstrap_v1','done',datetime('now'))"""
+    )
+
+
+def _sync_verified_creator_codes(conn, creator_codes=None):
+    if creator_codes is None:
+        rows = conn.execute(
+            "SELECT value FROM app_meta WHERE key='verified_creator_codes_v1'"
+        ).rows
+        if not rows:
+            return
+        try:
+            creator_codes = json.loads(rows[0][0] or "[]")
+        except json.JSONDecodeError:
+            creator_codes = []
+    creator_codes = [str(code).strip() for code in creator_codes if str(code).strip()]
+    if not creator_codes:
+        return
+    placeholders = ",".join("?" for _ in creator_codes)
+    conn.execute(
+        f"UPDATE users SET is_verified=1 WHERE user_code IN ({placeholders})",
+        creator_codes,
     )
 
 
@@ -282,8 +348,8 @@ def create_user(username, email, password_hash):
     conn = get_db()
     try:
         res = conn.execute(
-            "INSERT INTO users (username, email, password_hash) VALUES (?,?,?)",
-            [username.strip(), email.strip().lower(), password_hash],
+            "INSERT INTO users (user_code, username, email, password_hash) VALUES (?,?,?,?)",
+            [_generate_user_code(conn), username.strip(), email.strip().lower(), password_hash],
         )
         return res.last_insert_rowid
     finally:
@@ -1372,7 +1438,7 @@ def get_recent_users(limit=8):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,moderation_status,created_at
+            """SELECT id,user_code,username,email,avatar_data_url,profile_decoration,is_verified,moderation_status,created_at
                FROM users ORDER BY created_at DESC,id DESC LIMIT ?""",
             [limit],
         ))

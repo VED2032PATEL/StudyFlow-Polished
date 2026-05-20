@@ -313,6 +313,7 @@ class User(UserMixin):
         self.id       = row["id"]
         self.username = row["username"]
         self.email    = row["email"]
+        self.user_code = row.get("user_code", "")
         self.avatar_data_url = row.get("avatar_data_url", "")
         self.banner_data_url = row.get("banner_data_url", "")
         self.profile_decoration = row.get("profile_decoration", "")
