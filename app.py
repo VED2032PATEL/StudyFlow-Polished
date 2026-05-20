@@ -75,7 +75,7 @@ app = Flask(__name__,
             template_folder=os.path.join(_BASE, "templates"),
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
-app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
 
 @app.route("/service-worker.js")
@@ -1475,7 +1475,7 @@ def settings():
                 try:
                     db.update_avatar(uid, _clean_profile_media_data_url(
                         cropped_avatar,
-                        2 * 1024 * 1024,
+                        5 * 1024 * 1024,
                         "Profile photo",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=avatar_duration,
@@ -1495,7 +1495,7 @@ def settings():
                 try:
                     db.update_avatar(uid, _clean_profile_media_data_url(
                         f"data:{content_type};base64,{encoded}",
-                        2 * 1024 * 1024,
+                        5 * 1024 * 1024,
                         "Profile photo",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=avatar_duration,
@@ -1521,7 +1521,7 @@ def settings():
                 try:
                     db.update_banner(uid, _clean_profile_media_data_url(
                         cropped_banner,
-                        3 * 1024 * 1024,
+                        7 * 1024 * 1024,
                         "Profile banner",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=banner_duration,
@@ -1541,7 +1541,7 @@ def settings():
                 try:
                     db.update_banner(uid, _clean_profile_media_data_url(
                         f"data:{content_type};base64,{encoded}",
-                        3 * 1024 * 1024,
+                        7 * 1024 * 1024,
                         "Profile banner",
                         allow_animated=bool(current_user.is_verified),
                         duration_seconds=banner_duration,

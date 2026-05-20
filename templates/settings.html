@@ -202,9 +202,9 @@
             <div class="profile-photo-title">Profile Photo</div>
             <p class="form-hint">
               {% if current_user.is_verified %}
-                Upload JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to 2 MB. Animated media must be 20 seconds or shorter.
+                Upload JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to 5 MB. Animated media must be 20 seconds or shorter.
               {% else %}
-                Upload a JPG, PNG, or WebP up to 2 MB. Animated media is verified-only.
+                Upload a JPG, PNG, or WebP up to 5 MB. Animated media is verified-only.
               {% endif %}
             </p>
             <div class="profile-photo-actions">
@@ -283,9 +283,9 @@
             <div class="profile-photo-title">Profile Banner</div>
             <p class="form-hint">
               {% if current_user.is_verified %}
-                Images can be cropped; GIF/video banners loop automatically and must be 20 seconds or shorter.
+                Images can be cropped; GIF/video banners loop automatically, up to 7 MB, and must be 20 seconds or shorter.
               {% else %}
-                Upload a JPG, PNG, or WebP banner. Animated banners are verified-only.
+                Upload a JPG, PNG, or WebP banner up to 7 MB. Animated banners are verified-only.
               {% endif %}
             </p>
             <div class="profile-photo-actions">
@@ -499,7 +499,7 @@ function openImageCropper(input, mode) {
       input.value = '';
       return;
     }
-    const maxBytes = mode === 'banner' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
+    const maxBytes = mode === 'banner' ? 7 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxBytes) {
       alert(`${mode === 'banner' ? 'Profile banner' : 'Profile photo'} media is too large.`);
       input.value = '';
