@@ -68,10 +68,11 @@ PROFILE_DECORATIONS = [
 PROFILE_DECORATION_ASSETS = {item["id"]: item["filename"] for item in PROFILE_DECORATIONS}
 PROFILE_DECORATION_REWARD_PREFIX = "avatar-decoration-"
 PROFILE_MEDIA_MAX_SECONDS = 20
-PROFILE_AVATAR_MEDIA_MAX_BYTES = 2 * 1024 * 1024
-PROFILE_BANNER_MEDIA_MAX_BYTES = int(2.5 * 1024 * 1024)
-PROFILE_AVATAR_MEDIA_MAX_MB = "2"
-PROFILE_BANNER_MEDIA_MAX_MB = "2.5"
+PROFILE_AVATAR_MEDIA_MAX_BYTES = 3 * 1024 * 1024
+PROFILE_BANNER_MEDIA_MAX_BYTES = 3 * 1024 * 1024
+PROFILE_MEDIA_PAYLOAD_MAX_CHARS = 4_350_000
+PROFILE_AVATAR_MEDIA_MAX_MB = "3"
+PROFILE_BANNER_MEDIA_MAX_MB = "3"
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -79,7 +80,7 @@ app = Flask(__name__,
             template_folder=os.path.join(_BASE, "templates"),
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
-app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
 
 @app.route("/service-worker.js")
@@ -331,6 +332,7 @@ def inject_notification_count():
         "profile_media_max_seconds": PROFILE_MEDIA_MAX_SECONDS,
         "profile_avatar_media_max_bytes": PROFILE_AVATAR_MEDIA_MAX_BYTES,
         "profile_banner_media_max_bytes": PROFILE_BANNER_MEDIA_MAX_BYTES,
+        "profile_media_payload_max_chars": PROFILE_MEDIA_PAYLOAD_MAX_CHARS,
         "profile_avatar_media_max_mb": PROFILE_AVATAR_MEDIA_MAX_MB,
         "profile_banner_media_max_mb": PROFILE_BANNER_MEDIA_MAX_MB,
     }
@@ -532,6 +534,8 @@ def _clean_profile_media_data_url(value, max_bytes, label, allow_animated=False,
         return ""
     if ";base64," not in value or not value.startswith("data:"):
         raise ValueError(f"{label} could not be read.")
+    if len(value) > PROFILE_MEDIA_PAYLOAD_MAX_CHARS:
+        raise ValueError(f"{label} is too large for the current deployment limit.")
     header, encoded = value.split(",", 1)
     content_type = header[5:].split(";", 1)[0].lower()
     allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime"}

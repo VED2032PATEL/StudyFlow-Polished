@@ -1600,3 +1600,68 @@ window.quizSubmit = async function() {
   submitBtn.disabled    = false;
   submitBtn.onclick     = () => { closeModal('quizModal'); quizCleanup(); };
 };
+
+function setAnimatedAvatarLive(root, live) {
+  if (!root) return;
+  root.querySelectorAll('.avatar-animated-media').forEach(media => {
+    const animatedSrc = media.dataset.animatedSrc;
+    if (!animatedSrc) return;
+    if (live) {
+      if (!media.getAttribute('src')) media.setAttribute('src', animatedSrc);
+      media.hidden = false;
+      if (media.tagName === 'VIDEO') {
+        try { media.currentTime = 0; } catch (error) {}
+        const playAttempt = media.play();
+        if (playAttempt && typeof playAttempt.catch === 'function') {
+          playAttempt.catch(() => {});
+        }
+      }
+      return;
+    }
+    if (media.tagName === 'VIDEO') {
+      media.pause();
+      try { media.currentTime = 0; } catch (error) {}
+    }
+    media.hidden = true;
+    media.removeAttribute('src');
+    if (typeof media.load === 'function') media.load();
+  });
+}
+
+function wireAnimatedProfileMedia() {
+  document.querySelectorAll('.profile-animation-live').forEach(root => {
+    setAnimatedAvatarLive(root, true);
+  });
+
+  document.addEventListener('pointerover', event => {
+    const root = event.target.closest?.('.decorated-avatar');
+    if (!root || root.classList.contains('profile-animation-live')) return;
+    if (event.relatedTarget && root.contains(event.relatedTarget)) return;
+    setAnimatedAvatarLive(root, true);
+  });
+
+  document.addEventListener('pointerout', event => {
+    const root = event.target.closest?.('.decorated-avatar');
+    if (!root || root.classList.contains('profile-animation-live')) return;
+    if (event.relatedTarget && root.contains(event.relatedTarget)) return;
+    setAnimatedAvatarLive(root, false);
+  });
+
+  document.addEventListener('focusin', event => {
+    const root = event.target.closest?.('.decorated-avatar');
+    if (!root || root.classList.contains('profile-animation-live')) return;
+    setAnimatedAvatarLive(root, true);
+  });
+
+  document.addEventListener('focusout', event => {
+    const root = event.target.closest?.('.decorated-avatar');
+    if (!root || root.classList.contains('profile-animation-live')) return;
+    setAnimatedAvatarLive(root, false);
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', wireAnimatedProfileMedia);
+} else {
+  wireAnimatedProfileMedia();
+}

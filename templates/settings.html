@@ -490,8 +490,16 @@ const profileAnimationAllowed = {{ current_user.is_verified|tojson }};
 const profileMediaMaxSeconds = {{ profile_media_max_seconds|tojson }};
 const profileAvatarMediaMaxBytes = {{ profile_avatar_media_max_bytes|tojson }};
 const profileBannerMediaMaxBytes = {{ profile_banner_media_max_bytes|tojson }};
+const profileMediaPayloadMaxChars = {{ profile_media_payload_max_chars|tojson }};
 const profileAvatarMediaMaxMb = {{ profile_avatar_media_max_mb|tojson }};
 const profileBannerMediaMaxMb = {{ profile_banner_media_max_mb|tojson }};
+
+function isProfilePayloadSafe(dataUrl, mode) {
+  if ((dataUrl || '').length <= profileMediaPayloadMaxChars) return true;
+  const label = mode === 'banner' ? 'Profile banner' : 'Profile photo';
+  alert(`${label} is too large after encoding. Try a shorter or more compressed file.`);
+  return false;
+}
 
 function openImageCropper(input, mode) {
   const file = input.files && input.files[0];
@@ -516,6 +524,10 @@ function openImageCropper(input, mode) {
       const reader = new FileReader();
       reader.onload = e => {
         const dataUrl = e.target.result;
+        if (!isProfilePayloadSafe(dataUrl, mode)) {
+          input.value = '';
+          return;
+        }
         if (mode === 'banner') {
           document.getElementById('bannerDataInput').value = dataUrl;
           document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');
@@ -657,6 +669,7 @@ function closeImageCropper() {
 function saveCroppedImage() {
   const canvas = document.getElementById('cropCanvas');
   const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+  if (!isProfilePayloadSafe(dataUrl, cropState.mode)) return;
   if (cropState.mode === 'banner') {
     document.getElementById('bannerDataInput').value = dataUrl;
     document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');

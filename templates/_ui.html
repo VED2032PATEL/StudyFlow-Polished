@@ -6,15 +6,28 @@
   {% endif %}
 {%- endmacro %}
 
-{% macro decorated_avatar(user, class_name, alt='profile photo') -%}
+{% macro decorated_avatar(user, class_name, alt='profile photo', live=False) -%}
   {% set decoration_asset = profile_decoration_assets.get(user.profile_decoration) if user and user.profile_decoration else '' %}
-  <span class="{{ class_name }} decorated-avatar {% if decoration_asset %}has-avatar-decoration avatar-decoration--{{ user.profile_decoration }}{% endif %}">
+  {% set avatar_url = user.avatar_data_url if user and user.avatar_data_url else '' %}
+  <span class="{{ class_name }} decorated-avatar {% if decoration_asset %}has-avatar-decoration avatar-decoration--{{ user.profile_decoration }}{% endif %} {% if live %}profile-animation-live{% endif %}">
     <span class="avatar-core">
-      {% if user and user.avatar_data_url %}
-        {% if user.avatar_data_url.startswith('data:video/') %}
-          <video src="{{ user.avatar_data_url }}" class="avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} {{ alt }}"></video>
+      {% if avatar_url %}
+        {% if avatar_url.startswith('data:video/') %}
+          {% if live %}
+            <video src="{{ avatar_url }}" class="avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} {{ alt }}"></video>
+          {% else %}
+            <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() if user and user.username else '?' }}</span>
+            <video class="avatar-photo-img avatar-animated-media" data-animated-src="{{ avatar_url }}" loop muted playsinline preload="none" aria-label="{{ user.username }} {{ alt }}" hidden></video>
+          {% endif %}
+        {% elif avatar_url.startswith('data:image/gif') %}
+          {% if live %}
+            <img src="{{ avatar_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
+          {% else %}
+            <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() if user and user.username else '?' }}</span>
+            <img data-animated-src="{{ avatar_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img avatar-animated-media" hidden/>
+          {% endif %}
         {% else %}
-          <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
+          <img src="{{ avatar_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
         {% endif %}
       {% else %}
         <span class="avatar-initial">{{ user.username[0].upper() if user and user.username else '?' }}</span>

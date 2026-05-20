@@ -44,7 +44,7 @@
   </div>
   <div class="profile-hero-body">
     <div class="profile-hero-left">
-      {{ ui.decorated_avatar(profile.user, 'profile-avatar-large') }}
+      {{ ui.decorated_avatar(profile.user, 'profile-avatar-large', live=True) }}
       <div>
         <a href="{{ url_for('people') }}" class="back-link">← People</a>
         <h1 class="profile-name">{{ profile.user.username }} {{ ui.verified_badge(profile.user) }}</h1>

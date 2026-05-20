@@ -216,7 +216,23 @@ function renderReactions(reactions) {
 function renderAvatarMedia(dataUrl, altText = 'Profile photo') {
   if (!dataUrl) return `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`;
   if (dataUrl.startsWith('data:video/')) {
-    return `<video src="${escapeHtml(dataUrl)}" class="avatar-photo-img" autoplay loop muted playsinline aria-label="${escapeHtml(altText)}"></video>`;
+    return `
+      <span class="avatar-initial avatar-media-fallback">${escapeHtml(otherInitial)}</span>
+      <video class="avatar-photo-img avatar-animated-media"
+             data-animated-src="${escapeHtml(dataUrl)}"
+             loop muted playsinline preload="none"
+             aria-label="${escapeHtml(altText)}"
+             hidden></video>
+    `;
+  }
+  if (dataUrl.startsWith('data:image/gif')) {
+    return `
+      <span class="avatar-initial avatar-media-fallback">${escapeHtml(otherInitial)}</span>
+      <img class="avatar-photo-img avatar-animated-media"
+           data-animated-src="${escapeHtml(dataUrl)}"
+           alt="${escapeHtml(altText)}"
+           hidden/>
+    `;
   }
   return `<img src="${escapeHtml(dataUrl)}" alt="${escapeHtml(altText)}" class="avatar-photo-img"/>`;
 }

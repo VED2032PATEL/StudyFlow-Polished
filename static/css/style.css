@@ -4892,6 +4892,22 @@ select.form-input,
   border-radius:inherit;
 }
 
+.decorated-avatar .avatar-animated-media {
+  position:absolute;
+  inset:0;
+  z-index:1;
+}
+
+.decorated-avatar .avatar-animated-media[hidden] {
+  display:none;
+}
+
+.decorated-avatar .avatar-media-fallback {
+  position:absolute;
+  inset:0;
+  z-index:0;
+}
+
 .decorated-avatar .avatar-initial {
   width:100%;
   height:100%;
