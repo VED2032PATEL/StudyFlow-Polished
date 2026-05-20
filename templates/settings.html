@@ -509,6 +509,7 @@ function isProfileVideoUrl(value) {
 
 function cloudinaryBannerDisplayUrl(value) {
   const url = value || '';
+  if (isProfileVideoUrl(url)) return url;
   const marker = '/upload/';
   const transform = 'c_fill,g_auto,w_1800,h_300,q_auto';
   if (!url.includes('res.cloudinary.com') || !url.includes(marker)) return url;

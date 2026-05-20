@@ -584,6 +584,8 @@ def _cloudinary_transformed_url(value, transformation):
 
 
 def _profile_banner_media_url(value):
+    if _is_profile_video_media(value):
+        return value
     return _cloudinary_transformed_url(value, "c_fill,g_auto,w_1800,h_300,q_auto")
 
 
