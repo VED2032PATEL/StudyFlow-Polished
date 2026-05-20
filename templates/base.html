@@ -295,7 +295,7 @@
       btn.innerHTML = sfIcon('settings', 15);
     });
     document.querySelectorAll('.user-avatar').forEach(slot => {
-      if (!slot.querySelector('img')) slot.innerHTML = sfIcon('graduation-cap', 18);
+      if (!slot.querySelector('img, video, .avatar-core, .avatar-initial')) slot.innerHTML = sfIcon('graduation-cap', 18);
     });
     document.querySelectorAll('.empty-icon, .empty-full-icon').forEach(slot => {
       slot.innerHTML = sfIcon('inbox', 30);

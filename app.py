@@ -74,7 +74,7 @@ app = Flask(__name__,
             template_folder=os.path.join(_BASE, "templates"),
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
-app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
 
 
 @app.route("/service-worker.js")
@@ -496,6 +496,29 @@ def _clean_uploaded_data_url(value, max_bytes, label):
         raise ValueError(f"{label} could not be read.") from exc
     if len(raw) > max_bytes:
         raise ValueError(f"{label} is too large after cropping.")
+    return f"data:{content_type};base64,{encoded}"
+
+
+def _clean_profile_media_data_url(value, max_bytes, label, allow_video=False):
+    value = (value or "").strip()
+    if not value:
+        return ""
+    if ";base64," not in value or not value.startswith("data:"):
+        raise ValueError(f"{label} could not be read.")
+    header, encoded = value.split(",", 1)
+    content_type = header[5:].split(";", 1)[0].lower()
+    allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if allow_video:
+        allowed_types.update({"video/mp4", "video/webm", "video/quicktime"})
+    if content_type not in allowed_types:
+        media_hint = "JPG, PNG, WebP, GIF, MP4, WebM, or MOV" if allow_video else "JPG, PNG, WebP, or GIF"
+        raise ValueError(f"{label} must be {media_hint}.")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except Exception as exc:
+        raise ValueError(f"{label} could not be read.") from exc
+    if len(raw) > max_bytes:
+        raise ValueError(f"{label} is too large.")
     return f"data:{content_type};base64,{encoded}"
 
 
@@ -1418,7 +1441,7 @@ def settings():
                 flash("Profile photo removed.", "info")
             elif cropped_avatar:
                 try:
-                    db.update_avatar(uid, _clean_uploaded_data_url(cropped_avatar, 1024 * 1024, "Profile photo"))
+                    db.update_avatar(uid, _clean_profile_media_data_url(cropped_avatar, 2 * 1024 * 1024, "Profile photo", allow_video=True))
                 except ValueError as exc:
                     flash(str(exc), "error")
                 else:
@@ -1426,15 +1449,15 @@ def settings():
                     login_user(User(row), remember=True)
                     flash("Profile photo updated!", "success")
             elif not photo or not photo.filename:
-                flash("Choose an image file first.", "error")
+                flash("Choose an image, GIF, or short video first.", "error")
             else:
                 data = photo.read()
                 content_type = (photo.mimetype or "").lower()
-                allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+                allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime"}
                 if content_type not in allowed_types:
-                    flash("Please upload a JPG, PNG, WebP, or GIF image.", "error")
-                elif len(data) > 1024 * 1024:
-                    flash("Profile photo must be 1 MB or smaller.", "error")
+                    flash("Please upload a JPG, PNG, WebP, GIF, MP4, WebM, or MOV file.", "error")
+                elif len(data) > 2 * 1024 * 1024:
+                    flash("Profile photo media must be 2 MB or smaller.", "error")
                 else:
                     encoded = base64.b64encode(data).decode("ascii")
                     db.update_avatar(uid, f"data:{content_type};base64,{encoded}")
@@ -1445,19 +1468,34 @@ def settings():
         elif action == "banner":
             remove_banner = request.form.get("remove_banner")
             cropped_banner = request.form.get("banner_data", "")
+            banner_file = request.files.get("banner")
             if remove_banner:
                 db.update_banner(uid, "")
                 row = db.get_user_by_id(uid)
                 login_user(User(row), remember=True)
                 flash("Profile banner removed.", "info")
-            elif not cropped_banner:
-                flash("Choose a banner image first.", "error")
-            else:
+            elif cropped_banner:
                 try:
-                    db.update_banner(uid, _clean_uploaded_data_url(cropped_banner, 1536 * 1024, "Profile banner"))
+                    db.update_banner(uid, _clean_profile_media_data_url(cropped_banner, 3 * 1024 * 1024, "Profile banner", allow_video=True))
                 except ValueError as exc:
                     flash(str(exc), "error")
                 else:
+                    row = db.get_user_by_id(uid)
+                    login_user(User(row), remember=True)
+                    flash("Profile banner updated!", "success")
+            elif not banner_file or not banner_file.filename:
+                flash("Choose a banner image, GIF, or short video first.", "error")
+            else:
+                data = banner_file.read()
+                content_type = (banner_file.mimetype or "").lower()
+                allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime"}
+                if content_type not in allowed_types:
+                    flash("Please upload a JPG, PNG, WebP, GIF, MP4, WebM, or MOV banner.", "error")
+                elif len(data) > 3 * 1024 * 1024:
+                    flash("Profile banner media must be 3 MB or smaller.", "error")
+                else:
+                    encoded = base64.b64encode(data).decode("ascii")
+                    db.update_banner(uid, f"data:{content_type};base64,{encoded}")
                     row = db.get_user_by_id(uid)
                     login_user(User(row), remember=True)
                     flash("Profile banner updated!", "success")

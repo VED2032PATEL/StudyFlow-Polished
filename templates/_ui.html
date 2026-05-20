@@ -11,7 +11,11 @@
   <span class="{{ class_name }} decorated-avatar {% if decoration_asset %}has-avatar-decoration avatar-decoration--{{ user.profile_decoration }}{% endif %}">
     <span class="avatar-core">
       {% if user and user.avatar_data_url %}
-        <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
+        {% if user.avatar_data_url.startswith('data:video/') %}
+          <video src="{{ user.avatar_data_url }}" class="avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} {{ alt }}"></video>
+        {% else %}
+          <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
+        {% endif %}
       {% else %}
         <span class="avatar-initial">{{ user.username[0].upper() if user and user.username else '?' }}</span>
       {% endif %}

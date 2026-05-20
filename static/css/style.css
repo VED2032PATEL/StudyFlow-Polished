@@ -5066,7 +5066,8 @@ select.form-input,
   border-bottom:1px solid var(--border);
 }
 
-.profile-banner img {
+.profile-banner img,
+.profile-banner video {
   width:100%;
   height:100%;
   object-fit:cover;

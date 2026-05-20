@@ -35,7 +35,11 @@
   {% endif %}
   <div class="profile-banner {% if not profile.user.banner_data_url %}profile-banner-empty{% endif %}">
     {% if profile.user.banner_data_url %}
-      <img src="{{ profile.user.banner_data_url }}" alt="{{ profile.user.username }} profile banner"/>
+      {% if profile.user.banner_data_url.startswith('data:video/') %}
+        <video src="{{ profile.user.banner_data_url }}" autoplay loop muted playsinline aria-label="{{ profile.user.username }} profile banner"></video>
+      {% else %}
+        <img src="{{ profile.user.banner_data_url }}" alt="{{ profile.user.username }} profile banner"/>
+      {% endif %}
     {% endif %}
   </div>
   <div class="profile-hero-body">

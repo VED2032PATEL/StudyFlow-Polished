@@ -184,7 +184,11 @@
           <div class="profile-photo-preview {% if current_decoration %}decorated-avatar has-avatar-decoration avatar-decoration--{{ current_decoration }}{% endif %}" id="avatarPreview">
             <span class="avatar-core">
               {% if user.avatar_data_url %}
-                <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
+                {% if user.avatar_data_url.startswith('data:video/') %}
+                  <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile photo"></video>
+                {% else %}
+                  <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
+                {% endif %}
               {% else %}
                 <span class="avatar-initial">{{ user.username[0].upper() }}</span>
               {% endif %}
@@ -195,11 +199,11 @@
           </div>
           <div class="profile-photo-copy">
             <div class="profile-photo-title">Profile Photo</div>
-            <p class="form-hint">Upload a JPG, PNG, WebP, or GIF up to 1 MB.</p>
+            <p class="form-hint">Upload a JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to 2 MB.</p>
             <div class="profile-photo-actions">
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Photo
-                <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif"
+                <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
                        onchange="openImageCropper(this, 'avatar')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Photo</button>
@@ -229,7 +233,11 @@
               <span class="profile-photo-preview decorated-avatar has-avatar-decoration avatar-decoration--{{ decoration.id }} decoration-sample">
                 <span class="avatar-core">
                   {% if user.avatar_data_url %}
-                    <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
+                    {% if user.avatar_data_url.startswith('data:video/') %}
+                      <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile photo"></video>
+                    {% else %}
+                      <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
+                    {% endif %}
                   {% else %}
                     <span class="avatar-initial">{{ user.username[0].upper() }}</span>
                   {% endif %}
@@ -248,24 +256,28 @@
         <button type="submit" class="btn btn-primary btn-sm">Save Decoration</button>
       </form>
 
-      <form method="POST" action="{{ url_for('settings') }}" class="profile-photo-form">
+      <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data" class="profile-photo-form">
         <input type="hidden" name="action" value="banner"/>
         <input type="hidden" name="banner_data" id="bannerDataInput"/>
         <div class="profile-photo-row profile-banner-row">
           <div class="profile-banner-preview" id="bannerPreview">
             {% if user.banner_data_url %}
-              <img src="{{ user.banner_data_url }}" alt="{{ user.username }} profile banner" class="profile-banner-img"/>
+              {% if user.banner_data_url.startswith('data:video/') %}
+                <video src="{{ user.banner_data_url }}" class="profile-banner-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile banner"></video>
+              {% else %}
+                <img src="{{ user.banner_data_url }}" alt="{{ user.username }} profile banner" class="profile-banner-img"/>
+              {% endif %}
             {% else %}
               <span>Banner</span>
             {% endif %}
           </div>
           <div class="profile-photo-copy">
             <div class="profile-photo-title">Profile Banner</div>
-            <p class="form-hint">Shown behind your profile photo. Crop to a wide cover before saving.</p>
+            <p class="form-hint">Shown behind your profile photo. Images can be cropped; GIF/video loops automatically.</p>
             <div class="profile-photo-actions">
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Banner
-                <input type="file" accept="image/png,image/jpeg,image/webp"
+                <input type="file" name="banner" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
                        onchange="openImageCropper(this, 'banner')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Banner</button>
@@ -464,8 +476,32 @@ const cropState = {
 function openImageCropper(input, mode) {
   const file = input.files && input.files[0];
   if (!file) return;
+  const animatedMedia = file.type === 'image/gif' || file.type.startsWith('video/');
+  if (animatedMedia) {
+    const maxBytes = mode === 'banner' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert(`${mode === 'banner' ? 'Profile banner' : 'Profile photo'} media is too large.`);
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      if (mode === 'banner') {
+        document.getElementById('bannerDataInput').value = dataUrl;
+        document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');
+      } else {
+        document.getElementById('avatarDataInput').value = dataUrl;
+        const avatarPreview = document.getElementById('avatarPreview');
+        const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
+        avatarPreview.innerHTML = `<span class="avatar-core">${renderProfileMedia(dataUrl, 'Profile photo preview', 'profile-photo-img avatar-photo-img')}</span>${decoration}`;
+      }
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
   if (!file.type.startsWith('image/')) {
-    alert('Please choose an image file.');
+    alert('Please choose an image, GIF, or short video file.');
     input.value = '';
     return;
   }
@@ -488,6 +524,13 @@ function openImageCropper(input, mode) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function renderProfileMedia(dataUrl, altText, className) {
+  if (dataUrl.startsWith('data:video/')) {
+    return `<video src="${dataUrl}" class="${className}" autoplay loop muted playsinline aria-label="${altText}"></video>`;
+  }
+  return `<img src="${dataUrl}" alt="${altText}" class="${className}"/>`;
 }
 
 function setupCropCanvas() {
@@ -540,12 +583,12 @@ function saveCroppedImage() {
   const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
   if (cropState.mode === 'banner') {
     document.getElementById('bannerDataInput').value = dataUrl;
-    document.getElementById('bannerPreview').innerHTML = `<img src="${dataUrl}" alt="Banner preview" class="profile-banner-img"/>`;
+    document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');
   } else {
     document.getElementById('avatarDataInput').value = dataUrl;
     const avatarPreview = document.getElementById('avatarPreview');
     const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
-    avatarPreview.innerHTML = `<span class="avatar-core"><img src="${dataUrl}" alt="Profile photo preview" class="profile-photo-img avatar-photo-img"/></span>${decoration}`;
+    avatarPreview.innerHTML = `<span class="avatar-core">${renderProfileMedia(dataUrl, 'Profile photo preview', 'profile-photo-img avatar-photo-img')}</span>${decoration}`;
   }
   closeImageCropper();
 }

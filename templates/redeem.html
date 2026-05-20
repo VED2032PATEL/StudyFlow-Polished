@@ -40,7 +40,11 @@
         <span class="profile-photo-preview decorated-avatar has-avatar-decoration avatar-decoration--{{ reward.decoration.id }} decoration-redeem-sample">
           <span class="avatar-core">
             {% if current_user.avatar_data_url %}
-              <img src="{{ current_user.avatar_data_url }}" alt="{{ current_user.username }} profile photo preview" class="profile-photo-img avatar-photo-img"/>
+              {% if current_user.avatar_data_url.startswith('data:video/') %}
+                <video src="{{ current_user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ current_user.username }} profile photo preview"></video>
+              {% else %}
+                <img src="{{ current_user.avatar_data_url }}" alt="{{ current_user.username }} profile photo preview" class="profile-photo-img avatar-photo-img"/>
+              {% endif %}
             {% else %}
               <span class="avatar-initial">{{ current_user.username[0].upper() }}</span>
             {% endif %}

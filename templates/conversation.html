@@ -213,6 +213,14 @@ function renderReactions(reactions) {
   `;
 }
 
+function renderAvatarMedia(dataUrl, altText = 'Profile photo') {
+  if (!dataUrl) return `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`;
+  if (dataUrl.startsWith('data:video/')) {
+    return `<video src="${escapeHtml(dataUrl)}" class="avatar-photo-img" autoplay loop muted playsinline aria-label="${escapeHtml(altText)}"></video>`;
+  }
+  return `<img src="${escapeHtml(dataUrl)}" alt="${escapeHtml(altText)}" class="avatar-photo-img"/>`;
+}
+
 function formatMessageBody(value) {
   return escapeHtml(value || '').replace(
     /(https?:\/\/[^\s<]+)/g,
@@ -226,7 +234,7 @@ function renderIncomingAvatar() {
   return `
     <span class="chat-row-avatar decorated-avatar ${decoration ? `has-avatar-decoration avatar-decoration--${otherDecoration}` : ''}">
       <span class="avatar-core">
-        ${otherAvatarUrl ? `<img src="${escapeHtml(otherAvatarUrl)}" alt="Profile photo" class="avatar-photo-img"/>` : `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`}
+        ${renderAvatarMedia(otherAvatarUrl)}
       </span>
       ${decoration}
     </span>
