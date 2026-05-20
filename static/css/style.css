@@ -935,6 +935,18 @@ body.creator-sections-open .user-nav-item {
 @keyframes fabPop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
 .ai-fab:hover { transform: scale(1.08); box-shadow: 0 10px 36px rgba(99,102,241,.65); }
 .ai-fab.chat-open { background: linear-gradient(135deg,#f43f5e,#ec4899); }
+.ai-bot-logo {
+  width:36px;
+  height:36px;
+  color:#fff;
+  display:block;
+}
+.ai-fab-close {
+  color:#fff;
+  font-size:28px;
+  line-height:1;
+  font-weight:800;
+}
 
 /* ── Floating Chat Panel ──────────────────────────────── */
 .ai-chat-panel {

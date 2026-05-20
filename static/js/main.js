@@ -216,12 +216,25 @@ function renderMarkdown(text) {
 ═══════════════════════════════════════════════════════ */
 
 (function initFloatingChat() {
+  const botLogoSvg = `
+    <svg class="ai-bot-logo" viewBox="0 0 96 96" aria-hidden="true" focusable="false">
+      <path d="M48 13a9 9 0 0 1 3.5 17.3V39h-7v-8.7A9 9 0 0 1 48 13Z" fill="currentColor"/>
+      <path d="M24 39h-2a9 9 0 0 0-9 9v12a9 9 0 0 0 9 9h2V39Z" fill="currentColor"/>
+      <path d="M72 39h2a9 9 0 0 1 9 9v12a9 9 0 0 1-9 9h-2V39Z" fill="currentColor"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M30 33h36c9.4 0 17 7.6 17 17v14c0 9.4-7.6 17-17 17H30c-9.4 0-17-7.6-17-17V50c0-9.4 7.6-17 17-17Zm1.5 12A7.5 7.5 0 0 0 24 52.5v8A7.5 7.5 0 0 0 31.5 68h33A7.5 7.5 0 0 0 72 60.5v-8a7.5 7.5 0 0 0-7.5-7.5H57l-2 5H41l-2-5h-7.5Z" fill="currentColor"/>
+      <circle cx="36" cy="57" r="7.5" fill="currentColor"/>
+      <circle cx="60" cy="57" r="7.5" fill="currentColor"/>
+      <path d="M36 82c5-1.5 19-1.5 24 0l-4 12a7 7 0 0 1-16 0l-4-12Z" fill="currentColor"/>
+      <path d="M24 82c4.5-2.5 9-3.5 12.5-3l-3.5 7.5c-4.6 1-8.6.5-11.8-.8-1.7-.7-1.7-2.8-.1-3.7H24Z" fill="currentColor"/>
+      <path d="M72 82c-4.5-2.5-9-3.5-12.5-3l3.5 7.5c4.6 1 8.6.5 11.8-.8 1.7-.7 1.7-2.8.1-3.7H72Z" fill="currentColor"/>
+    </svg>`;
   // Inject FAB + panel into body
   const fab = document.createElement('button');
   fab.className = 'ai-fab';
   fab.title = 'StudyFlow AI Chat';
   fab.innerHTML = '🤖';
 
+  fab.innerHTML = botLogoSvg;
   const panel = document.createElement('div');
   panel.className = 'ai-chat-panel';
   panel.innerHTML = `
@@ -252,6 +265,7 @@ function renderMarkdown(text) {
     panel.classList.toggle('open', chatOpen);
     fab.classList.toggle('chat-open', chatOpen);
     fab.innerHTML = chatOpen ? '✕' : '🤖';
+    fab.innerHTML = chatOpen ? '<span class="ai-fab-close" aria-hidden="true">&times;</span>' : botLogoSvg;
     if (chatOpen) document.getElementById('aiChatInput').focus();
   });
 
