@@ -1621,6 +1621,9 @@ function setAnimatedAvatarLive(root, live) {
     if (media.tagName === 'VIDEO') {
       media.pause();
       try { media.currentTime = 0; } catch (error) {}
+      media.hidden = false;
+      if (!media.getAttribute('src')) media.setAttribute('src', animatedSrc);
+      return;
     }
     media.hidden = true;
     media.removeAttribute('src');

@@ -222,16 +222,29 @@ function isProfileGifUrl(value) {
   return url.startsWith('data:image/gif') || url.toLowerCase().split('?')[0].endsWith('.gif');
 }
 
+function profileVideoPosterUrl(value) {
+  const url = value || '';
+  const marker = '/video/upload/';
+  if (!url.includes('res.cloudinary.com') || !url.includes(marker)) return '';
+  const transform = 'c_fill,g_auto,w_500,h_500,q_auto,so_0';
+  const [before, after] = url.split(marker);
+  const transformed = after.startsWith(`${transform}/`) ? url : `${before}${marker}${transform}/${after}`;
+  return transformed.split('?')[0].replace(/\.(mp4|webm|mov)$/i, '.jpg');
+}
+
 function renderAvatarMedia(dataUrl, altText = 'Profile photo') {
   if (!dataUrl) return `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`;
   if (isProfileVideoUrl(dataUrl)) {
+    const poster = profileVideoPosterUrl(dataUrl);
     return `
       <span class="avatar-initial avatar-media-fallback">${escapeHtml(otherInitial)}</span>
       <video class="avatar-photo-img avatar-animated-media"
+             src="${escapeHtml(dataUrl)}"
              data-animated-src="${escapeHtml(dataUrl)}"
-             loop muted playsinline preload="none"
+             loop muted playsinline preload="metadata"
+             ${poster ? `poster="${escapeHtml(poster)}"` : ''}
              aria-label="${escapeHtml(altText)}"
-             hidden></video>
+             ></video>
     `;
   }
   if (isProfileGifUrl(dataUrl)) {

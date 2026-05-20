@@ -16,10 +16,10 @@
       {% if avatar_url %}
         {% if avatar_is_video %}
           {% if live %}
-            <video src="{{ avatar_url }}" class="avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} {{ alt }}"></video>
+            <video src="{{ avatar_url }}" class="avatar-photo-img" autoplay loop muted playsinline poster="{{ profile_avatar_poster_url(avatar_url) }}" aria-label="{{ user.username }} {{ alt }}"></video>
           {% else %}
             <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() if user and user.username else '?' }}</span>
-            <video class="avatar-photo-img avatar-animated-media" data-animated-src="{{ avatar_url }}" loop muted playsinline preload="none" aria-label="{{ user.username }} {{ alt }}" hidden></video>
+            <video src="{{ avatar_url }}" class="avatar-photo-img avatar-animated-media" data-animated-src="{{ avatar_url }}" loop muted playsinline preload="metadata" poster="{{ profile_avatar_poster_url(avatar_url) }}" aria-label="{{ user.username }} {{ alt }}"></video>
           {% endif %}
         {% elif avatar_is_gif %}
           {% if live %}

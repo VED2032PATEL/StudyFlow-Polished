@@ -346,6 +346,7 @@ def inject_notification_count():
         "is_profile_video_media": _is_profile_video_media,
         "is_profile_gif_media": _is_profile_gif_media,
         "profile_banner_media_url": _profile_banner_media_url,
+        "profile_avatar_poster_url": _profile_avatar_poster_url,
     }
     if current_user.is_authenticated:
         try:
@@ -584,6 +585,15 @@ def _cloudinary_transformed_url(value, transformation):
 
 def _profile_banner_media_url(value):
     return _cloudinary_transformed_url(value, "c_fill,g_auto,w_1800,h_300,q_auto")
+
+
+def _profile_avatar_poster_url(value):
+    if not _is_profile_video_media(value) or not _is_cloudinary_media_url(value):
+        return ""
+    poster_url = _cloudinary_transformed_url(value, "c_fill,g_auto,w_500,h_500,q_auto,so_0")
+    parsed = urlsplit(poster_url)
+    path = re.sub(r"\.(mp4|webm|mov)$", ".jpg", parsed.path, flags=re.IGNORECASE)
+    return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
 
 
 def _gif_duration_seconds(raw):
