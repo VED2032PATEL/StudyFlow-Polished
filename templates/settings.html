@@ -186,7 +186,11 @@
             <span class="avatar-core">
               {% if user.avatar_data_url %}
                 {% if is_profile_video_media(user.avatar_data_url) %}
-                  <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile photo"></video>
+                  <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img avatar-animated-media" data-animated-src="{{ user.avatar_data_url }}" loop muted playsinline preload="metadata" poster="{{ profile_avatar_poster_url(user.avatar_data_url) }}" aria-label="{{ user.username }} profile photo"></video>
+                {% elif is_profile_gif_media(user.avatar_data_url) %}
+                  {% set avatar_poster = profile_avatar_poster_url(user.avatar_data_url) %}
+                  <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() }}</span>
+                  <img {% if avatar_poster %}src="{{ avatar_poster }}" data-static-src="{{ avatar_poster }}"{% endif %} data-animated-src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img avatar-animated-media" {% if not avatar_poster %}hidden{% endif %}/>
                 {% else %}
                   <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
                 {% endif %}
@@ -241,7 +245,11 @@
                 <span class="avatar-core">
                   {% if user.avatar_data_url %}
                     {% if is_profile_video_media(user.avatar_data_url) %}
-                      <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile photo"></video>
+                      <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img avatar-animated-media" data-animated-src="{{ user.avatar_data_url }}" loop muted playsinline preload="metadata" poster="{{ profile_avatar_poster_url(user.avatar_data_url) }}" aria-label="{{ user.username }} profile photo"></video>
+                    {% elif is_profile_gif_media(user.avatar_data_url) %}
+                      {% set avatar_poster = profile_avatar_poster_url(user.avatar_data_url) %}
+                      <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() }}</span>
+                      <img {% if avatar_poster %}src="{{ avatar_poster }}" data-static-src="{{ avatar_poster }}"{% endif %} data-animated-src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img avatar-animated-media" {% if not avatar_poster %}hidden{% endif %}/>
                     {% else %}
                       <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
                     {% endif %}
@@ -271,7 +279,10 @@
           <div class="profile-banner-preview" id="bannerPreview">
             {% if user.banner_data_url %}
               {% if is_profile_video_media(user.banner_data_url) %}
-                <video src="{{ profile_banner_media_url(user.banner_data_url) }}" class="profile-banner-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile banner"></video>
+                <video src="{{ profile_banner_media_url(user.banner_data_url) }}" class="profile-banner-img profile-hover-media" data-animated-src="{{ profile_banner_media_url(user.banner_data_url) }}" loop muted playsinline preload="metadata" poster="{{ profile_banner_poster_url(user.banner_data_url) }}" aria-label="{{ user.username }} profile banner"></video>
+              {% elif is_profile_gif_media(user.banner_data_url) %}
+                {% set banner_poster = profile_banner_poster_url(user.banner_data_url) %}
+                <img src="{{ banner_poster if banner_poster else profile_banner_media_url(user.banner_data_url) }}" {% if banner_poster %}data-static-src="{{ banner_poster }}"{% endif %} data-animated-src="{{ profile_banner_media_url(user.banner_data_url) }}" alt="{{ user.username }} profile banner" class="profile-banner-img profile-hover-media"/>
               {% else %}
                 <img src="{{ profile_banner_media_url(user.banner_data_url) }}" alt="{{ user.username }} profile banner" class="profile-banner-img"/>
               {% endif %}
@@ -495,6 +506,7 @@ const profileAvatarMediaMaxMb = {{ profile_avatar_media_max_mb|tojson }};
 const profileBannerMediaMaxMb = {{ profile_banner_media_max_mb|tojson }};
 const cloudinaryUploadEnabled = {{ cloudinary_upload_enabled|tojson }};
 const cloudinarySignatureUrl = {{ url_for('sign_profile_media')|tojson }};
+const currentUserInitial = {{ (user.username[0].upper() if user.username else '?')|tojson }};
 
 function isProfilePayloadSafe(dataUrl, mode) {
   if ((dataUrl || '').length <= profileMediaPayloadMaxChars) return true;
@@ -505,6 +517,19 @@ function isProfilePayloadSafe(dataUrl, mode) {
 
 function isProfileVideoUrl(value) {
   return (value || '').startsWith('data:video/') || (value || '').includes('/video/upload/');
+}
+
+function isProfileGifUrl(value) {
+  return (value || '').startsWith('data:image/gif') || (value || '').toLowerCase().split('?')[0].endsWith('.gif');
+}
+
+function cloudinaryPosterUrl(value, transform) {
+  const url = value || '';
+  const marker = '/upload/';
+  if (!url.includes('res.cloudinary.com') || !url.includes(marker)) return '';
+  const [before, after] = url.split(marker);
+  const transformed = after.startsWith(`${transform}/`) ? url : `${before}${marker}${transform}/${after}`;
+  return transformed.split('?')[0].replace(/\.(mp4|webm|mov|gif)$/i, '.jpg');
 }
 
 function cloudinaryBannerDisplayUrl(value) {
@@ -674,8 +699,22 @@ function openImageCropper(input, mode) {
 
 function renderProfileMedia(dataUrl, altText, className) {
   const displayUrl = className.includes('profile-banner') ? cloudinaryBannerDisplayUrl(dataUrl) : dataUrl;
+  const isBanner = className.includes('profile-banner');
   if (isProfileVideoUrl(displayUrl)) {
-    return `<video src="${displayUrl}" class="${className}" autoplay loop muted playsinline aria-label="${altText}"></video>`;
+    const poster = cloudinaryPosterUrl(displayUrl, isBanner ? 'c_fill,g_center,w_1800,h_300,q_auto,so_0' : 'c_fill,g_auto,w_500,h_500,q_auto,so_0');
+    const mediaClass = isBanner ? `${className} profile-hover-media` : `${className} avatar-animated-media`;
+    const posterAttr = poster ? ` poster="${poster}"` : '';
+    const video = `<video src="${displayUrl}" data-animated-src="${displayUrl}" class="${mediaClass}" loop muted playsinline preload="metadata"${posterAttr} aria-label="${altText}"></video>`;
+    return isBanner ? video : `<span class="avatar-initial avatar-media-fallback">${currentUserInitial}</span>${video}`;
+  }
+  if (isProfileGifUrl(displayUrl)) {
+    const poster = cloudinaryPosterUrl(displayUrl, isBanner ? 'c_fill,g_center,w_1800,h_300,q_auto,so_0' : 'c_fill,g_auto,w_500,h_500,q_auto,so_0');
+    const mediaClass = isBanner ? `${className} profile-hover-media` : `${className} avatar-animated-media`;
+    if (isBanner) {
+      return `<img src="${poster || displayUrl}" ${poster ? `data-static-src="${poster}"` : ''} data-animated-src="${displayUrl}" alt="${altText}" class="${mediaClass}"/>`;
+    }
+    const staticAttrs = poster ? `src="${poster}" data-static-src="${poster}"` : 'hidden';
+    return `<span class="avatar-initial avatar-media-fallback">${currentUserInitial}</span><img ${staticAttrs} data-animated-src="${displayUrl}" alt="${altText}" class="${mediaClass}"/>`;
   }
   return `<img src="${displayUrl}" alt="${altText}" class="${className}"/>`;
 }

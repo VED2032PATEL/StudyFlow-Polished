@@ -40,8 +40,12 @@
         <span class="profile-photo-preview decorated-avatar has-avatar-decoration avatar-decoration--{{ reward.decoration.id }} decoration-redeem-sample">
           <span class="avatar-core">
             {% if current_user.avatar_data_url %}
-              {% if current_user.avatar_data_url.startswith('data:video/') %}
-                <video src="{{ current_user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ current_user.username }} profile photo preview"></video>
+              {% if is_profile_video_media(current_user.avatar_data_url) %}
+                <video src="{{ current_user.avatar_data_url }}" class="profile-photo-img avatar-photo-img avatar-animated-media" data-animated-src="{{ current_user.avatar_data_url }}" loop muted playsinline preload="metadata" poster="{{ profile_avatar_poster_url(current_user.avatar_data_url) }}" aria-label="{{ current_user.username }} profile photo preview"></video>
+              {% elif is_profile_gif_media(current_user.avatar_data_url) %}
+                {% set avatar_poster = profile_avatar_poster_url(current_user.avatar_data_url) %}
+                <span class="avatar-initial avatar-media-fallback">{{ current_user.username[0].upper() }}</span>
+                <img {% if avatar_poster %}src="{{ avatar_poster }}" data-static-src="{{ avatar_poster }}"{% endif %} data-animated-src="{{ current_user.avatar_data_url }}" alt="{{ current_user.username }} profile photo preview" class="profile-photo-img avatar-photo-img avatar-animated-media" {% if not avatar_poster %}hidden{% endif %}/>
               {% else %}
                 <img src="{{ current_user.avatar_data_url }}" alt="{{ current_user.username }} profile photo preview" class="profile-photo-img avatar-photo-img"/>
               {% endif %}

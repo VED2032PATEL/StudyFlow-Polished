@@ -1603,11 +1603,12 @@ window.quizSubmit = async function() {
 
 function setAnimatedAvatarLive(root, live) {
   if (!root) return;
-  root.querySelectorAll('.avatar-animated-media').forEach(media => {
-    const animatedSrc = media.dataset.animatedSrc;
+  root.querySelectorAll('.avatar-animated-media, .profile-hover-media').forEach(media => {
+    const animatedSrc = media.dataset.animatedSrc || media.getAttribute('src');
     if (!animatedSrc) return;
     if (live) {
       if (!media.getAttribute('src')) media.setAttribute('src', animatedSrc);
+      if (media.tagName !== 'VIDEO') media.setAttribute('src', animatedSrc);
       media.hidden = false;
       if (media.tagName === 'VIDEO') {
         try { media.currentTime = 0; } catch (error) {}
@@ -1625,10 +1626,42 @@ function setAnimatedAvatarLive(root, live) {
       if (!media.getAttribute('src')) media.setAttribute('src', animatedSrc);
       return;
     }
-    media.hidden = true;
-    media.removeAttribute('src');
-    if (typeof media.load === 'function') media.load();
+    const staticSrc = media.dataset.staticSrc;
+    if (staticSrc) {
+      media.setAttribute('src', staticSrc);
+      media.hidden = false;
+    } else {
+      media.hidden = true;
+      media.removeAttribute('src');
+      if (typeof media.load === 'function') media.load();
+    }
   });
+}
+
+const PROFILE_MEDIA_HOVER_ROOTS = [
+  '.profile-animation-hover',
+  '.sidebar-user',
+  '.sidebar-account-link',
+  '.profile-photo-row',
+  '.decoration-card',
+  '.avatar-reward-preview',
+  '.conversation-row',
+  '.chat-bubble-row',
+  '.person-row',
+  '.people-mini-row',
+  '.avatar-link',
+  '.decorated-avatar',
+  '.profile-banner-preview'
+].join(',');
+
+function closestProfileMediaHoverRoot(target) {
+  const root = target?.closest?.(PROFILE_MEDIA_HOVER_ROOTS);
+  if (!root || !root.querySelector?.('.avatar-animated-media, .profile-hover-media')) return null;
+  return root;
+}
+
+function isAlwaysLiveProfileMedia(root) {
+  return Boolean(root?.classList?.contains('profile-animation-live') || root?.querySelector?.('.profile-animation-live'));
 }
 
 function wireAnimatedProfileMedia() {
@@ -1637,28 +1670,28 @@ function wireAnimatedProfileMedia() {
   });
 
   document.addEventListener('pointerover', event => {
-    const root = event.target.closest?.('.decorated-avatar');
-    if (!root || root.classList.contains('profile-animation-live')) return;
+    const root = closestProfileMediaHoverRoot(event.target);
+    if (!root || isAlwaysLiveProfileMedia(root)) return;
     if (event.relatedTarget && root.contains(event.relatedTarget)) return;
     setAnimatedAvatarLive(root, true);
   });
 
   document.addEventListener('pointerout', event => {
-    const root = event.target.closest?.('.decorated-avatar');
-    if (!root || root.classList.contains('profile-animation-live')) return;
+    const root = closestProfileMediaHoverRoot(event.target);
+    if (!root || isAlwaysLiveProfileMedia(root)) return;
     if (event.relatedTarget && root.contains(event.relatedTarget)) return;
     setAnimatedAvatarLive(root, false);
   });
 
   document.addEventListener('focusin', event => {
-    const root = event.target.closest?.('.decorated-avatar');
-    if (!root || root.classList.contains('profile-animation-live')) return;
+    const root = closestProfileMediaHoverRoot(event.target);
+    if (!root || isAlwaysLiveProfileMedia(root)) return;
     setAnimatedAvatarLive(root, true);
   });
 
   document.addEventListener('focusout', event => {
-    const root = event.target.closest?.('.decorated-avatar');
-    if (!root || root.classList.contains('profile-animation-live')) return;
+    const root = closestProfileMediaHoverRoot(event.target);
+    if (!root || isAlwaysLiveProfileMedia(root)) return;
     setAnimatedAvatarLive(root, false);
   });
 }
