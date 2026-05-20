@@ -75,7 +75,7 @@ PROFILE_BANNER_MEDIA_MAX_BYTES = 3 * 1024 * 1024
 PROFILE_MEDIA_PAYLOAD_MAX_CHARS = 4_350_000
 PROFILE_AVATAR_MEDIA_MAX_MB = "3"
 PROFILE_BANNER_MEDIA_MAX_MB = "3"
-CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip().lower()
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
 CLOUDINARY_PROFILE_FOLDER = os.environ.get("CLOUDINARY_PROFILE_FOLDER", "studyflow/profile-media")
@@ -1699,7 +1699,7 @@ def sign_profile_media():
         "folder": CLOUDINARY_PROFILE_FOLDER,
         "timestamp": timestamp,
     }
-    cloud_name = CLOUDINARY_CLOUD_NAME.strip()
+    cloud_name = CLOUDINARY_CLOUD_NAME
     return jsonify({
         "apiKey": CLOUDINARY_API_KEY,
         "cloudName": cloud_name,
