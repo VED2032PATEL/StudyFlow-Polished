@@ -14,6 +14,8 @@ import json as json_lib
 import os
 import logging
 import base64
+import hashlib
+import time
 import uuid
 import re
 
@@ -73,6 +75,11 @@ PROFILE_BANNER_MEDIA_MAX_BYTES = 3 * 1024 * 1024
 PROFILE_MEDIA_PAYLOAD_MAX_CHARS = 4_350_000
 PROFILE_AVATAR_MEDIA_MAX_MB = "3"
 PROFILE_BANNER_MEDIA_MAX_MB = "3"
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_PROFILE_FOLDER = os.environ.get("CLOUDINARY_PROFILE_FOLDER", "studyflow/profile-media")
+CLOUDINARY_UPLOAD_ENABLED = bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -335,6 +342,9 @@ def inject_notification_count():
         "profile_media_payload_max_chars": PROFILE_MEDIA_PAYLOAD_MAX_CHARS,
         "profile_avatar_media_max_mb": PROFILE_AVATAR_MEDIA_MAX_MB,
         "profile_banner_media_max_mb": PROFILE_BANNER_MEDIA_MAX_MB,
+        "cloudinary_upload_enabled": CLOUDINARY_UPLOAD_ENABLED,
+        "is_profile_video_media": _is_profile_video_media,
+        "is_profile_gif_media": _is_profile_gif_media,
     }
     if current_user.is_authenticated:
         try:
@@ -515,6 +525,43 @@ def _is_animated_profile_media(content_type):
     return content_type == "image/gif" or content_type.startswith("video/")
 
 
+def _is_cloudinary_media_url(value):
+    value = (value or "").strip()
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
+    if parsed.scheme != "https" or parsed.netloc.lower() != "res.cloudinary.com":
+        return False
+    if not CLOUDINARY_CLOUD_NAME:
+        return True
+    cloud = parsed.path.strip("/").split("/", 1)[0]
+    return cloud.lower() == CLOUDINARY_CLOUD_NAME.lower()
+
+
+def _is_profile_video_media(value):
+    value = (value or "").strip()
+    if value.startswith("data:video/"):
+        return True
+    if not _is_cloudinary_media_url(value):
+        return False
+    return "/video/upload/" in urlsplit(value).path
+
+
+def _is_profile_gif_media(value):
+    value = (value or "").strip()
+    if value.startswith("data:image/gif"):
+        return True
+    if not _is_cloudinary_media_url(value):
+        return False
+    return urlsplit(value).path.lower().split("?", 1)[0].endswith(".gif")
+
+
+def _cloudinary_signature(params):
+    payload = "&".join(f"{key}={params[key]}" for key in sorted(params) if params[key] not in (None, ""))
+    return hashlib.sha1(f"{payload}{CLOUDINARY_API_SECRET}".encode("utf-8")).hexdigest()
+
+
 def _gif_duration_seconds(raw):
     total = 0
     index = 0
@@ -532,6 +579,12 @@ def _clean_profile_media_data_url(value, max_bytes, label, allow_animated=False,
     value = (value or "").strip()
     if not value:
         return ""
+    if value.startswith("https://"):
+        if not _is_cloudinary_media_url(value):
+            raise ValueError(f"{label} must be uploaded through StudyFlow media storage.")
+        if (_is_profile_video_media(value) or _is_profile_gif_media(value)) and not allow_animated:
+            raise ValueError(f"Animated {label.lower()} media is only available to verified accounts.")
+        return value
     if ";base64," not in value or not value.startswith("data:"):
         raise ValueError(f"{label} could not be read.")
     if len(value) > PROFILE_MEDIA_PAYLOAD_MAX_CHARS:
@@ -1623,6 +1676,38 @@ def analytics():
 @login_required
 def api_stats():
     return jsonify(db.get_dashboard_stats(current_user.id))
+
+
+@app.route("/api/profile-media/sign", methods=["POST"])
+@login_required
+def sign_profile_media():
+    if not CLOUDINARY_UPLOAD_ENABLED:
+        return jsonify({"error": "Cloudinary is not configured."}), 503
+
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", "avatar")
+    resource_type = data.get("resource_type", "auto")
+    if mode not in {"avatar", "banner"}:
+        return jsonify({"error": "Invalid upload target."}), 400
+    if resource_type not in {"auto", "image", "video"}:
+        resource_type = "auto"
+    if resource_type == "video" and not current_user.is_verified:
+        return jsonify({"error": "Animated profile media is verified-only."}), 403
+
+    timestamp = int(time.time())
+    params = {
+        "folder": CLOUDINARY_PROFILE_FOLDER,
+        "timestamp": timestamp,
+    }
+    cloud_name = CLOUDINARY_CLOUD_NAME.strip()
+    return jsonify({
+        "apiKey": CLOUDINARY_API_KEY,
+        "cloudName": cloud_name,
+        "folder": CLOUDINARY_PROFILE_FOLDER,
+        "timestamp": timestamp,
+        "signature": _cloudinary_signature(params),
+        "uploadUrl": f"https://api.cloudinary.com/v1_1/{cloud_name}/auto/upload",
+    })
 
 
 # ── Ollama AI endpoints ───────────────────────────────────────────────────────

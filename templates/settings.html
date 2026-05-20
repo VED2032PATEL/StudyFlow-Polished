@@ -185,7 +185,7 @@
           <div class="profile-photo-preview {% if current_decoration %}decorated-avatar has-avatar-decoration avatar-decoration--{{ current_decoration }}{% endif %}" id="avatarPreview">
             <span class="avatar-core">
               {% if user.avatar_data_url %}
-                {% if user.avatar_data_url.startswith('data:video/') %}
+                {% if is_profile_video_media(user.avatar_data_url) %}
                   <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile photo"></video>
                 {% else %}
                   <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
@@ -240,7 +240,7 @@
               <span class="profile-photo-preview decorated-avatar has-avatar-decoration avatar-decoration--{{ decoration.id }} decoration-sample">
                 <span class="avatar-core">
                   {% if user.avatar_data_url %}
-                    {% if user.avatar_data_url.startswith('data:video/') %}
+                    {% if is_profile_video_media(user.avatar_data_url) %}
                       <video src="{{ user.avatar_data_url }}" class="profile-photo-img avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile photo"></video>
                     {% else %}
                       <img src="{{ user.avatar_data_url }}" alt="{{ user.username }} profile photo" class="profile-photo-img avatar-photo-img"/>
@@ -270,7 +270,7 @@
         <div class="profile-photo-row profile-banner-row">
           <div class="profile-banner-preview" id="bannerPreview">
             {% if user.banner_data_url %}
-              {% if user.banner_data_url.startswith('data:video/') %}
+              {% if is_profile_video_media(user.banner_data_url) %}
                 <video src="{{ user.banner_data_url }}" class="profile-banner-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile banner"></video>
               {% else %}
                 <img src="{{ user.banner_data_url }}" alt="{{ user.username }} profile banner" class="profile-banner-img"/>
@@ -493,12 +493,60 @@ const profileBannerMediaMaxBytes = {{ profile_banner_media_max_bytes|tojson }};
 const profileMediaPayloadMaxChars = {{ profile_media_payload_max_chars|tojson }};
 const profileAvatarMediaMaxMb = {{ profile_avatar_media_max_mb|tojson }};
 const profileBannerMediaMaxMb = {{ profile_banner_media_max_mb|tojson }};
+const cloudinaryUploadEnabled = {{ cloudinary_upload_enabled|tojson }};
+const cloudinarySignatureUrl = {{ url_for('sign_profile_media')|tojson }};
 
 function isProfilePayloadSafe(dataUrl, mode) {
   if ((dataUrl || '').length <= profileMediaPayloadMaxChars) return true;
   const label = mode === 'banner' ? 'Profile banner' : 'Profile photo';
   alert(`${label} is too large after encoding. Try a shorter or more compressed file.`);
   return false;
+}
+
+function isProfileVideoUrl(value) {
+  return (value || '').startsWith('data:video/') || (value || '').includes('/video/upload/');
+}
+
+function applyProfileMediaValue(value, mode) {
+  if (mode === 'banner') {
+    document.getElementById('bannerDataInput').value = value;
+    document.getElementById('bannerPreview').innerHTML = renderProfileMedia(value, 'Banner preview', 'profile-banner-img');
+    return;
+  }
+  document.getElementById('avatarDataInput').value = value;
+  const avatarPreview = document.getElementById('avatarPreview');
+  const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
+  avatarPreview.innerHTML = `<span class="avatar-core">${renderProfileMedia(value, 'Profile photo preview', 'profile-photo-img avatar-photo-img')}</span>${decoration}`;
+}
+
+async function uploadProfileMediaToCloudinary(file, mode, resourceType = 'auto') {
+  const signRes = await fetch(cloudinarySignatureUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode, resource_type: resourceType })
+  });
+  const signData = await signRes.json().catch(() => ({}));
+  if (!signRes.ok) {
+    throw new Error(signData.error || 'Could not prepare media upload.');
+  }
+
+  const formData = new FormData();
+  const fallbackName = `${mode}-${Date.now()}${resourceType === 'video' ? '.mp4' : '.jpg'}`;
+  formData.append('file', file, file.name || fallbackName);
+  formData.append('api_key', signData.apiKey);
+  formData.append('timestamp', signData.timestamp);
+  formData.append('folder', signData.folder);
+  formData.append('signature', signData.signature);
+
+  const uploadRes = await fetch(signData.uploadUrl, {
+    method: 'POST',
+    body: formData
+  });
+  const uploadData = await uploadRes.json().catch(() => ({}));
+  if (!uploadRes.ok || !uploadData.secure_url) {
+    throw new Error(uploadData.error?.message || 'Cloudinary upload failed.');
+  }
+  return uploadData.secure_url;
 }
 
 function openImageCropper(input, mode) {
@@ -519,8 +567,19 @@ function openImageCropper(input, mode) {
       return;
     }
     const durationInput = document.getElementById(mode === 'banner' ? 'bannerMediaDurationInput' : 'avatarMediaDurationInput');
-    const applyAnimatedMedia = (duration = 0) => {
+    const applyAnimatedMedia = async (duration = 0) => {
       if (durationInput) durationInput.value = duration ? String(duration) : '';
+      if (cloudinaryUploadEnabled) {
+        try {
+          const secureUrl = await uploadProfileMediaToCloudinary(file, mode, file.type.startsWith('video/') ? 'video' : 'image');
+          applyProfileMediaValue(secureUrl, mode);
+          input.value = '';
+        } catch (error) {
+          alert(error.message || 'Upload failed. Please try again.');
+          input.value = '';
+        }
+        return;
+      }
       const reader = new FileReader();
       reader.onload = e => {
         const dataUrl = e.target.result;
@@ -528,15 +587,7 @@ function openImageCropper(input, mode) {
           input.value = '';
           return;
         }
-        if (mode === 'banner') {
-          document.getElementById('bannerDataInput').value = dataUrl;
-          document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');
-        } else {
-          document.getElementById('avatarDataInput').value = dataUrl;
-          const avatarPreview = document.getElementById('avatarPreview');
-          const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
-          avatarPreview.innerHTML = `<span class="avatar-core">${renderProfileMedia(dataUrl, 'Profile photo preview', 'profile-photo-img avatar-photo-img')}</span>${decoration}`;
-        }
+        applyProfileMediaValue(dataUrl, mode);
       };
       reader.readAsDataURL(file);
     };
@@ -570,18 +621,14 @@ function openImageCropper(input, mode) {
     }
 
     if (durationInput) durationInput.value = '';
+    if (cloudinaryUploadEnabled) {
+      applyAnimatedMedia(0);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = e => {
       const dataUrl = e.target.result;
-      if (mode === 'banner') {
-        document.getElementById('bannerDataInput').value = dataUrl;
-        document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');
-      } else {
-        document.getElementById('avatarDataInput').value = dataUrl;
-        const avatarPreview = document.getElementById('avatarPreview');
-        const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
-        avatarPreview.innerHTML = `<span class="avatar-core">${renderProfileMedia(dataUrl, 'Profile photo preview', 'profile-photo-img avatar-photo-img')}</span>${decoration}`;
-      }
+      applyProfileMediaValue(dataUrl, mode);
     };
     reader.readAsDataURL(file);
     return;
@@ -615,7 +662,7 @@ function openImageCropper(input, mode) {
 }
 
 function renderProfileMedia(dataUrl, altText, className) {
-  if (dataUrl.startsWith('data:video/')) {
+  if (isProfileVideoUrl(dataUrl)) {
     return `<video src="${dataUrl}" class="${className}" autoplay loop muted playsinline aria-label="${altText}"></video>`;
   }
   return `<img src="${dataUrl}" alt="${altText}" class="${className}"/>`;
@@ -666,19 +713,27 @@ function closeImageCropper() {
   if (cropState.fileInput) cropState.fileInput.value = '';
 }
 
-function saveCroppedImage() {
+async function saveCroppedImage() {
   const canvas = document.getElementById('cropCanvas');
+  if (cloudinaryUploadEnabled) {
+    canvas.toBlob(async blob => {
+      if (!blob) {
+        alert('Could not prepare this image.');
+        return;
+      }
+      try {
+        const secureUrl = await uploadProfileMediaToCloudinary(blob, cropState.mode, 'image');
+        applyProfileMediaValue(secureUrl, cropState.mode);
+        closeImageCropper();
+      } catch (error) {
+        alert(error.message || 'Upload failed. Please try again.');
+      }
+    }, 'image/jpeg', 0.86);
+    return;
+  }
   const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
   if (!isProfilePayloadSafe(dataUrl, cropState.mode)) return;
-  if (cropState.mode === 'banner') {
-    document.getElementById('bannerDataInput').value = dataUrl;
-    document.getElementById('bannerPreview').innerHTML = renderProfileMedia(dataUrl, 'Banner preview', 'profile-banner-img');
-  } else {
-    document.getElementById('avatarDataInput').value = dataUrl;
-    const avatarPreview = document.getElementById('avatarPreview');
-    const decoration = avatarPreview.querySelector('.avatar-decoration-img')?.outerHTML || '';
-    avatarPreview.innerHTML = `<span class="avatar-core">${renderProfileMedia(dataUrl, 'Profile photo preview', 'profile-photo-img avatar-photo-img')}</span>${decoration}`;
-  }
+  applyProfileMediaValue(dataUrl, cropState.mode);
   closeImageCropper();
 }
 

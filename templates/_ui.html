@@ -9,17 +9,19 @@
 {% macro decorated_avatar(user, class_name, alt='profile photo', live=False) -%}
   {% set decoration_asset = profile_decoration_assets.get(user.profile_decoration) if user and user.profile_decoration else '' %}
   {% set avatar_url = user.avatar_data_url if user and user.avatar_data_url else '' %}
+  {% set avatar_is_video = is_profile_video_media(avatar_url) %}
+  {% set avatar_is_gif = is_profile_gif_media(avatar_url) %}
   <span class="{{ class_name }} decorated-avatar {% if decoration_asset %}has-avatar-decoration avatar-decoration--{{ user.profile_decoration }}{% endif %} {% if live %}profile-animation-live{% endif %}">
     <span class="avatar-core">
       {% if avatar_url %}
-        {% if avatar_url.startswith('data:video/') %}
+        {% if avatar_is_video %}
           {% if live %}
             <video src="{{ avatar_url }}" class="avatar-photo-img" autoplay loop muted playsinline aria-label="{{ user.username }} {{ alt }}"></video>
           {% else %}
             <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() if user and user.username else '?' }}</span>
             <video class="avatar-photo-img avatar-animated-media" data-animated-src="{{ avatar_url }}" loop muted playsinline preload="none" aria-label="{{ user.username }} {{ alt }}" hidden></video>
           {% endif %}
-        {% elif avatar_url.startswith('data:image/gif') %}
+        {% elif avatar_is_gif %}
           {% if live %}
             <img src="{{ avatar_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
           {% else %}

@@ -213,9 +213,18 @@ function renderReactions(reactions) {
   `;
 }
 
+function isProfileVideoUrl(value) {
+  return (value || '').startsWith('data:video/') || (value || '').includes('/video/upload/');
+}
+
+function isProfileGifUrl(value) {
+  const url = value || '';
+  return url.startsWith('data:image/gif') || url.toLowerCase().split('?')[0].endsWith('.gif');
+}
+
 function renderAvatarMedia(dataUrl, altText = 'Profile photo') {
   if (!dataUrl) return `<span class="avatar-initial">${escapeHtml(otherInitial)}</span>`;
-  if (dataUrl.startsWith('data:video/')) {
+  if (isProfileVideoUrl(dataUrl)) {
     return `
       <span class="avatar-initial avatar-media-fallback">${escapeHtml(otherInitial)}</span>
       <video class="avatar-photo-img avatar-animated-media"
@@ -225,7 +234,7 @@ function renderAvatarMedia(dataUrl, altText = 'Profile photo') {
              hidden></video>
     `;
   }
-  if (dataUrl.startsWith('data:image/gif')) {
+  if (isProfileGifUrl(dataUrl)) {
     return `
       <span class="avatar-initial avatar-media-fallback">${escapeHtml(otherInitial)}</span>
       <img class="avatar-photo-img avatar-animated-media"
