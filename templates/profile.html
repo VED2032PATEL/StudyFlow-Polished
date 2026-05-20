@@ -4,6 +4,70 @@
 
 {% block content %}
 
+<style>
+  .profile-overview-grid {
+    display:grid !important;
+    grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr) !important;
+    gap:18px;
+    align-items:stretch;
+    margin-bottom:22px;
+  }
+
+  .profile-overview-grid .profile-hero {
+    min-height:320px;
+    height:100%;
+    margin-bottom:0;
+  }
+
+  .profile-overview-grid .profile-banner {
+    height:100%;
+    min-height:320px;
+    border-bottom:0;
+  }
+
+  .profile-overview-grid .profile-stats-grid {
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    gap:14px;
+    height:100%;
+    margin-bottom:0;
+  }
+
+  .profile-overview-grid .stat-card {
+    min-height:0;
+    padding:22px;
+  }
+
+  @media(max-width:1180px) {
+    .profile-overview-grid {
+      grid-template-columns:1fr !important;
+    }
+
+    .profile-overview-grid .profile-hero,
+    .profile-overview-grid .profile-banner {
+      min-height:300px;
+    }
+
+    .profile-overview-grid .profile-stats-grid {
+      grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+      grid-template-rows:1fr;
+    }
+  }
+
+  @media(max-width:800px) {
+    .profile-overview-grid .profile-hero,
+    .profile-overview-grid .profile-banner {
+      min-height:260px;
+    }
+
+    .profile-overview-grid .profile-stats-grid {
+      grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+      grid-template-rows:repeat(2,minmax(0,1fr));
+    }
+  }
+</style>
+
 <div class="profile-overview-grid">
 <div class="profile-hero anim">
   {% if current_user.is_verified and not profile.is_self and not profile.user.is_verified %}
