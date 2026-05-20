@@ -271,9 +271,9 @@
           <div class="profile-banner-preview" id="bannerPreview">
             {% if user.banner_data_url %}
               {% if is_profile_video_media(user.banner_data_url) %}
-                <video src="{{ user.banner_data_url }}" class="profile-banner-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile banner"></video>
+                <video src="{{ profile_banner_media_url(user.banner_data_url) }}" class="profile-banner-img" autoplay loop muted playsinline aria-label="{{ user.username }} profile banner"></video>
               {% else %}
-                <img src="{{ user.banner_data_url }}" alt="{{ user.username }} profile banner" class="profile-banner-img"/>
+                <img src="{{ profile_banner_media_url(user.banner_data_url) }}" alt="{{ user.username }} profile banner" class="profile-banner-img"/>
               {% endif %}
             {% else %}
               <span>Banner</span>
@@ -507,6 +507,16 @@ function isProfileVideoUrl(value) {
   return (value || '').startsWith('data:video/') || (value || '').includes('/video/upload/');
 }
 
+function cloudinaryBannerDisplayUrl(value) {
+  const url = value || '';
+  const marker = '/upload/';
+  const transform = 'c_fill,g_auto,w_1800,h_300,q_auto';
+  if (!url.includes('res.cloudinary.com') || !url.includes(marker)) return url;
+  const [before, after] = url.split(marker);
+  if (after.startsWith(`${transform}/`)) return url;
+  return `${before}${marker}${transform}/${after}`;
+}
+
 function applyProfileMediaValue(value, mode) {
   if (mode === 'banner') {
     document.getElementById('bannerDataInput').value = value;
@@ -662,15 +672,16 @@ function openImageCropper(input, mode) {
 }
 
 function renderProfileMedia(dataUrl, altText, className) {
-  if (isProfileVideoUrl(dataUrl)) {
-    return `<video src="${dataUrl}" class="${className}" autoplay loop muted playsinline aria-label="${altText}"></video>`;
+  const displayUrl = className.includes('profile-banner') ? cloudinaryBannerDisplayUrl(dataUrl) : dataUrl;
+  if (isProfileVideoUrl(displayUrl)) {
+    return `<video src="${displayUrl}" class="${className}" autoplay loop muted playsinline aria-label="${altText}"></video>`;
   }
-  return `<img src="${dataUrl}" alt="${altText}" class="${className}"/>`;
+  return `<img src="${displayUrl}" alt="${altText}" class="${className}"/>`;
 }
 
 function setupCropCanvas() {
   const canvas = document.getElementById('cropCanvas');
-  const target = cropState.mode === 'banner' ? { width: 960, height: 320 } : { width: 420, height: 420 };
+  const target = cropState.mode === 'banner' ? { width: 1500, height: 250 } : { width: 420, height: 420 };
   canvas.width = target.width;
   canvas.height = target.height;
   const cover = Math.max(canvas.width / cropState.image.width, canvas.height / cropState.image.height);

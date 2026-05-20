@@ -5,7 +5,7 @@ from flask_login import (LoginManager, UserMixin, login_user,
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date, timedelta, datetime
 from dotenv import load_dotenv
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 import database as db
 import scheduler as sched
 import spaced_rep as sr
@@ -345,6 +345,7 @@ def inject_notification_count():
         "cloudinary_upload_enabled": CLOUDINARY_UPLOAD_ENABLED,
         "is_profile_video_media": _is_profile_video_media,
         "is_profile_gif_media": _is_profile_gif_media,
+        "profile_banner_media_url": _profile_banner_media_url,
     }
     if current_user.is_authenticated:
         try:
@@ -560,6 +561,29 @@ def _is_profile_gif_media(value):
 def _cloudinary_signature(params):
     payload = "&".join(f"{key}={params[key]}" for key in sorted(params) if params[key] not in (None, ""))
     return hashlib.sha1(f"{payload}{CLOUDINARY_API_SECRET}".encode("utf-8")).hexdigest()
+
+
+def _cloudinary_transformed_url(value, transformation):
+    value = (value or "").strip()
+    if not transformation or not _is_cloudinary_media_url(value):
+        return value
+    parsed = urlsplit(value)
+    if "/upload/" not in parsed.path:
+        return value
+    before, after = parsed.path.split("/upload/", 1)
+    if after.startswith(f"{transformation}/"):
+        return value
+    return urlunsplit((
+        parsed.scheme,
+        parsed.netloc,
+        f"{before}/upload/{transformation}/{after}",
+        parsed.query,
+        parsed.fragment,
+    ))
+
+
+def _profile_banner_media_url(value):
+    return _cloudinary_transformed_url(value, "c_fill,g_auto,w_1800,h_300,q_auto")
 
 
 def _gif_duration_seconds(raw):
