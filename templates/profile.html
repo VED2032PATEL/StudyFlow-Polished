@@ -36,9 +36,9 @@
   <div class="profile-banner {% if not profile.user.banner_data_url %}profile-banner-empty{% endif %}">
     {% if profile.user.banner_data_url %}
       {% if is_profile_video_media(profile.user.banner_data_url) %}
-        <video src="{{ profile_banner_media_url(profile.user.banner_data_url) }}" autoplay loop muted playsinline aria-label="{{ profile.user.username }} profile banner"></video>
+        <video src="{{ profile_banner_media_url(profile.user.banner_data_url) }}" class="profile-banner-media" autoplay loop muted playsinline aria-label="{{ profile.user.username }} profile banner" style="position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:center center;display:block;"></video>
       {% else %}
-        <img src="{{ profile_banner_media_url(profile.user.banner_data_url) }}" alt="{{ profile.user.username }} profile banner"/>
+        <img src="{{ profile_banner_media_url(profile.user.banner_data_url) }}" alt="{{ profile.user.username }} profile banner" class="profile-banner-media" style="position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:center center;display:block;"/>
       {% endif %}
     {% endif %}
   </div>
