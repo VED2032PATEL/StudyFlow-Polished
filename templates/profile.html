@@ -4,6 +4,7 @@
 
 {% block content %}
 
+<div class="profile-overview-grid">
 <div class="profile-hero anim">
   {% if current_user.is_verified and not profile.is_self and not profile.user.is_verified %}
   <details class="profile-admin-menu">
@@ -103,6 +104,7 @@
     <div class="stat-number">{{ profile.streak.current }}</div>
     <div class="stat-label">Day Streak</div>
   </div>
+</div>
 </div>
 
 <div class="two-col">
