@@ -186,6 +186,9 @@
         <button type="button" class="call-control-btn ghost" aria-label="Reactions">
           <i data-lucide="smile" width="19" height="19"></i>
         </button>
+        <button type="button" class="call-control-btn ghost" id="swapVideoBtn" aria-label="Swap video layout" hidden>
+          <i data-lucide="repeat-2" width="19" height="19"></i>
+        </button>
         <button type="button" class="call-control-btn ghost" aria-label="Screen share">
           <i data-lucide="screen-share" width="19" height="19"></i>
         </button>
@@ -197,7 +200,7 @@
         </button>
       </div>
       <div class="call-control-cluster">
-        <button type="button" class="call-accept-btn" id="acceptCallBtn" hidden>
+        <button type="button" class="call-accept-btn" id="acceptCallBtn" aria-label="Accept call" hidden>
           <i data-lucide="phone" width="19" height="19"></i>
         </button>
         <button type="button" class="call-end-btn" id="endCallBtn" aria-label="End call">
@@ -238,6 +241,7 @@ const acceptCallBtn = document.getElementById('acceptCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
 const toggleCameraBtn = document.getElementById('toggleCameraBtn');
 const toggleMicBtn = document.getElementById('toggleMicBtn');
+const swapVideoBtn = document.getElementById('swapVideoBtn');
 const minimizeCallBtn = document.getElementById('minimizeCallBtn');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
@@ -269,6 +273,7 @@ let signalTimer = null;
 let callPollTimer = null;
 let offerSent = false;
 let pendingIceCandidates = [];
+let localVideoIsMain = false;
 let ablyClient = null;
 let userCallChannel = null;
 let activeCallChannel = null;
@@ -566,15 +571,30 @@ function openCallModal(call, statusText) {
   callModal.dataset.direction = call.is_caller ? 'outgoing' : 'incoming';
   callModalTitle.textContent = call.peer.username;
   callStatusText.textContent = status;
-  acceptCallBtn.hidden = Boolean(call.is_caller) || call.status !== 'ringing';
-  endCallBtn.hidden = false;
-  endCallBtn.setAttribute('aria-label', !call.is_caller && call.status === 'ringing' ? 'Decline call' : 'End call');
+  syncCallActionButtons(call);
+  syncVideoLayout();
   localVideo.hidden = call.kind !== 'video';
   remoteVideo.classList.toggle('audio-only', call.kind !== 'video');
   callEmptyState.hidden = false;
   updateCallControlStates();
   callModal.hidden = false;
   document.body.classList.add('call-open');
+  window.lucide?.createIcons();
+}
+
+function syncCallActionButtons(call = activeCall) {
+  if (!call) return;
+  const canAccept = !call.is_caller && call.status === 'ringing';
+  acceptCallBtn.hidden = !canAccept;
+  endCallBtn.hidden = false;
+  endCallBtn.setAttribute('aria-label', canAccept ? 'Decline call' : 'End call');
+}
+
+function syncVideoLayout() {
+  const canSwap = activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+  swapVideoBtn.hidden = !canSwap;
+  callModal.classList.toggle('local-video-main', Boolean(localVideoIsMain && canSwap));
+  swapVideoBtn?.setAttribute('aria-pressed', localVideoIsMain && canSwap ? 'true' : 'false');
   window.lucide?.createIcons();
 }
 
@@ -619,6 +639,7 @@ function ensurePeerConnection() {
     const hasRemoteVideo = remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
     remoteVideo.classList.toggle('audio-only', !hasRemoteVideo && activeCall?.kind !== 'video');
     callEmptyState.hidden = Boolean(hasRemoteVideo);
+    syncVideoLayout();
     remoteVideo.play?.().catch(() => {});
   };
   peerConnection.onnegotiationneeded = async () => {
@@ -726,6 +747,7 @@ async function acceptCall() {
   const data = await res.json();
   activeCall = data.call;
   openCallModal(activeCall, 'Connected');
+  syncCallActionButtons(activeCall);
   subscribeToCallChannel(activeCall.id);
   publishCallStatus(activeCall);
   startSignalPolling();
@@ -758,6 +780,7 @@ function cleanupCall() {
   remoteVideo.srcObject = null;
   remoteStream = null;
   activeCall = null;
+  localVideoIsMain = false;
   handledSignalIds.clear();
   if (activeCallChannel) {
     activeCallChannel.unsubscribe();
@@ -803,6 +826,7 @@ async function toggleLocalTrack(kind) {
     cameraEnabled = existingTrack.enabled;
     localVideo.hidden = !cameraEnabled;
     updateCallControlStates();
+    syncVideoLayout();
     return;
   }
 
@@ -831,6 +855,7 @@ async function toggleLocalTrack(kind) {
     cameraEnabled = false;
   }
   updateCallControlStates();
+  syncVideoLayout();
 }
 
 function startCallPolling() {
@@ -934,6 +959,7 @@ async function pollCalls() {
       const becameActive = activeCall.status !== 'active' && latest.status === 'active';
       activeCall = latest;
       subscribeToCallChannel(activeCall.id);
+      syncCallActionButtons(activeCall);
       if (becameActive) {
         openCallModal(activeCall, 'Connected');
         await ensureLocalMedia(activeCall.kind);
@@ -958,6 +984,10 @@ acceptCallBtn.addEventListener('click', acceptCall);
 endCallBtn.addEventListener('click', () => endCall(activeCall && !activeCall.is_caller && activeCall.status === 'ringing' ? 'decline' : 'end'));
 toggleCameraBtn.addEventListener('click', () => { toggleLocalTrack('video'); });
 toggleMicBtn.addEventListener('click', () => { toggleLocalTrack('audio'); });
+swapVideoBtn.addEventListener('click', () => {
+  localVideoIsMain = !localVideoIsMain;
+  syncVideoLayout();
+});
 minimizeCallBtn.addEventListener('click', () => {
   callModal.classList.toggle('is-compact');
 });
