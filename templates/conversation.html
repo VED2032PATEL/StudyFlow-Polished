@@ -201,10 +201,6 @@
           <i data-lucide="phone" width="19" height="19"></i>
           <span>Accept</span>
         </button>
-        <button type="button" class="call-decline-btn" id="declineCallBtn" hidden>
-          <i data-lucide="phone-off" width="19" height="19"></i>
-          <span>Decline</span>
-        </button>
         <button type="button" class="call-end-btn" id="endCallBtn" aria-label="End call">
           <i data-lucide="phone-off" width="20" height="20"></i>
         </button>
@@ -240,7 +236,6 @@ const callModal = document.getElementById('callModal');
 const callModalTitle = document.getElementById('callModalTitle');
 const callStatusText = document.getElementById('callStatusText');
 const acceptCallBtn = document.getElementById('acceptCallBtn');
-const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
 const toggleCameraBtn = document.getElementById('toggleCameraBtn');
 const toggleMicBtn = document.getElementById('toggleMicBtn');
@@ -569,8 +564,8 @@ function openCallModal(call, statusText) {
   callModalTitle.textContent = call.peer.username;
   callStatusText.textContent = status;
   acceptCallBtn.hidden = call.is_caller || call.status !== 'ringing';
-  declineCallBtn.hidden = call.is_caller || call.status !== 'ringing';
-  endCallBtn.hidden = !call.is_caller && call.status === 'ringing';
+  endCallBtn.hidden = false;
+  endCallBtn.setAttribute('aria-label', !call.is_caller && call.status === 'ringing' ? 'Decline call' : 'End call');
   toggleCameraBtn.hidden = call.kind !== 'video';
   localVideo.hidden = call.kind !== 'video';
   remoteVideo.classList.toggle('audio-only', call.kind !== 'video');
@@ -737,10 +732,17 @@ function cleanupCall() {
 function updateCallControlStates() {
   const audioTrack = localStream?.getAudioTracks?.()[0];
   const videoTrack = localStream?.getVideoTracks?.()[0];
-  toggleMicBtn?.classList.toggle('is-off', Boolean(audioTrack && !audioTrack.enabled));
-  toggleCameraBtn?.classList.toggle('is-off', Boolean(videoTrack && !videoTrack.enabled));
-  toggleMicBtn?.setAttribute('aria-pressed', audioTrack && !audioTrack.enabled ? 'true' : 'false');
-  toggleCameraBtn?.setAttribute('aria-pressed', videoTrack && !videoTrack.enabled ? 'true' : 'false');
+  const micOff = Boolean(audioTrack && !audioTrack.enabled);
+  const cameraOff = Boolean(videoTrack && !videoTrack.enabled);
+  toggleMicBtn?.classList.toggle('is-off', micOff);
+  toggleCameraBtn?.classList.toggle('is-off', cameraOff);
+  toggleMicBtn.innerHTML = `<i data-lucide="${micOff ? 'mic-off' : 'mic'}" width="19" height="19"></i>`;
+  toggleCameraBtn.innerHTML = `<i data-lucide="${cameraOff ? 'video-off' : 'video'}" width="19" height="19"></i>`;
+  toggleMicBtn?.setAttribute('aria-pressed', micOff ? 'true' : 'false');
+  toggleCameraBtn?.setAttribute('aria-pressed', cameraOff ? 'true' : 'false');
+  toggleMicBtn?.setAttribute('aria-label', micOff ? 'Unmute microphone' : 'Mute microphone');
+  toggleCameraBtn?.setAttribute('aria-label', cameraOff ? 'Turn camera on' : 'Turn camera off');
+  window.lucide?.createIcons();
 }
 
 function toggleLocalTrack(kind) {
@@ -874,8 +876,7 @@ async function pollCalls() {
 voiceCallBtn.addEventListener('click', () => startCall('voice'));
 videoCallBtn.addEventListener('click', () => startCall('video'));
 acceptCallBtn.addEventListener('click', acceptCall);
-declineCallBtn.addEventListener('click', () => endCall('decline'));
-endCallBtn.addEventListener('click', () => endCall('end'));
+endCallBtn.addEventListener('click', () => endCall(activeCall && !activeCall.is_caller && activeCall.status === 'ringing' ? 'decline' : 'end'));
 toggleCameraBtn.addEventListener('click', () => toggleLocalTrack('video'));
 toggleMicBtn.addEventListener('click', () => toggleLocalTrack('audio'));
 minimizeCallBtn.addEventListener('click', () => {
