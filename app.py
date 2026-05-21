@@ -72,9 +72,11 @@ PROFILE_DECORATION_REWARD_PREFIX = "avatar-decoration-"
 PROFILE_MEDIA_MAX_SECONDS = 20
 PROFILE_AVATAR_MEDIA_MAX_BYTES = 6 * 1024 * 1024
 PROFILE_BANNER_MEDIA_MAX_BYTES = 6 * 1024 * 1024
+PROFILE_CHAT_BLOCK_MEDIA_MAX_BYTES = 6 * 1024 * 1024
 PROFILE_MEDIA_PAYLOAD_MAX_CHARS = 4_350_000
 PROFILE_AVATAR_MEDIA_MAX_MB = "6"
 PROFILE_BANNER_MEDIA_MAX_MB = "6"
+PROFILE_CHAT_BLOCK_MEDIA_MAX_MB = "6"
 CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip().lower()
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
@@ -316,6 +318,7 @@ class User(UserMixin):
         self.user_code = row.get("user_code", "")
         self.avatar_data_url = row.get("avatar_data_url", "")
         self.banner_data_url = row.get("banner_data_url", "")
+        self.chat_block_video_url = row.get("chat_block_video_url", "")
         self.profile_decoration = row.get("profile_decoration", "")
         self.is_verified = row.get("is_verified", 0)
         self.moderation_status = row.get("moderation_status", "active")
@@ -340,15 +343,19 @@ def inject_notification_count():
         "profile_media_max_seconds": PROFILE_MEDIA_MAX_SECONDS,
         "profile_avatar_media_max_bytes": PROFILE_AVATAR_MEDIA_MAX_BYTES,
         "profile_banner_media_max_bytes": PROFILE_BANNER_MEDIA_MAX_BYTES,
+        "profile_chat_block_media_max_bytes": PROFILE_CHAT_BLOCK_MEDIA_MAX_BYTES,
         "profile_media_payload_max_chars": PROFILE_MEDIA_PAYLOAD_MAX_CHARS,
         "profile_avatar_media_max_mb": PROFILE_AVATAR_MEDIA_MAX_MB,
         "profile_banner_media_max_mb": PROFILE_BANNER_MEDIA_MAX_MB,
+        "profile_chat_block_media_max_mb": PROFILE_CHAT_BLOCK_MEDIA_MAX_MB,
         "cloudinary_upload_enabled": CLOUDINARY_UPLOAD_ENABLED,
         "is_profile_video_media": _is_profile_video_media,
         "is_profile_gif_media": _is_profile_gif_media,
         "profile_banner_media_url": _profile_banner_media_url,
+        "chat_block_media_url": _chat_block_media_url,
         "profile_avatar_poster_url": _profile_avatar_poster_url,
         "profile_banner_poster_url": _profile_banner_poster_url,
+        "chat_block_poster_url": _chat_block_poster_url,
         "user_is_online": db.is_user_online,
     }
     if current_user.is_authenticated:
@@ -593,6 +600,12 @@ def _profile_banner_media_url(value):
     return _cloudinary_transformed_url(value, "c_fill,g_auto,w_1800,h_300,q_auto")
 
 
+def _chat_block_media_url(value):
+    if _is_profile_video_media(value):
+        return value
+    return _cloudinary_transformed_url(value, "c_fill,g_auto,w_720,h_180,q_auto")
+
+
 def _profile_avatar_poster_url(value):
     if not (_is_profile_video_media(value) or _is_profile_gif_media(value)) or not _is_cloudinary_media_url(value):
         return ""
@@ -606,6 +619,15 @@ def _profile_banner_poster_url(value):
     if not (_is_profile_video_media(value) or _is_profile_gif_media(value)) or not _is_cloudinary_media_url(value):
         return ""
     poster_url = _cloudinary_transformed_url(value, "c_fill,g_center,w_1800,h_300,q_auto,so_0")
+    parsed = urlsplit(poster_url)
+    path = re.sub(r"\.(mp4|webm|mov|gif)$", ".jpg", parsed.path, flags=re.IGNORECASE)
+    return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
+
+
+def _chat_block_poster_url(value):
+    if not (_is_profile_video_media(value) or _is_profile_gif_media(value)) or not _is_cloudinary_media_url(value):
+        return ""
+    poster_url = _cloudinary_transformed_url(value, "c_fill,g_center,w_720,h_180,q_auto,so_0")
     parsed = urlsplit(poster_url)
     path = re.sub(r"\.(mp4|webm|mov|gif)$", ".jpg", parsed.path, flags=re.IGNORECASE)
     return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
@@ -1737,6 +1759,52 @@ def settings():
                     login_user(User(row), remember=True)
                     flash("Profile banner updated!", "success")
 
+        elif action == "chat_block_video":
+            remove_chat_block = request.form.get("remove_chat_block_video")
+            chat_block_data = request.form.get("chat_block_video_data", "")
+            chat_block_duration = request.form.get("chat_block_video_duration", "")
+            chat_block_file = request.files.get("chat_block_video")
+            if remove_chat_block:
+                db.update_chat_block_video(uid, "")
+                row = db.get_user_by_id(uid)
+                login_user(User(row), remember=True)
+                flash("Chat block video removed.", "info")
+            elif chat_block_data:
+                try:
+                    db.update_chat_block_video(uid, _clean_profile_media_data_url(
+                        chat_block_data,
+                        PROFILE_CHAT_BLOCK_MEDIA_MAX_BYTES,
+                        "Chat block video",
+                        allow_animated=bool(current_user.is_verified),
+                        duration_seconds=chat_block_duration,
+                    ))
+                except ValueError as exc:
+                    flash(str(exc), "error")
+                else:
+                    row = db.get_user_by_id(uid)
+                    login_user(User(row), remember=True)
+                    flash("Chat block video updated!", "success")
+            elif not chat_block_file or not chat_block_file.filename:
+                flash("Choose a chat block video first.", "error")
+            else:
+                data = chat_block_file.read()
+                content_type = (chat_block_file.mimetype or "").lower()
+                encoded = base64.b64encode(data).decode("ascii")
+                try:
+                    db.update_chat_block_video(uid, _clean_profile_media_data_url(
+                        f"data:{content_type};base64,{encoded}",
+                        PROFILE_CHAT_BLOCK_MEDIA_MAX_BYTES,
+                        "Chat block video",
+                        allow_animated=bool(current_user.is_verified),
+                        duration_seconds=chat_block_duration,
+                    ))
+                except ValueError as exc:
+                    flash(str(exc), "error")
+                else:
+                    row = db.get_user_by_id(uid)
+                    login_user(User(row), remember=True)
+                    flash("Chat block video updated!", "success")
+
         elif action == "decoration":
             decoration = request.form.get("profile_decoration", "")
             if decoration not in {"", *PROFILE_DECORATION_ASSETS.keys()}:
@@ -1805,7 +1873,7 @@ def sign_profile_media():
     data = request.get_json(silent=True) or {}
     mode = data.get("mode", "avatar")
     resource_type = data.get("resource_type", "auto")
-    if mode not in {"avatar", "banner"}:
+    if mode not in {"avatar", "banner", "chat_block"}:
         return jsonify({"error": "Invalid upload target."}), 400
     if resource_type not in {"auto", "image", "video"}:
         resource_type = "auto"

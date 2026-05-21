@@ -2555,6 +2555,10 @@ body.creator-sections-open .user-nav-item {
   align-items:stretch;
 }
 
+.profile-chat-block-row {
+  align-items:stretch;
+}
+
 .profile-photo-preview {
   width:72px;
   height:72px;
@@ -2659,6 +2663,34 @@ body.creator-sections-open .user-nav-item {
   border:1px solid var(--border-l);
 }
 
+.profile-chat-block-preview {
+  position:relative;
+  width:min(230px,44%);
+  aspect-ratio:4 / 1;
+  min-height:56px;
+  border-radius:12px;
+  overflow:hidden;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:
+    linear-gradient(135deg,rgba(99,91,255,.18),rgba(15,23,42,.14)),
+    var(--surface);
+  color:var(--t2);
+  font-size:13px;
+  font-weight:800;
+  border:1px solid var(--border-l);
+}
+
+.profile-chat-block-preview::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  background:rgba(12,16,34,.22);
+  pointer-events:none;
+}
+
 .profile-photo-img {
   width:100%;
   height:100%;
@@ -2671,6 +2703,14 @@ body.creator-sections-open .user-nav-item {
   height:100%;
   object-fit:cover;
   display:block;
+}
+
+.profile-chat-block-img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  opacity:.6;
 }
 
 .profile-photo-copy {
@@ -5858,6 +5898,7 @@ select.form-input,
 }
 
 .conversation-row {
+  position:relative;
   display:flex;
   align-items:center;
   gap:14px;
@@ -5867,6 +5908,38 @@ select.form-input,
   background:var(--surface);
   color:var(--t1);
   overflow:visible;
+}
+
+.conversation-row-media {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:inherit;
+  opacity:.6;
+  pointer-events:none;
+  z-index:0;
+}
+
+.conversation-row::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:linear-gradient(90deg, rgba(10,14,30,.38), rgba(10,14,30,.18));
+  pointer-events:none;
+  opacity:0;
+  z-index:0;
+}
+
+.conversation-row:has(.conversation-row-media)::after {
+  opacity:1;
+}
+
+.conversation-row > :not(.conversation-row-media) {
+  position:relative;
+  z-index:1;
 }
 
 .conversation-row:hover {
@@ -8033,6 +8106,7 @@ select.form-input,
 
   .profile-photo-row,
   .profile-banner-row,
+  .profile-chat-block-row,
   .profile-photo-actions {
     align-items:stretch;
     flex-direction:column;
@@ -8044,6 +8118,10 @@ select.form-input,
   }
 
   .profile-banner-preview {
+    width:100%;
+  }
+
+  .profile-chat-block-preview {
     width:100%;
   }
 }

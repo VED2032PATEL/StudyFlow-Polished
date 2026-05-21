@@ -266,6 +266,7 @@ _MIGRATIONS = [
     ("users",      "default_difficulty",   "ALTER TABLE users ADD COLUMN default_difficulty INTEGER NOT NULL DEFAULT 3"),
     ("users",      "avatar_data_url",       "ALTER TABLE users ADD COLUMN avatar_data_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "banner_data_url",       "ALTER TABLE users ADD COLUMN banner_data_url TEXT NOT NULL DEFAULT ''"),
+    ("users",      "chat_block_video_url",  "ALTER TABLE users ADD COLUMN chat_block_video_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "is_verified",           "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0"),
     ("users",      "moderation_status",     "ALTER TABLE users ADD COLUMN moderation_status TEXT NOT NULL DEFAULT 'active'"),
     ("users",      "profile_decoration",    "ALTER TABLE users ADD COLUMN profile_decoration TEXT NOT NULL DEFAULT ''"),
@@ -472,6 +473,17 @@ def update_banner(user_id, banner_data_url):
     conn = get_db()
     try:
         conn.execute("UPDATE users SET banner_data_url=? WHERE id=?", [banner_data_url, user_id])
+    finally:
+        conn.close()
+
+
+def update_chat_block_video(user_id, chat_block_video_url):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE users SET chat_block_video_url=? WHERE id=?",
+            [chat_block_video_url, user_id],
+        )
     finally:
         conn.close()
 
@@ -1044,7 +1056,7 @@ def get_conversations(user_id):
             peer_id = peer["peer_id"]
             purge_expired_messages(user_id, peer_id)
             user_rows = _rows_to_dicts(conn.execute(
-                "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified FROM users WHERE id=?",
+                "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,chat_block_video_url FROM users WHERE id=?",
                 [peer_id],
             ))
             if not user_rows:

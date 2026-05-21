@@ -45,6 +45,16 @@
          class="conversation-row {% if other and convo.user.id == other.id %}active{% endif %} {% if convo.unread %}conversation-unread{% endif %}"
          data-search="{{ convo.user.username|lower }}"
          data-user-id="{{ convo.user.id }}">
+        {% if convo.user.chat_block_video_url %}
+          {% if is_profile_video_media(convo.user.chat_block_video_url) %}
+            <video src="{{ chat_block_media_url(convo.user.chat_block_video_url) }}" class="conversation-row-media" autoplay loop muted playsinline preload="metadata" poster="{{ chat_block_poster_url(convo.user.chat_block_video_url) }}" aria-hidden="true"></video>
+          {% elif is_profile_gif_media(convo.user.chat_block_video_url) %}
+            {% set chat_block_poster = chat_block_poster_url(convo.user.chat_block_video_url) %}
+            <img src="{{ chat_block_poster if chat_block_poster else chat_block_media_url(convo.user.chat_block_video_url) }}" class="conversation-row-media" alt="" aria-hidden="true"/>
+          {% else %}
+            <img src="{{ chat_block_media_url(convo.user.chat_block_video_url) }}" class="conversation-row-media" alt="" aria-hidden="true"/>
+          {% endif %}
+        {% endif %}
         <span class="avatar-presence-wrap">
           {{ ui.decorated_avatar(convo.user, 'conversation-avatar') }}
           <span class="online-dot {% if convo.is_online %}is-online{% endif %}" aria-label="{% if convo.is_online %}Online{% else %}Offline{% endif %}"></span>
