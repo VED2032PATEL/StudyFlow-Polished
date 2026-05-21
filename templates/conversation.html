@@ -199,7 +199,6 @@
       <div class="call-control-cluster">
         <button type="button" class="call-accept-btn" id="acceptCallBtn" hidden>
           <i data-lucide="phone" width="19" height="19"></i>
-          <span>Accept</span>
         </button>
         <button type="button" class="call-end-btn" id="endCallBtn" aria-label="End call">
           <i data-lucide="phone-off" width="20" height="20"></i>
@@ -262,12 +261,14 @@ let messageCache = new Map();
 let pendingAttachment = null;
 let activeCall = null;
 let localStream = null;
+let remoteStream = null;
 let peerConnection = null;
 let cameraEnabled = false;
 let signalAfter = 0;
 let signalTimer = null;
 let callPollTimer = null;
 let offerSent = false;
+let pendingIceCandidates = [];
 let ablyClient = null;
 let userCallChannel = null;
 let activeCallChannel = null;
@@ -592,6 +593,8 @@ async function ensureLocalMedia(kind) {
 
 function ensurePeerConnection() {
   if (peerConnection) return peerConnection;
+  remoteStream = remoteStream || new MediaStream();
+  remoteVideo.srcObject = remoteStream;
   peerConnection = new RTCPeerConnection({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -605,9 +608,22 @@ function ensurePeerConnection() {
     peerConnection.addTrack(track, localStream);
   });
   peerConnection.ontrack = event => {
-    remoteVideo.srcObject = event.streams[0];
-    const hasRemoteVideo = event.streams[0]?.getVideoTracks?.().length > 0;
+    const stream = event.streams?.[0] || remoteStream;
+    if (stream && stream !== remoteStream) {
+      remoteStream = stream;
+      remoteVideo.srcObject = remoteStream;
+    } else if (event.track && remoteStream && !remoteStream.getTracks().some(track => track.id === event.track.id)) {
+      remoteStream.addTrack(event.track);
+    }
+    remoteVideo.srcObject = remoteStream;
+    const hasRemoteVideo = remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+    remoteVideo.classList.toggle('audio-only', !hasRemoteVideo && activeCall?.kind !== 'video');
     callEmptyState.hidden = Boolean(hasRemoteVideo);
+    remoteVideo.play?.().catch(() => {});
+  };
+  peerConnection.onnegotiationneeded = async () => {
+    if (!activeCall || peerConnection.signalingState !== 'stable') return;
+    if (activeCall.status === 'active') await createAndSendOffer(true);
   };
   peerConnection.onicecandidate = event => {
     if (event.candidate && activeCall) {
@@ -632,13 +648,14 @@ async function sendCallSignal(type, payload) {
   }
 }
 
-async function createAndSendOffer() {
-  if (offerSent || !activeCall?.is_caller) return;
+async function createAndSendOffer(force = false) {
+  if (!force && (offerSent || !activeCall?.is_caller)) return;
+  if (force && !activeCall) return;
   const pc = ensurePeerConnection();
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   await sendCallSignal('offer', offer);
-  offerSent = true;
+  if (!force) offerSent = true;
 }
 
 async function handleSignal(signal) {
@@ -651,13 +668,31 @@ async function handleSignal(signal) {
   const pc = ensurePeerConnection();
   if (signal.type === 'offer') {
     await pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
+    await flushPendingIceCandidates();
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await sendCallSignal('answer', answer);
   } else if (signal.type === 'answer') {
     await pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
+    await flushPendingIceCandidates();
   } else if (signal.type === 'ice') {
-    await pc.addIceCandidate(new RTCIceCandidate(signal.payload));
+    const candidate = new RTCIceCandidate(signal.payload);
+    if (pc.remoteDescription) {
+      await pc.addIceCandidate(candidate);
+    } else {
+      pendingIceCandidates.push(candidate);
+    }
+  }
+}
+
+async function flushPendingIceCandidates() {
+  if (!peerConnection?.remoteDescription || !pendingIceCandidates.length) return;
+  const candidates = pendingIceCandidates;
+  pendingIceCandidates = [];
+  for (const candidate of candidates) {
+    try {
+      await peerConnection.addIceCandidate(candidate);
+    } catch (_) {}
   }
 }
 
@@ -682,6 +717,8 @@ function startSignalPolling() {
 
 async function acceptCall() {
   if (!activeCall) return;
+  acceptCallBtn.hidden = true;
+  callStatusText.textContent = 'Connecting...';
   await ensureLocalMedia(activeCall.kind);
   ensurePeerConnection();
   const res = await fetch(`/api/calls/${activeCall.id}/accept`, { method: 'POST' });
@@ -710,6 +747,7 @@ function cleanupCall() {
   clearInterval(signalTimer);
   signalTimer = null;
   offerSent = false;
+  pendingIceCandidates = [];
   signalAfter = 0;
   peerConnection?.close();
   peerConnection = null;
@@ -718,6 +756,7 @@ function cleanupCall() {
   cameraEnabled = false;
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
+  remoteStream = null;
   activeCall = null;
   handledSignalIds.clear();
   if (activeCallChannel) {
@@ -786,6 +825,7 @@ async function toggleLocalTrack(kind) {
       } else {
         peerConnection.addTrack(videoTrack, localStream);
       }
+      if (activeCall?.status === 'active') await createAndSendOffer(true);
     }
   } catch (_) {
     cameraEnabled = false;
