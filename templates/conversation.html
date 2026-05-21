@@ -151,24 +151,63 @@
 
 <div class="call-modal" id="callModal" hidden>
   <div class="call-modal-panel">
-    <div class="call-modal-header">
-      <div>
-        <div class="call-modal-kicker">StudyFlow Call</div>
-        <h2 id="callModalTitle">Video call</h2>
-        <p id="callStatusText" class="call-status-text">Connecting...</p>
+    <div class="call-topbar">
+      <div class="call-brand">
+        <span class="call-brand-mark">S</span>
+        <span>StudyFlow</span>
       </div>
-      <div class="call-modal-actions">
-        <button type="button" class="chat-call-btn" id="acceptCallBtn" hidden>Accept</button>
-        <button type="button" class="chat-call-btn" id="declineCallBtn" hidden>Decline</button>
-        <button type="button" class="call-end-btn" id="endCallBtn">End</button>
+      <div class="call-privacy">
+        <i data-lucide="lock" width="14" height="14"></i>
+        <span>Private WebRTC call</span>
       </div>
+      <button type="button" class="call-top-icon" id="minimizeCallBtn" aria-label="Keep call open">
+        <i data-lucide="minus" width="18" height="18"></i>
+      </button>
     </div>
     <div class="call-stage">
       <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
       <video id="localVideo" class="local-video" autoplay playsinline muted></video>
       <div class="call-empty-state" id="callEmptyState">
-        <div class="call-empty-avatar">{{ other.username[0].upper() }}</div>
-        <p>Waiting for {{ other.username }}</p>
+        {{ ui.decorated_avatar(other, 'call-peer-avatar', live=True) }}
+        <h2 id="callModalTitle">{{ other.username }}</h2>
+        <p id="callStatusText" class="call-status-text">Connecting...</p>
+      </div>
+    </div>
+    <div class="call-control-bar">
+      <div class="call-control-cluster">
+        <button type="button" class="call-control-btn" id="toggleCameraBtn" aria-label="Toggle camera">
+          <i data-lucide="video" width="19" height="19"></i>
+        </button>
+        <button type="button" class="call-control-btn" id="toggleMicBtn" aria-label="Toggle microphone">
+          <i data-lucide="mic" width="19" height="19"></i>
+        </button>
+      </div>
+      <div class="call-control-cluster call-control-center">
+        <button type="button" class="call-control-btn ghost" aria-label="Reactions">
+          <i data-lucide="smile" width="19" height="19"></i>
+        </button>
+        <button type="button" class="call-control-btn ghost" aria-label="Screen share">
+          <i data-lucide="screen-share" width="19" height="19"></i>
+        </button>
+        <button type="button" class="call-control-btn ghost" aria-label="Add participant">
+          <i data-lucide="user-plus" width="19" height="19"></i>
+        </button>
+        <button type="button" class="call-control-btn ghost" aria-label="Open chat">
+          <i data-lucide="message-square" width="19" height="19"></i>
+        </button>
+      </div>
+      <div class="call-control-cluster">
+        <button type="button" class="call-accept-btn" id="acceptCallBtn" hidden>
+          <i data-lucide="phone" width="19" height="19"></i>
+          <span>Accept</span>
+        </button>
+        <button type="button" class="call-decline-btn" id="declineCallBtn" hidden>
+          <i data-lucide="phone-off" width="19" height="19"></i>
+          <span>Decline</span>
+        </button>
+        <button type="button" class="call-end-btn" id="endCallBtn" aria-label="End call">
+          <i data-lucide="phone-off" width="20" height="20"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -203,6 +242,9 @@ const callStatusText = document.getElementById('callStatusText');
 const acceptCallBtn = document.getElementById('acceptCallBtn');
 const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
+const toggleCameraBtn = document.getElementById('toggleCameraBtn');
+const toggleMicBtn = document.getElementById('toggleMicBtn');
+const minimizeCallBtn = document.getElementById('minimizeCallBtn');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
@@ -521,16 +563,22 @@ async function startCall(kind) {
 }
 
 function openCallModal(call, statusText) {
-  callModalTitle.textContent = `${call.kind === 'voice' ? 'Voice' : 'Video'} call with ${call.peer.username}`;
-  callStatusText.textContent = statusText || call.status;
+  const status = statusText || (call.status === 'ringing' ? 'Ringing...' : call.status === 'active' ? 'Connected' : call.status);
+  callModal.dataset.kind = call.kind;
+  callModal.dataset.status = call.status || '';
+  callModalTitle.textContent = call.peer.username;
+  callStatusText.textContent = status;
   acceptCallBtn.hidden = call.is_caller || call.status !== 'ringing';
   declineCallBtn.hidden = call.is_caller || call.status !== 'ringing';
   endCallBtn.hidden = !call.is_caller && call.status === 'ringing';
-  callEmptyState.querySelector('p').textContent = call.is_caller
-    ? `Calling ${call.peer.username}...`
-    : `${call.peer.username} is calling...`;
+  toggleCameraBtn.hidden = call.kind !== 'video';
+  localVideo.hidden = call.kind !== 'video';
+  remoteVideo.classList.toggle('audio-only', call.kind !== 'video');
+  callEmptyState.hidden = false;
+  updateCallControlStates();
   callModal.hidden = false;
   document.body.classList.add('call-open');
+  window.lucide?.createIcons();
 }
 
 async function ensureLocalMedia(kind) {
@@ -540,6 +588,8 @@ async function ensureLocalMedia(kind) {
     video: kind === 'video'
   });
   localVideo.srcObject = localStream;
+  localVideo.hidden = kind !== 'video';
+  updateCallControlStates();
   return localStream;
 }
 
@@ -559,7 +609,8 @@ function ensurePeerConnection() {
   });
   peerConnection.ontrack = event => {
     remoteVideo.srcObject = event.streams[0];
-    callEmptyState.hidden = true;
+    const hasRemoteVideo = event.streams[0]?.getVideoTracks?.().length > 0;
+    callEmptyState.hidden = Boolean(hasRemoteVideo);
   };
   peerConnection.onicecandidate = event => {
     if (event.candidate && activeCall) {
@@ -677,8 +728,28 @@ function cleanupCall() {
     activeCallChannelId = '';
   }
   callEmptyState.hidden = false;
+  callModal.dataset.kind = '';
+  callModal.dataset.status = '';
   callModal.hidden = true;
   document.body.classList.remove('call-open');
+}
+
+function updateCallControlStates() {
+  const audioTrack = localStream?.getAudioTracks?.()[0];
+  const videoTrack = localStream?.getVideoTracks?.()[0];
+  toggleMicBtn?.classList.toggle('is-off', Boolean(audioTrack && !audioTrack.enabled));
+  toggleCameraBtn?.classList.toggle('is-off', Boolean(videoTrack && !videoTrack.enabled));
+  toggleMicBtn?.setAttribute('aria-pressed', audioTrack && !audioTrack.enabled ? 'true' : 'false');
+  toggleCameraBtn?.setAttribute('aria-pressed', videoTrack && !videoTrack.enabled ? 'true' : 'false');
+}
+
+function toggleLocalTrack(kind) {
+  const track = kind === 'audio'
+    ? localStream?.getAudioTracks?.()[0]
+    : localStream?.getVideoTracks?.()[0];
+  if (!track) return;
+  track.enabled = !track.enabled;
+  updateCallControlStates();
 }
 
 function startCallPolling() {
@@ -805,6 +876,11 @@ videoCallBtn.addEventListener('click', () => startCall('video'));
 acceptCallBtn.addEventListener('click', acceptCall);
 declineCallBtn.addEventListener('click', () => endCall('decline'));
 endCallBtn.addEventListener('click', () => endCall('end'));
+toggleCameraBtn.addEventListener('click', () => toggleLocalTrack('video'));
+toggleMicBtn.addEventListener('click', () => toggleLocalTrack('audio'));
+minimizeCallBtn.addEventListener('click', () => {
+  callModal.classList.toggle('is-compact');
+});
 initCallRealtime();
 
 chatBody.addEventListener('keydown', event => {
