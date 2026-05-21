@@ -214,9 +214,12 @@ const profileDecorationAssets = {
   {{ key|tojson }}: {{ url_for('static', filename=filename)|tojson }}{% if not loop.last %},{% endif %}
   {% endfor %}
 };
+const currentUserId = {{ current_user.id|tojson }};
+const otherUserId = {{ other.id|tojson }};
 const otherInitial = {{ other.username[0].upper()|tojson }};
 const otherName = {{ other.username|tojson }};
 const maxAttachmentBytes = 1400 * 1024;
+const ablyRealtimeEnabled = {{ ably_realtime_enabled|tojson }};
 let lastRendered = '';
 let messageCache = new Map();
 let pendingAttachment = null;
@@ -227,6 +230,12 @@ let signalAfter = 0;
 let signalTimer = null;
 let callPollTimer = null;
 let offerSent = false;
+let ablyClient = null;
+let userCallChannel = null;
+let activeCallChannel = null;
+let activeCallChannelId = '';
+let realtimeReady = false;
+const handledSignalIds = new Set();
 let activeEditMessageId = null;
 let pendingUnsendMessageId = null;
 let replyToMessageId = null;
@@ -503,6 +512,8 @@ async function startCall(kind) {
     activeCall = data.call;
     openCallModal(activeCall, 'Calling...');
     await ensureLocalMedia(activeCall.kind);
+    subscribeToCallChannel(activeCall.id);
+    publishUserCallEvent(otherUserId, 'incoming-call', { id: activeCall.id });
     startCallPolling();
   } catch (_) {
     callStatusText.textContent = 'Could not start call.';
@@ -535,7 +546,13 @@ async function ensureLocalMedia(kind) {
 function ensurePeerConnection() {
   if (peerConnection) return peerConnection;
   peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:openrelay.metered.ca:80' },
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    ]
   });
   localStream?.getTracks().forEach(track => {
     peerConnection.addTrack(track, localStream);
@@ -554,11 +571,17 @@ function ensurePeerConnection() {
 
 async function sendCallSignal(type, payload) {
   if (!activeCall) return;
-  await fetch(`/api/calls/${activeCall.id}/signals`, {
+  const res = await fetch(`/api/calls/${activeCall.id}/signals`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, payload })
   });
+  if (!res.ok) return;
+  const data = await res.json().catch(() => ({}));
+  if (data.signal) {
+    handledSignalIds.add(String(data.signal.id));
+    publishCallEvent('signal', data.signal);
+  }
 }
 
 async function createAndSendOffer() {
@@ -571,6 +594,12 @@ async function createAndSendOffer() {
 }
 
 async function handleSignal(signal) {
+  if (!signal || signal.sender_id === currentUserId) return;
+  if (signal.id) {
+    const signalId = String(signal.id);
+    if (handledSignalIds.has(signalId)) return;
+    handledSignalIds.add(signalId);
+  }
   const pc = ensurePeerConnection();
   if (signal.type === 'offer') {
     await pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
@@ -612,15 +641,21 @@ async function acceptCall() {
   const data = await res.json();
   activeCall = data.call;
   openCallModal(activeCall, 'Connected');
+  subscribeToCallChannel(activeCall.id);
+  publishCallStatus(activeCall);
   startSignalPolling();
 }
 
 async function endCall(action = 'end') {
   const call = activeCall;
-  cleanupCall();
   if (call) {
-    await fetch(`/api/calls/${call.id}/${action}`, { method: 'POST' });
+    try {
+      const res = await fetch(`/api/calls/${call.id}/${action}`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      publishCallStatus(data.call || { ...call, status: action === 'decline' ? 'declined' : 'ended' });
+    } catch (_) {}
   }
+  cleanupCall();
 }
 
 function cleanupCall() {
@@ -635,9 +670,101 @@ function cleanupCall() {
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
   activeCall = null;
+  handledSignalIds.clear();
+  if (activeCallChannel) {
+    activeCallChannel.unsubscribe();
+    activeCallChannel = null;
+    activeCallChannelId = '';
+  }
   callEmptyState.hidden = false;
   callModal.hidden = true;
   document.body.classList.remove('call-open');
+}
+
+function startCallPolling() {
+  clearInterval(callPollTimer);
+  callPollTimer = setInterval(pollCalls, realtimeReady ? 6000 : 2500);
+  pollCalls();
+}
+
+function userCallChannelName(userId) {
+  return `studyflow:user:${userId}:calls`;
+}
+
+function callChannelName(callId) {
+  return `studyflow:call:${callId}`;
+}
+
+function publishUserCallEvent(userId, eventName, call) {
+  if (!realtimeReady || !ablyClient || !call) return;
+  try {
+    ablyClient.channels.get(userCallChannelName(userId)).publish(eventName, call);
+  } catch (_) {}
+}
+
+function publishCallEvent(eventName, payload) {
+  if (!realtimeReady || !activeCallChannel || !payload) return;
+  try {
+    activeCallChannel.publish(eventName, payload);
+  } catch (_) {}
+}
+
+function publishCallStatus(call) {
+  if (!call) return;
+  const payload = { id: call.id, status: call.status };
+  publishCallEvent('call-status', payload);
+  if (call.peer?.id) publishUserCallEvent(call.peer.id, 'call-updated', payload);
+}
+
+function subscribeToCallChannel(callId) {
+  if (!realtimeReady || !ablyClient || !callId || activeCallChannelId === callId) return;
+  if (activeCallChannel) activeCallChannel.unsubscribe();
+  activeCallChannelId = callId;
+  activeCallChannel = ablyClient.channels.get(callChannelName(callId));
+  activeCallChannel.subscribe('signal', async message => {
+    await handleSignal(message.data);
+  });
+  activeCallChannel.subscribe('call-status', async message => {
+    await applyRealtimeCall(message.data);
+  });
+}
+
+async function applyRealtimeCall(call) {
+  if (!call) return;
+  if (activeCall && call.id !== activeCall.id) return;
+  await pollCalls();
+}
+
+async function initCallRealtime() {
+  startCallPolling();
+  if (!ablyRealtimeEnabled || !window.Ably) {
+    return;
+  }
+  try {
+    ablyClient = new Ably.Realtime({
+      authUrl: {{ url_for('api_ably_token')|tojson }},
+      clientId: String(currentUserId),
+    });
+    userCallChannel = ablyClient.channels.get(userCallChannelName(currentUserId));
+    userCallChannel.subscribe('incoming-call', async message => {
+      const call = message.data;
+      if (activeCall || !call?.id) return;
+      await pollCalls();
+    });
+    userCallChannel.subscribe('call-updated', async message => {
+      await applyRealtimeCall(message.data);
+    });
+    ablyClient.connection.once('connected', () => {
+      realtimeReady = true;
+      startCallPolling();
+    });
+    ablyClient.connection.once('failed', () => {
+      realtimeReady = false;
+      startCallPolling();
+    });
+  } catch (_) {
+    realtimeReady = false;
+  }
 }
 
 async function pollCalls() {
@@ -654,6 +781,7 @@ async function pollCalls() {
       }
       const becameActive = activeCall.status !== 'active' && latest.status === 'active';
       activeCall = latest;
+      subscribeToCallChannel(activeCall.id);
       if (becameActive) {
         openCallModal(activeCall, 'Connected');
         await ensureLocalMedia(activeCall.kind);
@@ -666,6 +794,7 @@ async function pollCalls() {
     const incoming = calls.find(call => !call.is_caller && call.status === 'ringing');
     if (incoming) {
       activeCall = incoming;
+      subscribeToCallChannel(activeCall.id);
       openCallModal(activeCall, 'Incoming call');
     }
   } catch (_) {}
@@ -676,8 +805,7 @@ videoCallBtn.addEventListener('click', () => startCall('video'));
 acceptCallBtn.addEventListener('click', acceptCall);
 declineCallBtn.addEventListener('click', () => endCall('decline'));
 endCallBtn.addEventListener('click', () => endCall('end'));
-callPollTimer = setInterval(pollCalls, 2500);
-pollCalls();
+initCallRealtime();
 
 chatBody.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) {

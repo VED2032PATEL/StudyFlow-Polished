@@ -15,6 +15,7 @@ import os
 import logging
 import base64
 import hashlib
+import hmac
 import time
 import uuid
 import re
@@ -82,6 +83,8 @@ CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
 CLOUDINARY_PROFILE_FOLDER = os.environ.get("CLOUDINARY_PROFILE_FOLDER", "studyflow/profile-media")
 CLOUDINARY_UPLOAD_ENABLED = bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+ABLY_API_KEY = os.environ.get("ABLY_API_KEY", "").strip()
+ABLY_REALTIME_ENABLED = ":" in ABLY_API_KEY
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -357,6 +360,7 @@ def inject_notification_count():
         "profile_banner_poster_url": _profile_banner_poster_url,
         "chat_block_poster_url": _chat_block_poster_url,
         "user_is_online": db.is_user_online,
+        "ably_realtime_enabled": ABLY_REALTIME_ENABLED,
     }
     if current_user.is_authenticated:
         try:
@@ -1229,7 +1233,15 @@ def api_call_signals(call_id):
         )
         if not ok:
             return jsonify({"error": "not found"}), 404
-        return jsonify({"status": "sent"})
+        return jsonify({
+            "status": "sent",
+            "signal": {
+                "id": ok,
+                "sender_id": current_user.id,
+                "type": signal_type,
+                "payload": payload,
+            },
+        })
 
     after = request.args.get("after", "0")
     try:
@@ -1248,6 +1260,33 @@ def api_call_signals(call_id):
             }
             for row in rows
         ]
+    })
+
+
+@app.route("/api/realtime/ably-token")
+@login_required
+def api_ably_token():
+    if not ABLY_REALTIME_ENABLED:
+        return jsonify({"error": "Ably is not configured."}), 503
+    key_name, key_secret = ABLY_API_KEY.split(":", 1)
+    ttl = 60 * 60 * 1000
+    timestamp = int(time.time() * 1000)
+    nonce = uuid.uuid4().hex
+    client_id = str(current_user.id)
+    capability = json_lib.dumps({
+        "studyflow:user:*:calls": ["publish", "subscribe"],
+        "studyflow:call:*": ["publish", "subscribe"],
+    }, separators=(",", ":"))
+    sign_text = "\n".join([key_name, str(ttl), capability, client_id, str(timestamp), nonce])
+    mac = hmac.new(key_secret.encode("utf-8"), sign_text.encode("utf-8"), hashlib.sha256).hexdigest()
+    return jsonify({
+        "keyName": key_name,
+        "ttl": ttl,
+        "capability": capability,
+        "clientId": client_id,
+        "timestamp": timestamp,
+        "nonce": nonce,
+        "mac": mac,
     })
 
 

@@ -999,15 +999,15 @@ def update_call_status(call_id, user_id, status):
 
 def add_call_signal(call_id, sender_id, signal_type, payload):
     if not get_call(call_id, sender_id):
-        return False
+        return None
     conn = get_db()
     try:
-        conn.execute(
+        res = conn.execute(
             """INSERT INTO call_signals (call_id,sender_id,signal_type,payload)
                VALUES (?,?,?,?)""",
             [call_id, sender_id, signal_type, payload],
         )
-        return True
+        return res.last_insert_rowid
     finally:
         conn.close()
 
