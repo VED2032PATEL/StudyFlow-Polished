@@ -6137,9 +6137,10 @@ select.form-input,
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:0;
-  background:#070c0f;
+  padding:clamp(14px,2vw,24px);
+  background:rgba(7,12,15,.94);
   color:#f8fafc;
+  overflow:hidden;
 }
 
 .call-modal[hidden] {
@@ -6147,13 +6148,13 @@ select.form-input,
 }
 
 .call-modal-panel {
-  width:100%;
-  height:100dvh;
-  border:0;
-  border-radius:0;
+  width:min(1120px,100%);
+  height:min(720px,calc(100dvh - 56px),100%);
+  border:1px solid rgba(120,145,160,.22);
+  border-radius:18px;
   overflow:hidden;
   background:#070c0f;
-  box-shadow:none;
+  box-shadow:0 24px 80px rgba(0,0,0,.42);
   display:flex;
   flex-direction:column;
 }
@@ -6237,8 +6238,8 @@ select.form-input,
   min-height:0;
   background:#11191c;
   overflow:hidden;
-  margin:0 12px;
-  border-radius:0 0 8px 8px;
+  margin:0 12px 0;
+  border-radius:14px;
 }
 
 .remote-video {
@@ -7854,7 +7855,8 @@ select.form-input,
   }
 
   .call-modal-panel {
-    height:100dvh;
+    height:min(680px,calc(100dvh - 24px),100%);
+    border-radius:14px;
   }
 
   .local-video {
