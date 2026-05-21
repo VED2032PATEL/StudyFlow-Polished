@@ -6147,6 +6147,12 @@ select.form-input,
   display:none;
 }
 
+.main-content.is-soft-loading {
+  opacity:.62;
+  pointer-events:none;
+  transition:opacity .16s ease;
+}
+
 .call-modal-panel {
   width:min(1120px,100%);
   height:min(720px,calc(100dvh - 56px),100%);

@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=26" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=27" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
   {% if ably_realtime_enabled %}
   <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
@@ -180,7 +180,7 @@
   {% block content %}{% endblock %}
 </main>
 
-<script src="{{ url_for('static', filename='js/main.js') }}?v=26"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}?v=27"></script>
 
 <style>
   .main-content {
@@ -316,6 +316,122 @@
       navigator.serviceWorker.register('{{ url_for("service_worker") }}').catch(() => {});
     });
   }
+
+  (function preserveMinimizedCallsDuringNavigation() {
+    const main = document.getElementById('mainContent');
+    if (!main) return;
+
+    function activeMinimizedCallModal() {
+      const modal = document.getElementById('callModal');
+      return modal && !modal.hidden && modal.classList.contains('is-compact') ? modal : null;
+    }
+
+    function isSoftNavigableLink(link, event) {
+      if (!link || !activeMinimizedCallModal()) return false;
+      if (event?.defaultPrevented || event?.metaKey || event?.ctrlKey || event?.shiftKey || event?.altKey) return false;
+      if (link.target && link.target !== '_self') return false;
+      if (link.hasAttribute('download')) return false;
+      if (link.closest('.conversation-row, .message-note-card, .chat-message-link')) return false;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin) return false;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return false;
+      return true;
+    }
+
+    function syncSidebarFrom(nextDoc) {
+      const nextLinks = Array.from(nextDoc.querySelectorAll('#sidebar a[href]'));
+      document.querySelectorAll('#sidebar a[href]').forEach(link => {
+        const href = new URL(link.href, window.location.href).pathname;
+        const next = nextLinks.find(item => new URL(item.href, window.location.href).pathname === href);
+        if (next) link.className = next.className;
+      });
+      installStudyFlowIcons();
+    }
+
+    function runInlineScript(code) {
+      if (!code.trim()) return;
+      if (code.includes('const chatMessages = document.getElementById')) return;
+      const originalAddEventListener = document.addEventListener.bind(document);
+      document.addEventListener = function(type, listener, options) {
+        if (type === 'DOMContentLoaded' && typeof listener === 'function') {
+          window.setTimeout(() => listener.call(document, new Event('DOMContentLoaded')), 0);
+          return undefined;
+        }
+        return originalAddEventListener(type, listener, options);
+      };
+      try {
+        (0, eval)(code);
+      } finally {
+        document.addEventListener = originalAddEventListener;
+      }
+    }
+
+    async function runSoftNavigationScripts(scripts) {
+      for (const oldScript of scripts) {
+        const src = oldScript.getAttribute('src');
+        if (src) {
+          const absoluteSrc = new URL(src, window.location.href).href;
+          const alreadyLoaded = Array.from(document.scripts).some(script => script.src === absoluteSrc);
+          if (alreadyLoaded) continue;
+          await new Promise(resolve => {
+            const script = document.createElement('script');
+            script.src = absoluteSrc;
+            script.onload = resolve;
+            script.onerror = resolve;
+            document.body.appendChild(script);
+          });
+        } else {
+          runInlineScript(oldScript.textContent || '');
+        }
+      }
+    }
+
+    async function softNavigate(url, pushState = true) {
+      const callModal = activeMinimizedCallModal();
+      if (!callModal) {
+        window.location.href = url;
+        return;
+      }
+      if (callModal.parentElement !== document.body) document.body.appendChild(callModal);
+      main.classList.add('is-soft-loading');
+      try {
+        const res = await fetch(url, {
+          credentials: 'same-origin',
+          headers: { 'X-StudyFlow-Soft-Navigation': '1' }
+        });
+        if (!res.ok) throw new Error('Navigation failed');
+        const html = await res.text();
+        const nextDoc = new DOMParser().parseFromString(html, 'text/html');
+        const nextMain = nextDoc.getElementById('mainContent');
+        if (!nextMain) throw new Error('Missing main content');
+        nextMain.querySelector('#callModal')?.remove();
+        const scripts = Array.from(nextMain.querySelectorAll('script'));
+        scripts.forEach(script => script.remove());
+        main.innerHTML = nextMain.innerHTML;
+        document.title = nextDoc.title;
+        syncSidebarFrom(nextDoc);
+        if (pushState) history.pushState({ sfSoftNavigation: true }, '', url);
+        await runSoftNavigationScripts(scripts);
+        installStudyFlowIcons();
+        window.dispatchEvent(new CustomEvent('studyflow:soft-navigate', { detail: { url } }));
+      } catch (_) {
+        window.location.href = url;
+      } finally {
+        main.classList.remove('is-soft-loading');
+      }
+    }
+
+    document.addEventListener('click', event => {
+      const link = event.target.closest('a[href]');
+      if (!isSoftNavigableLink(link, event)) return;
+      event.preventDefault();
+      softNavigate(link.href);
+    });
+
+    window.addEventListener('popstate', () => {
+      if (activeMinimizedCallModal()) softNavigate(window.location.href, false);
+    });
+  })();
 
   {% if current_user.is_authenticated and current_user.is_verified %}
   (function() {
