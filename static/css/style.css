@@ -6449,6 +6449,13 @@ select.form-input,
   color:#fff;
 }
 
+.call-modal.is-compact {
+  background:transparent;
+  pointer-events:none;
+  padding:0;
+  overflow:visible;
+}
+
 .call-modal.is-compact .call-modal-panel {
   position:fixed;
   right:18px;
@@ -6457,6 +6464,7 @@ select.form-input,
   height:300px;
   border-radius:18px;
   box-shadow:0 24px 80px rgba(0,0,0,.48);
+  pointer-events:auto;
 }
 
 .call-modal.is-compact .call-topbar,
