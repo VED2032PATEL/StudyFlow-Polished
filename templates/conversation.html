@@ -263,6 +263,7 @@ let pendingAttachment = null;
 let activeCall = null;
 let localStream = null;
 let peerConnection = null;
+let cameraEnabled = false;
 let signalAfter = 0;
 let signalTimer = null;
 let callPollTimer = null;
@@ -561,12 +562,12 @@ function openCallModal(call, statusText) {
   const status = statusText || (call.status === 'ringing' ? 'Ringing...' : call.status === 'active' ? 'Connected' : call.status);
   callModal.dataset.kind = call.kind;
   callModal.dataset.status = call.status || '';
+  callModal.dataset.direction = call.is_caller ? 'outgoing' : 'incoming';
   callModalTitle.textContent = call.peer.username;
   callStatusText.textContent = status;
-  acceptCallBtn.hidden = call.is_caller || call.status !== 'ringing';
+  acceptCallBtn.hidden = Boolean(call.is_caller) || call.status !== 'ringing';
   endCallBtn.hidden = false;
   endCallBtn.setAttribute('aria-label', !call.is_caller && call.status === 'ringing' ? 'Decline call' : 'End call');
-  toggleCameraBtn.hidden = call.kind !== 'video';
   localVideo.hidden = call.kind !== 'video';
   remoteVideo.classList.toggle('audio-only', call.kind !== 'video');
   callEmptyState.hidden = false;
@@ -578,12 +579,13 @@ function openCallModal(call, statusText) {
 
 async function ensureLocalMedia(kind) {
   if (localStream) return localStream;
+  cameraEnabled = kind === 'video';
   localStream = await navigator.mediaDevices.getUserMedia({
     audio: true,
-    video: kind === 'video'
+    video: cameraEnabled
   });
   localVideo.srcObject = localStream;
-  localVideo.hidden = kind !== 'video';
+  localVideo.hidden = !cameraEnabled;
   updateCallControlStates();
   return localStream;
 }
@@ -713,6 +715,7 @@ function cleanupCall() {
   peerConnection = null;
   localStream?.getTracks().forEach(track => track.stop());
   localStream = null;
+  cameraEnabled = false;
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
   activeCall = null;
@@ -725,6 +728,7 @@ function cleanupCall() {
   callEmptyState.hidden = false;
   callModal.dataset.kind = '';
   callModal.dataset.status = '';
+  callModal.dataset.direction = '';
   callModal.hidden = true;
   document.body.classList.remove('call-open');
 }
@@ -733,7 +737,7 @@ function updateCallControlStates() {
   const audioTrack = localStream?.getAudioTracks?.()[0];
   const videoTrack = localStream?.getVideoTracks?.()[0];
   const micOff = Boolean(audioTrack && !audioTrack.enabled);
-  const cameraOff = Boolean(videoTrack && !videoTrack.enabled);
+  const cameraOff = !cameraEnabled || Boolean(videoTrack && !videoTrack.enabled);
   toggleMicBtn?.classList.toggle('is-off', micOff);
   toggleCameraBtn?.classList.toggle('is-off', cameraOff);
   toggleMicBtn.innerHTML = `<i data-lucide="${micOff ? 'mic-off' : 'mic'}" width="19" height="19"></i>`;
@@ -745,12 +749,47 @@ function updateCallControlStates() {
   window.lucide?.createIcons();
 }
 
-function toggleLocalTrack(kind) {
-  const track = kind === 'audio'
-    ? localStream?.getAudioTracks?.()[0]
-    : localStream?.getVideoTracks?.()[0];
-  if (!track) return;
-  track.enabled = !track.enabled;
+async function toggleLocalTrack(kind) {
+  if (kind === 'audio') {
+    const track = localStream?.getAudioTracks?.()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    updateCallControlStates();
+    return;
+  }
+
+  const existingTrack = localStream?.getVideoTracks?.()[0];
+  if (existingTrack) {
+    existingTrack.enabled = !existingTrack.enabled;
+    cameraEnabled = existingTrack.enabled;
+    localVideo.hidden = !cameraEnabled;
+    updateCallControlStates();
+    return;
+  }
+
+  try {
+    const videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const videoTrack = videoStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+    cameraEnabled = true;
+    if (!localStream) {
+      localStream = videoStream;
+    } else {
+      localStream.addTrack(videoTrack);
+    }
+    localVideo.srcObject = localStream;
+    localVideo.hidden = false;
+    if (peerConnection) {
+      const sender = peerConnection.getSenders().find(item => item.track && item.track.kind === 'video');
+      if (sender) {
+        await sender.replaceTrack(videoTrack);
+      } else {
+        peerConnection.addTrack(videoTrack, localStream);
+      }
+    }
+  } catch (_) {
+    cameraEnabled = false;
+  }
   updateCallControlStates();
 }
 
@@ -877,8 +916,8 @@ voiceCallBtn.addEventListener('click', () => startCall('voice'));
 videoCallBtn.addEventListener('click', () => startCall('video'));
 acceptCallBtn.addEventListener('click', acceptCall);
 endCallBtn.addEventListener('click', () => endCall(activeCall && !activeCall.is_caller && activeCall.status === 'ringing' ? 'decline' : 'end'));
-toggleCameraBtn.addEventListener('click', () => toggleLocalTrack('video'));
-toggleMicBtn.addEventListener('click', () => toggleLocalTrack('audio'));
+toggleCameraBtn.addEventListener('click', () => { toggleLocalTrack('video'); });
+toggleMicBtn.addEventListener('click', () => { toggleLocalTrack('audio'); });
 minimizeCallBtn.addEventListener('click', () => {
   callModal.classList.toggle('is-compact');
 });

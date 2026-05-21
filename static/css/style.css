@@ -6381,7 +6381,7 @@ select.form-input,
   right:18px;
   bottom:18px;
   width:min(360px,calc(100vw - 36px));
-  height:260px;
+  height:300px;
   border-radius:18px;
   box-shadow:0 24px 80px rgba(0,0,0,.48);
 }
@@ -6395,12 +6395,14 @@ select.form-input,
 .call-modal.is-compact .call-stage {
   margin:0;
   border-radius:18px 18px 0 0;
+  flex:1 1 auto;
+  min-height:210px;
 }
 
 .call-modal.is-compact .call-control-bar {
-  min-height:58px;
+  min-height:66px;
   grid-template-columns:1fr auto;
-  padding:8px;
+  padding:10px;
 }
 
 .call-modal.is-compact .call-control-btn,
@@ -6414,6 +6416,31 @@ select.form-input,
   width:96px;
   right:10px;
   top:10px;
+}
+
+.call-modal.is-compact .call-empty-state {
+  gap:8px;
+  justify-content:center;
+  padding:18px 14px;
+}
+
+.call-modal.is-compact .call-peer-avatar {
+  width:82px;
+  height:82px;
+  font-size:30px;
+}
+
+.call-modal.is-compact .call-empty-state h2 {
+  margin:4px 0 0;
+  font-size:28px;
+}
+
+.call-modal.is-compact .call-status-text {
+  font-size:17px;
+}
+
+.call-modal.is-compact[data-direction="outgoing"][data-status="ringing"] .call-accept-btn {
+  display:none;
 }
 
 .chat-expire-toggle {
