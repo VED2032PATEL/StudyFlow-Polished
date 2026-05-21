@@ -6254,6 +6254,17 @@ select.form-input,
   opacity:0;
 }
 
+.call-control-btn[hidden],
+.call-accept-btn[hidden],
+.call-end-btn[hidden] {
+  display:none !important;
+}
+
+.call-modal.can-swap-video .local-video,
+.call-modal.local-video-main.can-swap-video .remote-video {
+  cursor:pointer;
+}
+
 .call-modal.local-video-main .remote-video {
   position:absolute;
   right:22px;

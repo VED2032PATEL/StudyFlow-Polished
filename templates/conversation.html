@@ -586,6 +586,7 @@ function syncCallActionButtons(call = activeCall) {
   if (!call) return;
   const canAccept = !call.is_caller && call.status === 'ringing';
   acceptCallBtn.hidden = !canAccept;
+  acceptCallBtn.disabled = !canAccept;
   endCallBtn.hidden = false;
   endCallBtn.setAttribute('aria-label', canAccept ? 'Decline call' : 'End call');
 }
@@ -593,9 +594,18 @@ function syncCallActionButtons(call = activeCall) {
 function syncVideoLayout() {
   const canSwap = activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
   swapVideoBtn.hidden = !canSwap;
+  swapVideoBtn.disabled = !canSwap;
+  callModal.classList.toggle('can-swap-video', Boolean(canSwap));
   callModal.classList.toggle('local-video-main', Boolean(localVideoIsMain && canSwap));
   swapVideoBtn?.setAttribute('aria-pressed', localVideoIsMain && canSwap ? 'true' : 'false');
   window.lucide?.createIcons();
+}
+
+function swapVideoLayout() {
+  const canSwap = activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+  if (!canSwap) return;
+  localVideoIsMain = !localVideoIsMain;
+  syncVideoLayout();
 }
 
 async function ensureLocalMedia(kind) {
@@ -791,6 +801,7 @@ function cleanupCall() {
   callModal.dataset.kind = '';
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
+  callModal.classList.remove('can-swap-video', 'local-video-main');
   callModal.hidden = true;
   document.body.classList.remove('call-open');
 }
@@ -984,9 +995,12 @@ acceptCallBtn.addEventListener('click', acceptCall);
 endCallBtn.addEventListener('click', () => endCall(activeCall && !activeCall.is_caller && activeCall.status === 'ringing' ? 'decline' : 'end'));
 toggleCameraBtn.addEventListener('click', () => { toggleLocalTrack('video'); });
 toggleMicBtn.addEventListener('click', () => { toggleLocalTrack('audio'); });
-swapVideoBtn.addEventListener('click', () => {
-  localVideoIsMain = !localVideoIsMain;
-  syncVideoLayout();
+swapVideoBtn.addEventListener('click', swapVideoLayout);
+localVideo.addEventListener('click', () => {
+  if (!localVideoIsMain) swapVideoLayout();
+});
+remoteVideo.addEventListener('click', () => {
+  if (localVideoIsMain) swapVideoLayout();
 });
 minimizeCallBtn.addEventListener('click', () => {
   callModal.classList.toggle('is-compact');
