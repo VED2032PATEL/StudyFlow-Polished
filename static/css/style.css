@@ -6248,6 +6248,7 @@ select.form-input,
   border-radius:14px;
 }
 
+.screen-video,
 .remote-video {
   width:100%;
   height:100%;
@@ -6256,19 +6257,82 @@ select.form-input,
   background:#11191c;
 }
 
+.screen-video {
+  position:absolute;
+  inset:0;
+  object-fit:contain;
+  background:#05080a;
+  z-index:1;
+}
+
 .remote-video.audio-only {
   opacity:0;
 }
 
-.call-modal.local-screen-sharing .local-video,
-.call-modal.remote-screen-sharing .remote-video {
+.call-modal.local-screen-sharing .screen-video,
+.call-modal.remote-screen-sharing .screen-video {
   object-fit:contain;
   background:#05080a;
 }
 
-.call-modal.local-video-main.local-screen-sharing .local-video,
-.call-modal.local-video-main.remote-screen-sharing .remote-video {
-  object-fit:contain;
+.call-modal.local-screen-sharing .remote-video,
+.call-modal.remote-screen-sharing .remote-video {
+  position:absolute;
+  left:22px;
+  top:22px;
+  width:clamp(150px,22vw,260px);
+  height:auto;
+  aspect-ratio:16/9;
+  object-fit:cover;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:12px;
+  background:#263238;
+  box-shadow:0 16px 42px rgba(0,0,0,.34);
+  z-index:3;
+}
+
+.call-modal.local-screen-sharing .local-video,
+.call-modal.remote-screen-sharing .local-video {
+  right:22px;
+  top:22px;
+  width:clamp(150px,22vw,260px);
+  z-index:4;
+}
+
+.call-modal.local-screen-sharing.share-camera-main .local-video,
+.call-modal.remote-screen-sharing.share-camera-main .remote-video {
+  inset:0;
+  width:100%;
+  height:100%;
+  aspect-ratio:auto;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  z-index:1;
+}
+
+.call-modal.local-screen-sharing.share-camera-main .screen-video {
+  inset:auto 22px auto auto;
+  top:22px;
+  width:clamp(150px,22vw,260px);
+  height:auto;
+  aspect-ratio:16/9;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:12px;
+  box-shadow:0 16px 42px rgba(0,0,0,.34);
+  z-index:4;
+}
+
+.call-modal.remote-screen-sharing.share-camera-main .screen-video {
+  inset:auto auto auto 22px;
+  top:22px;
+  width:clamp(150px,22vw,260px);
+  height:auto;
+  aspect-ratio:16/9;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:12px;
+  box-shadow:0 16px 42px rgba(0,0,0,.34);
+  z-index:4;
 }
 
 .call-control-btn[hidden],
@@ -6278,7 +6342,11 @@ select.form-input,
 }
 
 .call-modal.can-swap-video .local-video,
-.call-modal.local-video-main.can-swap-video .remote-video {
+.call-modal.local-video-main.can-swap-video .remote-video,
+.call-modal.local-screen-sharing.can-swap-video .remote-video,
+.call-modal.remote-screen-sharing.can-swap-video .remote-video,
+.call-modal.local-screen-sharing.can-swap-video .screen-video,
+.call-modal.remote-screen-sharing.can-swap-video .screen-video {
   cursor:pointer;
 }
 
@@ -6529,6 +6597,34 @@ select.form-input,
   width:96px;
   right:10px;
   top:10px;
+}
+
+.call-modal.is-compact.local-screen-sharing .remote-video,
+.call-modal.is-compact.remote-screen-sharing .remote-video {
+  left:10px;
+  top:10px;
+  width:92px;
+}
+
+.call-modal.is-compact.local-screen-sharing .local-video,
+.call-modal.is-compact.remote-screen-sharing .local-video {
+  right:10px;
+  top:10px;
+  width:92px;
+}
+
+.call-modal.is-compact.local-screen-sharing.share-camera-main .screen-video,
+.call-modal.is-compact.remote-screen-sharing.share-camera-main .screen-video {
+  top:10px;
+  width:92px;
+}
+
+.call-modal.is-compact.local-screen-sharing.share-camera-main .screen-video {
+  right:10px;
+}
+
+.call-modal.is-compact.remote-screen-sharing.share-camera-main .screen-video {
+  left:10px;
 }
 
 .call-modal.is-compact.local-video-main .remote-video,

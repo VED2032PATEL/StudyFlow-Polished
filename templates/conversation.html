@@ -165,6 +165,7 @@
       </button>
     </div>
     <div class="call-stage">
+      <video id="screenVideo" class="screen-video" autoplay playsinline muted hidden></video>
       <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
       <video id="localVideo" class="local-video" autoplay playsinline muted></video>
       <div class="call-empty-state" id="callEmptyState">
@@ -247,6 +248,7 @@ const swapVideoBtn = document.getElementById('swapVideoBtn');
 const screenShareBtn = document.getElementById('screenShareBtn');
 const minimizeCallBtn = document.getElementById('minimizeCallBtn');
 const callResizeHandle = document.getElementById('callResizeHandle');
+const screenVideo = document.getElementById('screenVideo');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
@@ -270,6 +272,7 @@ let pendingAttachment = null;
 let activeCall = null;
 let localStream = null;
 let remoteStream = null;
+let remoteScreenStream = null;
 let peerConnection = null;
 let cameraEnabled = false;
 let signalAfter = 0;
@@ -280,7 +283,9 @@ let pendingIceCandidates = [];
 let localVideoIsMain = false;
 let screenStream = null;
 let cameraTrackBeforeShare = null;
+let screenVideoSender = null;
 let screenAudioSenders = [];
+let remoteScreenExpected = false;
 let compactCallFrame = null;
 let compactPointerState = null;
 let suppressNextVideoSwap = false;
@@ -602,18 +607,23 @@ function syncCallActionButtons(call = activeCall) {
 }
 
 function syncVideoLayout() {
-  const canSwap = activeCall?.kind === 'video' || cameraEnabled || Boolean(screenStream) || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+  const hasAnyScreen = Boolean(screenStream || remoteScreenStream);
+  const canSwap = hasAnyScreen || activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
   swapVideoBtn.hidden = !canSwap;
   swapVideoBtn.disabled = !canSwap;
   callModal.classList.toggle('can-swap-video', Boolean(canSwap));
-  callModal.classList.toggle('local-video-main', Boolean(localVideoIsMain && canSwap));
+  callModal.classList.toggle('local-video-main', Boolean(localVideoIsMain && canSwap && !hasAnyScreen));
+  callModal.classList.toggle('share-camera-main', Boolean(localVideoIsMain && hasAnyScreen));
   callModal.classList.toggle('local-screen-sharing', Boolean(screenStream));
+  callModal.classList.toggle('remote-screen-sharing', Boolean(remoteScreenStream));
+  screenVideo.hidden = !hasAnyScreen;
   swapVideoBtn?.setAttribute('aria-pressed', localVideoIsMain && canSwap ? 'true' : 'false');
   window.lucide?.createIcons();
 }
 
 function swapVideoLayout() {
-  const canSwap = activeCall?.kind === 'video' || cameraEnabled || Boolean(screenStream) || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+  const hasAnyScreen = Boolean(screenStream || remoteScreenStream);
+  const canSwap = hasAnyScreen || activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
   if (!canSwap) return;
   localVideoIsMain = !localVideoIsMain;
   syncVideoLayout();
@@ -621,7 +631,12 @@ function swapVideoLayout() {
 
 function videoSender() {
   if (!peerConnection) return null;
-  return peerConnection.getSenders().find(sender => sender.sfKind === 'video' || sender.track?.kind === 'video') || null;
+  return peerConnection.getSenders().find(sender => sender.sfKind === 'video' || (sender.track?.kind === 'video' && sender.sfKind !== 'screen-video')) || null;
+}
+
+function screenSender() {
+  if (!peerConnection) return null;
+  return screenVideoSender || peerConnection.getSenders().find(sender => sender.sfKind === 'screen-video') || null;
 }
 
 function removeScreenAudioSenders() {
@@ -726,6 +741,38 @@ function ensurePeerConnection() {
     sender.sfKind = track.kind;
   });
   peerConnection.ontrack = event => {
+    const track = event.track;
+    const label = `${track?.label || ''} ${track?.contentHint || ''}`.toLowerCase();
+    const looksLikeScreen = track?.kind === 'video' && (
+      remoteScreenExpected ||
+      label.includes('screen') ||
+      label.includes('display') ||
+      label.includes('window') ||
+      label.includes('tab') ||
+      track.getSettings?.().displaySurface
+    );
+    if (looksLikeScreen) {
+      remoteScreenExpected = false;
+      remoteScreenStream = event.streams?.[0] || remoteScreenStream || new MediaStream();
+      if (track && !remoteScreenStream.getTracks().some(item => item.id === track.id)) {
+        remoteScreenStream.addTrack(track);
+      }
+      screenVideo.srcObject = remoteScreenStream;
+      screenVideo.muted = false;
+      track.addEventListener('ended', () => {
+        remoteScreenStream = null;
+        screenVideo.srcObject = null;
+        callModal.classList.remove('remote-screen-sharing');
+        syncVideoLayout();
+      });
+      callModal.classList.add('remote-screen-sharing');
+      screenVideo.hidden = false;
+      callEmptyState.hidden = true;
+      syncVideoLayout();
+      screenVideo.play?.().catch(() => {});
+      return;
+    }
+
     const stream = event.streams?.[0] || remoteStream;
     if (stream && stream !== remoteStream) {
       remoteStream = stream;
@@ -735,12 +782,7 @@ function ensurePeerConnection() {
     }
     remoteVideo.srcObject = remoteStream;
     const hasRemoteVideo = remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
-    const hasRemoteScreen = remoteStream?.getVideoTracks?.().some(track => {
-      const label = `${track.label || ''} ${track.contentHint || ''}`.toLowerCase();
-      return label.includes('screen') || label.includes('display') || label.includes('window') || label.includes('tab') || track.getSettings?.().displaySurface;
-    });
     remoteVideo.classList.toggle('audio-only', !hasRemoteVideo && activeCall?.kind !== 'video');
-    callModal.classList.toggle('remote-screen-sharing', Boolean(hasRemoteScreen));
     callEmptyState.hidden = Boolean(hasRemoteVideo);
     syncVideoLayout();
     remoteVideo.play?.().catch(() => {});
@@ -806,6 +848,14 @@ async function handleSignal(signal) {
     } else {
       pendingIceCandidates.push(candidate);
     }
+  } else if (signal.type === 'screen-share-start') {
+    remoteScreenExpected = true;
+  } else if (signal.type === 'screen-share-stop') {
+    remoteScreenExpected = false;
+    remoteScreenStream = null;
+    screenVideo.srcObject = null;
+    callModal.classList.remove('remote-screen-sharing');
+    syncVideoLayout();
   }
 }
 
@@ -880,9 +930,13 @@ function cleanupCall() {
   localStream = null;
   screenStream?.getTracks().forEach(track => track.stop());
   screenStream = null;
+  remoteScreenStream = null;
   cameraTrackBeforeShare = null;
+  screenVideoSender = null;
   screenAudioSenders = [];
+  remoteScreenExpected = false;
   cameraEnabled = false;
+  screenVideo.srcObject = null;
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
   remoteStream = null;
@@ -898,7 +952,7 @@ function cleanupCall() {
   callModal.dataset.kind = '';
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
-  callModal.classList.remove('can-swap-video', 'local-video-main', 'local-screen-sharing', 'remote-screen-sharing');
+  callModal.classList.remove('can-swap-video', 'local-video-main', 'share-camera-main', 'local-screen-sharing', 'remote-screen-sharing');
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
   clearCompactCallFrameStyles();
   compactPointerState = null;
@@ -958,7 +1012,7 @@ async function toggleLocalTrack(kind) {
     localVideo.srcObject = localStream;
     localVideo.hidden = false;
     if (peerConnection) {
-      const sender = peerConnection.getSenders().find(item => item.track && item.track.kind === 'video');
+      const sender = videoSender();
       if (sender) {
         await sender.replaceTrack(videoTrack);
         sender.sfKind = 'video';
@@ -981,26 +1035,26 @@ async function stopScreenShare({ restoreCamera = true } = {}) {
   screenStream = null;
   oldScreenStream.getTracks().forEach(track => track.stop());
   removeScreenAudioSenders();
+  if (screenVideoSender && peerConnection) {
+    try {
+      peerConnection.removeTrack(screenVideoSender);
+    } catch (_) {}
+  }
+  screenVideoSender = null;
+  screenVideo.srcObject = null;
 
-  const sender = videoSender();
   const restoreTrack = restoreCamera ? cameraTrackBeforeShare : null;
   cameraTrackBeforeShare = null;
   if (restoreTrack && restoreTrack.readyState !== 'ended') {
-    if (sender) {
-      await sender.replaceTrack(restoreTrack);
-      sender.sfKind = 'video';
-    } else if (peerConnection && localStream) {
-      const newSender = peerConnection.addTrack(restoreTrack, localStream);
-      newSender.sfKind = 'video';
-    }
     cameraEnabled = restoreTrack.enabled;
     localVideo.srcObject = localStream;
     localVideo.hidden = !cameraEnabled;
   } else {
-    if (sender) await sender.replaceTrack(null);
     cameraEnabled = false;
     localVideo.hidden = true;
   }
+  callModal.classList.remove('local-screen-sharing');
+  await sendCallSignal('screen-share-stop', {});
   updateCallControlStates();
   syncVideoLayout();
   if (activeCall?.status === 'active') await createAndSendOffer(true);
@@ -1028,21 +1082,27 @@ async function toggleScreenShare() {
     if (!localStream) await ensureLocalMedia(activeCall?.kind || 'voice');
     cameraTrackBeforeShare = localStream?.getVideoTracks?.()[0] || null;
     screenStream = displayStream;
+    displayTrack.contentHint = 'detail';
     displayTrack.addEventListener('ended', () => {
       stopScreenShare().catch(() => {});
     });
 
-    localVideo.srcObject = displayStream;
-    localVideo.hidden = false;
+    screenVideo.srcObject = displayStream;
+    screenVideo.muted = true;
+    screenVideo.hidden = false;
+    localVideo.srcObject = localStream;
+    localVideo.hidden = !cameraTrackBeforeShare;
     cameraEnabled = true;
+    await sendCallSignal('screen-share-start', {});
     ensurePeerConnection();
-    const sender = videoSender();
-    if (sender) {
-      await sender.replaceTrack(displayTrack);
-      sender.sfKind = 'video';
+    const existingScreenSender = screenSender();
+    if (existingScreenSender) {
+      await existingScreenSender.replaceTrack(displayTrack);
+      existingScreenSender.sfKind = 'screen-video';
+      screenVideoSender = existingScreenSender;
     } else {
-      const newSender = peerConnection.addTrack(displayTrack, displayStream);
-      newSender.sfKind = 'video';
+      screenVideoSender = peerConnection.addTrack(displayTrack, displayStream);
+      screenVideoSender.sfKind = 'screen-video';
     }
     screenAudioSenders = displayStream.getAudioTracks().map(track => {
       const sender = peerConnection.addTrack(track, displayStream);
@@ -1050,6 +1110,7 @@ async function toggleScreenShare() {
       return sender;
     });
     localVideoIsMain = true;
+    callModal.classList.add('local-screen-sharing');
     updateCallControlStates();
     syncVideoLayout();
     if (activeCall?.status === 'active') await createAndSendOffer(true);
@@ -1193,9 +1254,16 @@ localVideo.addEventListener('click', () => {
     suppressNextVideoSwap = false;
     return;
   }
-  if (!localVideoIsMain) swapVideoLayout();
+  if (!localVideoIsMain || screenStream) swapVideoLayout();
 });
 remoteVideo.addEventListener('click', () => {
+  if (suppressNextVideoSwap) {
+    suppressNextVideoSwap = false;
+    return;
+  }
+  if (remoteScreenStream || localVideoIsMain) swapVideoLayout();
+});
+screenVideo.addEventListener('click', () => {
   if (suppressNextVideoSwap) {
     suppressNextVideoSwap = false;
     return;
