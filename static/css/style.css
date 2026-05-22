@@ -6260,6 +6260,17 @@ select.form-input,
   opacity:0;
 }
 
+.call-modal.local-screen-sharing .local-video,
+.call-modal.remote-screen-sharing .remote-video {
+  object-fit:contain;
+  background:#05080a;
+}
+
+.call-modal.local-video-main.local-screen-sharing .local-video,
+.call-modal.local-video-main.remote-screen-sharing .remote-video {
+  object-fit:contain;
+}
+
 .call-control-btn[hidden],
 .call-accept-btn[hidden],
 .call-end-btn[hidden] {

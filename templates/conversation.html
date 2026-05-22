@@ -607,6 +607,7 @@ function syncVideoLayout() {
   swapVideoBtn.disabled = !canSwap;
   callModal.classList.toggle('can-swap-video', Boolean(canSwap));
   callModal.classList.toggle('local-video-main', Boolean(localVideoIsMain && canSwap));
+  callModal.classList.toggle('local-screen-sharing', Boolean(screenStream));
   swapVideoBtn?.setAttribute('aria-pressed', localVideoIsMain && canSwap ? 'true' : 'false');
   window.lucide?.createIcons();
 }
@@ -734,7 +735,12 @@ function ensurePeerConnection() {
     }
     remoteVideo.srcObject = remoteStream;
     const hasRemoteVideo = remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+    const hasRemoteScreen = remoteStream?.getVideoTracks?.().some(track => {
+      const label = `${track.label || ''} ${track.contentHint || ''}`.toLowerCase();
+      return label.includes('screen') || label.includes('display') || label.includes('window') || label.includes('tab') || track.getSettings?.().displaySurface;
+    });
     remoteVideo.classList.toggle('audio-only', !hasRemoteVideo && activeCall?.kind !== 'video');
+    callModal.classList.toggle('remote-screen-sharing', Boolean(hasRemoteScreen));
     callEmptyState.hidden = Boolean(hasRemoteVideo);
     syncVideoLayout();
     remoteVideo.play?.().catch(() => {});
@@ -892,7 +898,7 @@ function cleanupCall() {
   callModal.dataset.kind = '';
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
-  callModal.classList.remove('can-swap-video', 'local-video-main');
+  callModal.classList.remove('can-swap-video', 'local-video-main', 'local-screen-sharing', 'remote-screen-sharing');
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
   clearCompactCallFrameStyles();
   compactPointerState = null;
