@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studyflow-shell-v34';
+const CACHE_NAME = 'studyflow-shell-v35';
 const SHELL_ASSETS = [
   '/static/css/style.css',
   '/static/js/main.js',

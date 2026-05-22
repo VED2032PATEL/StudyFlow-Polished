@@ -6287,24 +6287,28 @@ select.form-input,
 .call-modal.local-screen-sharing .remote-video,
 .call-modal.remote-screen-sharing .remote-video {
   position:absolute;
-  left:22px;
-  top:22px;
-  width:clamp(150px,22vw,260px);
-  height:auto;
-  aspect-ratio:16/9;
+  left:50%;
+  top:auto;
+  bottom:18px;
+  width:min(28%,260px);
+  height:86px;
+  aspect-ratio:auto;
   object-fit:cover;
   border:1px solid rgba(255,255,255,.16);
   border-radius:12px;
   background:#263238;
   box-shadow:0 16px 42px rgba(0,0,0,.34);
+  transform:translateX(-50%);
   z-index:3;
 }
 
 .call-modal.local-screen-sharing .local-video,
 .call-modal.remote-screen-sharing .local-video {
   right:22px;
-  top:22px;
-  width:clamp(150px,22vw,260px);
+  top:auto;
+  bottom:18px;
+  width:min(28%,260px);
+  height:86px;
   z-index:4;
 }
 
@@ -6321,11 +6325,10 @@ select.form-input,
 }
 
 .call-modal.local-screen-sharing.share-camera-main .screen-video {
-  inset:auto 22px auto auto;
-  top:22px;
-  width:clamp(150px,22vw,260px);
-  height:auto;
-  aspect-ratio:16/9;
+  inset:auto auto 18px 18px;
+  width:min(28%,260px);
+  height:86px;
+  aspect-ratio:auto;
   border:1px solid rgba(255,255,255,.16);
   border-radius:12px;
   box-shadow:0 16px 42px rgba(0,0,0,.34);
@@ -6333,11 +6336,10 @@ select.form-input,
 }
 
 .call-modal.remote-screen-sharing.share-camera-main .screen-video {
-  inset:auto auto auto 22px;
-  top:22px;
-  width:clamp(150px,22vw,260px);
-  height:auto;
-  aspect-ratio:16/9;
+  inset:auto auto 18px 18px;
+  width:min(28%,260px);
+  height:86px;
+  aspect-ratio:auto;
   border:1px solid rgba(255,255,255,.16);
   border-radius:12px;
   box-shadow:0 16px 42px rgba(0,0,0,.34);
@@ -6610,22 +6612,28 @@ select.form-input,
 
 .call-modal.is-compact.local-screen-sharing .remote-video,
 .call-modal.is-compact.remote-screen-sharing .remote-video {
-  left:10px;
-  top:10px;
+  left:50%;
+  top:auto;
+  bottom:8px;
   width:92px;
+  height:48px;
 }
 
 .call-modal.is-compact.local-screen-sharing .local-video,
 .call-modal.is-compact.remote-screen-sharing .local-video {
   right:10px;
-  top:10px;
+  top:auto;
+  bottom:8px;
   width:92px;
+  height:48px;
 }
 
 .call-modal.is-compact.local-screen-sharing.share-camera-main .screen-video,
 .call-modal.is-compact.remote-screen-sharing.share-camera-main .screen-video {
-  top:10px;
+  top:auto;
+  bottom:8px;
   width:92px;
+  height:48px;
 }
 
 .call-modal.is-compact.local-screen-sharing.share-camera-main .screen-video {
@@ -6701,6 +6709,7 @@ select.form-input,
 .call-modal.local-screen-sharing .call-stage,
 .call-modal.remote-screen-sharing .call-stage {
   background:#05080a;
+  padding-bottom:112px;
 }
 
 .call-modal.local-screen-sharing .screen-video,
@@ -6746,7 +6755,7 @@ select.form-input,
 .call-modal.call-main-screen .screen-video,
 .call-modal.call-main-remote .remote-video,
 .call-modal.call-main-local .local-video {
-  inset:0 0 116px;
+  inset:0 0 112px;
   width:100%;
   height:auto;
   aspect-ratio:auto;
