@@ -6929,6 +6929,106 @@ select.form-input,
   object-fit:cover;
 }
 
+.call-modal.call-workspace:not(.is-compact) {
+  inset:0 0 0 var(--sb-w);
+  padding:26px 42px 28px;
+  background:rgba(0,0,0,.94);
+  align-items:stretch;
+  justify-content:stretch;
+}
+
+.call-modal.call-workspace:not(.is-compact) .call-modal-panel {
+  width:100%;
+  height:100%;
+  border-radius:18px;
+  background:#000;
+  box-shadow:none;
+}
+
+.call-modal.call-workspace:not(.is-compact) .call-stage {
+  width:100%;
+  flex:1 1 auto;
+  margin:0;
+  border-radius:0;
+  background:#000;
+  overflow:hidden;
+}
+
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .call-stage {
+  padding-bottom:148px;
+}
+
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .call-stage::after {
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:148px;
+  background:#000;
+  z-index:2;
+  pointer-events:none;
+}
+
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .screen-video,
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .remote-video,
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .local-video {
+  position:absolute !important;
+  inset:auto !important;
+  top:auto !important;
+  bottom:20px !important;
+  width:clamp(190px,15.5vw,300px) !important;
+  height:auto !important;
+  aspect-ratio:16 / 9 !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:10px !important;
+  background:#10191c;
+  box-shadow:none !important;
+  cursor:pointer;
+  object-fit:contain !important;
+  z-index:4;
+}
+
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .screen-video {
+  left:calc(50% - min(460px,32vw)) !important;
+  transform:none !important;
+}
+
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .remote-video {
+  left:50% !important;
+  transform:translateX(-50%) !important;
+}
+
+.call-modal.call-workspace:not(.is-compact).has-feed-tray .local-video {
+  right:calc(50% - min(460px,32vw)) !important;
+  transform:none !important;
+}
+
+.call-modal.call-workspace:not(.is-compact).call-main-screen .screen-video,
+.call-modal.call-workspace:not(.is-compact).call-main-remote .remote-video,
+.call-modal.call-workspace:not(.is-compact).call-main-local .local-video {
+  inset:0 0 148px !important;
+  width:100% !important;
+  height:auto !important;
+  aspect-ratio:auto !important;
+  border:0 !important;
+  border-radius:0 !important;
+  transform:none !important;
+  box-shadow:none !important;
+  object-fit:contain !important;
+  z-index:1 !important;
+}
+
+.call-modal.call-workspace:not(.is-compact):not(.has-feed-tray).call-main-screen .screen-video,
+.call-modal.call-workspace:not(.is-compact):not(.has-feed-tray).call-main-remote .remote-video,
+.call-modal.call-workspace:not(.is-compact):not(.has-feed-tray).call-main-local .local-video {
+  inset:0 !important;
+}
+
+.call-modal.call-workspace:not(.is-compact) .call-control-bar {
+  flex:0 0 78px;
+}
+
 .chat-expire-toggle {
   display:inline-flex;
   align-items:center;
