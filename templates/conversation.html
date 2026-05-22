@@ -290,6 +290,7 @@ let remoteScreenExpected = false;
 let callMainFeed = 'remote';
 let compactCallFrame = null;
 let compactPointerState = null;
+let compactClickWasDrag = false;
 let suppressNextVideoSwap = false;
 let ablyClient = null;
 let userCallChannel = null;
@@ -589,19 +590,21 @@ function openCallModal(call, statusText) {
   callModalTitle.textContent = call.peer.username;
   callStatusText.textContent = status;
   const isConnectedCall = call.status === 'active' || status === 'Connected';
-  callModal.classList.toggle('call-workspace', isConnectedCall);
-  mainContent?.classList.toggle('call-section-active', isConnectedCall);
-  if (isConnectedCall) {
-    callModal.classList.remove('is-compact');
-    clearCompactCallFrameStyles();
-  }
   syncCallActionButtons(call);
+  callEmptyState.hidden = availableCallFeeds().length > 0;
   syncVideoLayout();
   localVideo.hidden = call.kind !== 'video' && !screenStream;
   remoteVideo.classList.toggle('audio-only', call.kind !== 'video');
-  callEmptyState.hidden = false;
   updateCallControlStates();
   callModal.hidden = false;
+  if (isConnectedCall) {
+    enterCallRoom();
+  } else {
+    leaveCallRoom();
+    callModal.classList.remove('call-workspace', 'is-compact');
+    clearCompactCallFrameStyles();
+    if (mainContent && callModal.parentElement !== mainContent) mainContent.appendChild(callModal);
+  }
   document.body.classList.add('call-open');
   window.lucide?.createIcons();
 }
@@ -745,18 +748,36 @@ function clearCompactCallFrameStyles() {
   });
 }
 
+function leaveCallRoom() {
+  mainContent?.classList.remove('call-section-active');
+  document.body.classList.remove('call-room-open');
+}
+
+function enterCallRoom() {
+  if (mainContent && callModal.parentElement !== mainContent) mainContent.appendChild(callModal);
+  callModal.hidden = false;
+  callModal.classList.add('call-workspace');
+  callModal.classList.remove('is-compact');
+  callModalPanel.classList.remove('is-dragging', 'is-resizing');
+  clearCompactCallFrameStyles();
+  mainContent?.classList.add('call-section-active');
+  document.body.classList.add('call-room-open');
+}
+
+function enterCompactCall() {
+  if (callModal.hidden || !callModal.classList.contains('call-workspace')) return;
+  leaveCallRoom();
+  callModal.classList.add('is-compact');
+  callModalPanel.classList.remove('is-dragging', 'is-resizing');
+  if (callModal.parentElement !== document.body) document.body.appendChild(callModal);
+  ensureCompactCallFrame();
+}
+
 function toggleCompactCall() {
   if (callModal.classList.contains('is-compact')) {
-    callModal.classList.remove('is-compact');
-    if (callModal.classList.contains('call-workspace')) {
-      mainContent?.classList.add('call-section-active');
-    }
-    callModalPanel.classList.remove('is-dragging', 'is-resizing');
-    clearCompactCallFrameStyles();
+    enterCallRoom();
   } else {
-    callModal.classList.add('is-compact');
-    mainContent?.classList.remove('call-section-active');
-    ensureCompactCallFrame();
+    enterCompactCall();
   }
 }
 
@@ -770,6 +791,7 @@ async function ensureLocalMedia(kind) {
   localVideo.srcObject = localStream;
   localVideo.hidden = !cameraEnabled;
   updateCallControlStates();
+  syncVideoLayout();
   return localStream;
 }
 
@@ -1029,10 +1051,11 @@ function cleanupCall() {
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
   callModal.classList.remove('can-swap-video', 'call-workspace', 'has-feed-tray', 'local-video-main', 'share-camera-main', 'call-main-screen', 'call-main-remote', 'call-main-local', 'local-screen-sharing', 'remote-screen-sharing');
-  mainContent?.classList.remove('call-section-active');
+  leaveCallRoom();
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
   clearCompactCallFrameStyles();
   compactPointerState = null;
+  compactClickWasDrag = false;
   callModal.hidden = true;
   document.body.classList.remove('call-open');
 }
@@ -1357,6 +1380,21 @@ callModal.addEventListener('click', event => {
     toggleCompactCall();
   }
 });
+document.addEventListener('click', event => {
+  const link = event.target.closest('a[href]');
+  if (!link || !activeCall || callModal.hidden || callModal.classList.contains('is-compact')) return;
+  if (!callModal.classList.contains('call-workspace') || link.closest('#callModal')) return;
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (link.target && link.target !== '_self') return;
+  if (link.hasAttribute('download')) return;
+  try {
+    const url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin) return;
+  } catch (_) {
+    return;
+  }
+  enterCompactCall();
+}, true);
 callModalPanel.addEventListener('pointerdown', event => {
   if (!callModal.classList.contains('is-compact') || event.button !== 0) return;
   if (event.target.closest('button, a, input, textarea, select')) return;
@@ -1417,9 +1455,25 @@ callModalPanel.addEventListener('pointermove', event => {
 });
 callModalPanel.addEventListener('pointerup', event => {
   if (!compactPointerState || compactPointerState.pointerId !== event.pointerId) return;
+  const shouldRestoreCallRoom = compactPointerState.type === 'move' && !compactPointerState.moved && callModal.classList.contains('is-compact');
+  compactClickWasDrag = compactPointerState.moved;
   suppressNextVideoSwap = compactPointerState.moved;
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
   compactPointerState = null;
+  if (shouldRestoreCallRoom) {
+    window.setTimeout(() => {
+      if (callModal.classList.contains('is-compact')) enterCallRoom();
+    }, 0);
+  }
+});
+callModalPanel.addEventListener('click', event => {
+  if (!callModal.classList.contains('is-compact')) return;
+  if (event.target.closest('button, a, input, textarea, select')) return;
+  if (compactClickWasDrag) {
+    compactClickWasDrag = false;
+    return;
+  }
+  enterCallRoom();
 });
 callModalPanel.addEventListener('lostpointercapture', () => {
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
