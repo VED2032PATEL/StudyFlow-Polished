@@ -165,9 +165,19 @@
       </button>
     </div>
     <div class="call-stage">
-      <video id="screenVideo" class="screen-video" autoplay playsinline muted hidden></video>
-      <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
-      <video id="localVideo" class="local-video" autoplay playsinline muted></video>
+      <div class="call-feed call-feed-screen" data-call-feed="screen" hidden>
+        <video id="screenVideo" class="screen-video" autoplay playsinline muted hidden></video>
+        <span class="call-live-pill">LIVE</span>
+        <span class="call-feed-label"><i data-lucide="monitor" width="13" height="13"></i> Screen</span>
+      </div>
+      <div class="call-feed call-feed-remote" data-call-feed="remote">
+        <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+        <span class="call-feed-label"><i data-lucide="video" width="13" height="13"></i> {{ other.username }}</span>
+      </div>
+      <div class="call-feed call-feed-local" data-call-feed="local" hidden>
+        <video id="localVideo" class="local-video" autoplay playsinline muted></video>
+        <span class="call-feed-label"><i data-lucide="video" width="13" height="13"></i> You</span>
+      </div>
       <div class="call-empty-state" id="callEmptyState">
         {{ ui.decorated_avatar(other, 'call-peer-avatar', live=True) }}
         <h2 id="callModalTitle">{{ other.username }}</h2>
@@ -253,6 +263,11 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
 const mainContent = document.getElementById('mainContent');
+const callFeeds = {
+  screen: document.querySelector('[data-call-feed="screen"]'),
+  remote: document.querySelector('[data-call-feed="remote"]'),
+  local: document.querySelector('[data-call-feed="local"]')
+};
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 const otherAvatarUrl = {{ (other.avatar_data_url or '')|tojson }};
 const otherDecoration = {{ (other.profile_decoration or '')|tojson }};
@@ -671,8 +686,17 @@ function syncVideoLayout() {
   callModal.classList.toggle('local-screen-sharing', Boolean(screenStream));
   callModal.classList.toggle('remote-screen-sharing', Boolean(remoteScreenStream));
   callModal.classList.toggle('has-feed-tray', feeds.length > 1);
+  Object.entries(callFeeds).forEach(([feed, element]) => {
+    if (!element) return;
+    const isAvailable = feeds.includes(feed);
+    const isMain = callMainFeed === feed && isAvailable;
+    element.hidden = !isAvailable;
+    element.classList.toggle('is-main-feed', isMain);
+    element.classList.toggle('is-tile-feed', isAvailable && !isMain);
+    element.classList.toggle('is-active-feed', isMain);
+  });
   screenVideo.hidden = !hasAnyScreen;
-  remoteVideo.hidden = hasAnyScreen && !hasRemoteVideo;
+  remoteVideo.hidden = !hasRemoteVideo;
   localVideo.hidden = !hasLocalVideo;
   if (hasAnyScreen) callEmptyState.hidden = true;
   syncAllFeedOrientations();
