@@ -7245,6 +7245,20 @@ select.form-input,
   transform:translateX(calc(50% + 18px)) !important;
 }
 
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .remote-video.call-feed-portrait,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .local-video.call-feed-portrait {
+  width:clamp(58px,calc(112px * var(--feed-ratio, .5625)),126px) !important;
+  height:112px !important;
+  object-fit:contain !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .remote-video.call-feed-landscape,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .local-video.call-feed-landscape {
+  width:clamp(180px,calc(112px * var(--feed-ratio, 1.7778)),300px) !important;
+  height:112px !important;
+  object-fit:contain !important;
+}
+
 .main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray.call-main-screen .screen-video,
 .main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray.call-main-remote .remote-video,
 .main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray.call-main-local .local-video {
