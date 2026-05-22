@@ -150,7 +150,7 @@
 </div>
 
 <div class="call-modal" id="callModal" hidden>
-  <div class="call-modal-panel">
+  <div class="call-modal-panel" id="callModalPanel">
     <div class="call-topbar">
       <div class="call-brand">
         <span class="call-brand-mark">S</span>
@@ -208,6 +208,7 @@
         </button>
       </div>
     </div>
+    <button type="button" class="call-resize-handle" id="callResizeHandle" aria-label="Resize call window" title="Resize call window"></button>
   </div>
 </div>
 
@@ -235,6 +236,7 @@ const unsendModal = document.getElementById('unsendModal');
 const cancelUnsendBtn = document.getElementById('cancelUnsendBtn');
 const confirmUnsendBtn = document.getElementById('confirmUnsendBtn');
 const callModal = document.getElementById('callModal');
+const callModalPanel = document.getElementById('callModalPanel');
 const callModalTitle = document.getElementById('callModalTitle');
 const callStatusText = document.getElementById('callStatusText');
 const acceptCallBtn = document.getElementById('acceptCallBtn');
@@ -243,6 +245,7 @@ const toggleCameraBtn = document.getElementById('toggleCameraBtn');
 const toggleMicBtn = document.getElementById('toggleMicBtn');
 const swapVideoBtn = document.getElementById('swapVideoBtn');
 const minimizeCallBtn = document.getElementById('minimizeCallBtn');
+const callResizeHandle = document.getElementById('callResizeHandle');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
@@ -274,6 +277,9 @@ let callPollTimer = null;
 let offerSent = false;
 let pendingIceCandidates = [];
 let localVideoIsMain = false;
+let compactCallFrame = null;
+let compactPointerState = null;
+let suppressNextVideoSwap = false;
 let ablyClient = null;
 let userCallChannel = null;
 let activeCallChannel = null;
@@ -608,6 +614,64 @@ function swapVideoLayout() {
   syncVideoLayout();
 }
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function setCompactCallFrame(frame) {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const minWidth = Math.min(280, viewportWidth - 24);
+  const minHeight = Math.min(230, viewportHeight - 24);
+  const width = clamp(frame.width, minWidth, Math.max(minWidth, viewportWidth - 24));
+  const height = clamp(frame.height, minHeight, Math.max(minHeight, viewportHeight - 24));
+  const left = clamp(frame.left, 12, Math.max(12, viewportWidth - width - 12));
+  const top = clamp(frame.top, 12, Math.max(12, viewportHeight - height - 12));
+  compactCallFrame = { left, top, width, height };
+  Object.assign(callModalPanel.style, {
+    left: `${left}px`,
+    top: `${top}px`,
+    right: 'auto',
+    bottom: 'auto',
+    width: `${width}px`,
+    height: `${height}px`
+  });
+}
+
+function ensureCompactCallFrame() {
+  if (!callModalPanel) return;
+  if (compactCallFrame) {
+    setCompactCallFrame(compactCallFrame);
+    return;
+  }
+  const width = Math.min(405, Math.max(300, window.innerWidth - 36));
+  const height = Math.min(320, Math.max(250, window.innerHeight - 36));
+  setCompactCallFrame({
+    width,
+    height,
+    left: window.innerWidth - width - 18,
+    top: window.innerHeight - height - 18
+  });
+}
+
+function clearCompactCallFrameStyles() {
+  if (!callModalPanel) return;
+  ['left', 'top', 'right', 'bottom', 'width', 'height'].forEach(prop => {
+    callModalPanel.style[prop] = '';
+  });
+}
+
+function toggleCompactCall() {
+  if (callModal.classList.contains('is-compact')) {
+    callModal.classList.remove('is-compact');
+    callModalPanel.classList.remove('is-dragging', 'is-resizing');
+    clearCompactCallFrameStyles();
+  } else {
+    callModal.classList.add('is-compact');
+    ensureCompactCallFrame();
+  }
+}
+
 async function ensureLocalMedia(kind) {
   if (localStream) return localStream;
   cameraEnabled = kind === 'video';
@@ -802,6 +866,9 @@ function cleanupCall() {
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
   callModal.classList.remove('can-swap-video', 'local-video-main');
+  callModalPanel.classList.remove('is-dragging', 'is-resizing');
+  clearCompactCallFrameStyles();
+  compactPointerState = null;
   callModal.hidden = true;
   document.body.classList.remove('call-open');
 }
@@ -997,13 +1064,90 @@ toggleCameraBtn.addEventListener('click', () => { toggleLocalTrack('video'); });
 toggleMicBtn.addEventListener('click', () => { toggleLocalTrack('audio'); });
 swapVideoBtn.addEventListener('click', swapVideoLayout);
 localVideo.addEventListener('click', () => {
+  if (suppressNextVideoSwap) {
+    suppressNextVideoSwap = false;
+    return;
+  }
   if (!localVideoIsMain) swapVideoLayout();
 });
 remoteVideo.addEventListener('click', () => {
+  if (suppressNextVideoSwap) {
+    suppressNextVideoSwap = false;
+    return;
+  }
   if (localVideoIsMain) swapVideoLayout();
 });
-minimizeCallBtn.addEventListener('click', () => {
-  callModal.classList.toggle('is-compact');
+minimizeCallBtn.addEventListener('click', toggleCompactCall);
+callModalPanel.addEventListener('pointerdown', event => {
+  if (!callModal.classList.contains('is-compact') || event.button !== 0) return;
+  if (event.target.closest('button, a, input, textarea, select')) return;
+  const rect = callModalPanel.getBoundingClientRect();
+  compactPointerState = {
+    type: 'move',
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+    moved: false
+  };
+  callModalPanel.classList.add('is-dragging');
+  callModalPanel.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+callResizeHandle.addEventListener('pointerdown', event => {
+  if (!callModal.classList.contains('is-compact') || event.button !== 0) return;
+  const rect = callModalPanel.getBoundingClientRect();
+  compactPointerState = {
+    type: 'resize',
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+    moved: false
+  };
+  callModalPanel.classList.add('is-resizing');
+  callModalPanel.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+callModalPanel.addEventListener('pointermove', event => {
+  if (!compactPointerState || compactPointerState.pointerId !== event.pointerId) return;
+  const dx = event.clientX - compactPointerState.startX;
+  const dy = event.clientY - compactPointerState.startY;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) compactPointerState.moved = true;
+  if (compactPointerState.type === 'move') {
+    setCompactCallFrame({
+      left: compactPointerState.left + dx,
+      top: compactPointerState.top + dy,
+      width: compactPointerState.width,
+      height: compactPointerState.height
+    });
+  } else {
+    setCompactCallFrame({
+      left: compactPointerState.left,
+      top: compactPointerState.top,
+      width: compactPointerState.width + dx,
+      height: compactPointerState.height + dy
+    });
+  }
+});
+callModalPanel.addEventListener('pointerup', event => {
+  if (!compactPointerState || compactPointerState.pointerId !== event.pointerId) return;
+  suppressNextVideoSwap = compactPointerState.moved;
+  callModalPanel.classList.remove('is-dragging', 'is-resizing');
+  compactPointerState = null;
+});
+callModalPanel.addEventListener('lostpointercapture', () => {
+  callModalPanel.classList.remove('is-dragging', 'is-resizing');
+  compactPointerState = null;
+});
+window.addEventListener('resize', () => {
+  if (callModal.classList.contains('is-compact') && compactCallFrame) setCompactCallFrame(compactCallFrame);
 });
 initCallRealtime();
 

@@ -6465,6 +6465,21 @@ select.form-input,
   border-radius:18px;
   box-shadow:0 24px 80px rgba(0,0,0,.48);
   pointer-events:auto;
+  user-select:none;
+  touch-action:none;
+}
+
+.call-modal.is-compact .call-modal-panel.is-dragging,
+.call-modal.is-compact .call-modal-panel.is-resizing {
+  box-shadow:0 28px 92px rgba(0,0,0,.54), 0 0 0 1px rgba(99,91,255,.42);
+}
+
+.call-modal.is-compact .call-stage {
+  cursor:grab;
+}
+
+.call-modal.is-compact .call-modal-panel.is-dragging .call-stage {
+  cursor:grabbing;
 }
 
 .call-modal.is-compact .call-topbar,
@@ -6529,6 +6544,31 @@ select.form-input,
 
 .call-modal.is-compact[data-direction="outgoing"][data-status="ringing"] .call-accept-btn {
   display:none;
+}
+
+.call-resize-handle {
+  display:none;
+}
+
+.call-modal.is-compact .call-resize-handle {
+  position:absolute;
+  right:7px;
+  bottom:7px;
+  width:18px;
+  height:18px;
+  border:0;
+  border-radius:6px;
+  display:block;
+  background:
+    linear-gradient(135deg, transparent 0 45%, rgba(255,255,255,.32) 46% 53%, transparent 54%),
+    linear-gradient(135deg, transparent 0 62%, rgba(255,255,255,.24) 63% 70%, transparent 71%);
+  cursor:nwse-resize;
+  opacity:.76;
+  z-index:6;
+}
+
+.call-modal.is-compact .call-resize-handle:hover {
+  opacity:1;
 }
 
 .chat-expire-toggle {
