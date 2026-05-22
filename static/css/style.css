@@ -6443,6 +6443,12 @@ select.form-input,
   box-shadow:inset 0 0 0 1px rgba(239,63,56,.35);
 }
 
+.call-control-btn.is-active {
+  background:rgba(34,197,94,.16);
+  color:#62e68f;
+  box-shadow:inset 0 0 0 1px rgba(34,197,94,.34);
+}
+
 .call-accept-btn {
   padding:0;
   background:#22c55e;

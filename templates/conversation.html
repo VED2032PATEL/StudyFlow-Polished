@@ -189,7 +189,7 @@
         <button type="button" class="call-control-btn ghost" id="swapVideoBtn" aria-label="Swap video layout" hidden>
           <i data-lucide="repeat-2" width="19" height="19"></i>
         </button>
-        <button type="button" class="call-control-btn ghost" aria-label="Screen share">
+        <button type="button" class="call-control-btn ghost" id="screenShareBtn" aria-label="Share screen">
           <i data-lucide="screen-share" width="19" height="19"></i>
         </button>
         <button type="button" class="call-control-btn ghost" aria-label="Add participant">
@@ -244,6 +244,7 @@ const endCallBtn = document.getElementById('endCallBtn');
 const toggleCameraBtn = document.getElementById('toggleCameraBtn');
 const toggleMicBtn = document.getElementById('toggleMicBtn');
 const swapVideoBtn = document.getElementById('swapVideoBtn');
+const screenShareBtn = document.getElementById('screenShareBtn');
 const minimizeCallBtn = document.getElementById('minimizeCallBtn');
 const callResizeHandle = document.getElementById('callResizeHandle');
 const localVideo = document.getElementById('localVideo');
@@ -277,6 +278,9 @@ let callPollTimer = null;
 let offerSent = false;
 let pendingIceCandidates = [];
 let localVideoIsMain = false;
+let screenStream = null;
+let cameraTrackBeforeShare = null;
+let screenAudioSenders = [];
 let compactCallFrame = null;
 let compactPointerState = null;
 let suppressNextVideoSwap = false;
@@ -579,7 +583,7 @@ function openCallModal(call, statusText) {
   callStatusText.textContent = status;
   syncCallActionButtons(call);
   syncVideoLayout();
-  localVideo.hidden = call.kind !== 'video';
+  localVideo.hidden = call.kind !== 'video' && !screenStream;
   remoteVideo.classList.toggle('audio-only', call.kind !== 'video');
   callEmptyState.hidden = false;
   updateCallControlStates();
@@ -598,7 +602,7 @@ function syncCallActionButtons(call = activeCall) {
 }
 
 function syncVideoLayout() {
-  const canSwap = activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+  const canSwap = activeCall?.kind === 'video' || cameraEnabled || Boolean(screenStream) || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
   swapVideoBtn.hidden = !canSwap;
   swapVideoBtn.disabled = !canSwap;
   callModal.classList.toggle('can-swap-video', Boolean(canSwap));
@@ -608,10 +612,28 @@ function syncVideoLayout() {
 }
 
 function swapVideoLayout() {
-  const canSwap = activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+  const canSwap = activeCall?.kind === 'video' || cameraEnabled || Boolean(screenStream) || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
   if (!canSwap) return;
   localVideoIsMain = !localVideoIsMain;
   syncVideoLayout();
+}
+
+function videoSender() {
+  if (!peerConnection) return null;
+  return peerConnection.getSenders().find(sender => sender.sfKind === 'video' || sender.track?.kind === 'video') || null;
+}
+
+function removeScreenAudioSenders() {
+  if (!peerConnection || !screenAudioSenders.length) {
+    screenAudioSenders = [];
+    return;
+  }
+  screenAudioSenders.forEach(sender => {
+    try {
+      peerConnection.removeTrack(sender);
+    } catch (_) {}
+  });
+  screenAudioSenders = [];
 }
 
 function clamp(value, min, max) {
@@ -699,7 +721,8 @@ function ensurePeerConnection() {
     ]
   });
   localStream?.getTracks().forEach(track => {
-    peerConnection.addTrack(track, localStream);
+    const sender = peerConnection.addTrack(track, localStream);
+    sender.sfKind = track.kind;
   });
   peerConnection.ontrack = event => {
     const stream = event.streams?.[0] || remoteStream;
@@ -849,6 +872,10 @@ function cleanupCall() {
   peerConnection = null;
   localStream?.getTracks().forEach(track => track.stop());
   localStream = null;
+  screenStream?.getTracks().forEach(track => track.stop());
+  screenStream = null;
+  cameraTrackBeforeShare = null;
+  screenAudioSenders = [];
   cameraEnabled = false;
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
@@ -886,6 +913,10 @@ function updateCallControlStates() {
   toggleCameraBtn?.setAttribute('aria-pressed', cameraOff ? 'true' : 'false');
   toggleMicBtn?.setAttribute('aria-label', micOff ? 'Unmute microphone' : 'Mute microphone');
   toggleCameraBtn?.setAttribute('aria-label', cameraOff ? 'Turn camera on' : 'Turn camera off');
+  screenShareBtn?.classList.toggle('is-active', Boolean(screenStream));
+  screenShareBtn?.setAttribute('aria-pressed', screenStream ? 'true' : 'false');
+  screenShareBtn?.setAttribute('aria-label', screenStream ? 'Stop sharing screen' : 'Share screen');
+  screenShareBtn.innerHTML = `<i data-lucide="${screenStream ? 'screen-share-off' : 'screen-share'}" width="19" height="19"></i>`;
   window.lucide?.createIcons();
 }
 
@@ -924,8 +955,10 @@ async function toggleLocalTrack(kind) {
       const sender = peerConnection.getSenders().find(item => item.track && item.track.kind === 'video');
       if (sender) {
         await sender.replaceTrack(videoTrack);
+        sender.sfKind = 'video';
       } else {
-        peerConnection.addTrack(videoTrack, localStream);
+        const newSender = peerConnection.addTrack(videoTrack, localStream);
+        newSender.sfKind = 'video';
       }
       if (activeCall?.status === 'active') await createAndSendOffer(true);
     }
@@ -934,6 +967,91 @@ async function toggleLocalTrack(kind) {
   }
   updateCallControlStates();
   syncVideoLayout();
+}
+
+async function stopScreenShare({ restoreCamera = true } = {}) {
+  if (!screenStream) return;
+  const oldScreenStream = screenStream;
+  screenStream = null;
+  oldScreenStream.getTracks().forEach(track => track.stop());
+  removeScreenAudioSenders();
+
+  const sender = videoSender();
+  const restoreTrack = restoreCamera ? cameraTrackBeforeShare : null;
+  cameraTrackBeforeShare = null;
+  if (restoreTrack && restoreTrack.readyState !== 'ended') {
+    if (sender) {
+      await sender.replaceTrack(restoreTrack);
+      sender.sfKind = 'video';
+    } else if (peerConnection && localStream) {
+      const newSender = peerConnection.addTrack(restoreTrack, localStream);
+      newSender.sfKind = 'video';
+    }
+    cameraEnabled = restoreTrack.enabled;
+    localVideo.srcObject = localStream;
+    localVideo.hidden = !cameraEnabled;
+  } else {
+    if (sender) await sender.replaceTrack(null);
+    cameraEnabled = false;
+    localVideo.hidden = true;
+  }
+  updateCallControlStates();
+  syncVideoLayout();
+  if (activeCall?.status === 'active') await createAndSendOffer(true);
+}
+
+async function toggleScreenShare() {
+  if (screenStream) {
+    await stopScreenShare();
+    return;
+  }
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    callStatusText.textContent = 'Screen sharing is not supported in this browser.';
+    return;
+  }
+  try {
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always' },
+      audio: true
+    });
+    const displayTrack = displayStream.getVideoTracks()[0];
+    if (!displayTrack) {
+      displayStream.getTracks().forEach(track => track.stop());
+      return;
+    }
+    if (!localStream) await ensureLocalMedia(activeCall?.kind || 'voice');
+    cameraTrackBeforeShare = localStream?.getVideoTracks?.()[0] || null;
+    screenStream = displayStream;
+    displayTrack.addEventListener('ended', () => {
+      stopScreenShare().catch(() => {});
+    });
+
+    localVideo.srcObject = displayStream;
+    localVideo.hidden = false;
+    cameraEnabled = true;
+    ensurePeerConnection();
+    const sender = videoSender();
+    if (sender) {
+      await sender.replaceTrack(displayTrack);
+      sender.sfKind = 'video';
+    } else {
+      const newSender = peerConnection.addTrack(displayTrack, displayStream);
+      newSender.sfKind = 'video';
+    }
+    screenAudioSenders = displayStream.getAudioTracks().map(track => {
+      const sender = peerConnection.addTrack(track, displayStream);
+      sender.sfKind = 'screen-audio';
+      return sender;
+    });
+    localVideoIsMain = true;
+    updateCallControlStates();
+    syncVideoLayout();
+    if (activeCall?.status === 'active') await createAndSendOffer(true);
+  } catch (err) {
+    if (err?.name !== 'NotAllowedError') callStatusText.textContent = 'Could not start screen share.';
+    screenStream = null;
+    updateCallControlStates();
+  }
 }
 
 function startCallPolling() {
@@ -1062,6 +1180,7 @@ acceptCallBtn.addEventListener('click', acceptCall);
 endCallBtn.addEventListener('click', () => endCall(activeCall && !activeCall.is_caller && activeCall.status === 'ringing' ? 'decline' : 'end'));
 toggleCameraBtn.addEventListener('click', () => { toggleLocalTrack('video'); });
 toggleMicBtn.addEventListener('click', () => { toggleLocalTrack('audio'); });
+screenShareBtn.addEventListener('click', () => { toggleScreenShare(); });
 swapVideoBtn.addEventListener('click', swapVideoLayout);
 localVideo.addEventListener('click', () => {
   if (suppressNextVideoSwap) {
