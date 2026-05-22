@@ -6926,7 +6926,7 @@ select.form-input,
 
 .call-modal.is-compact.call-main-remote .remote-video,
 .call-modal.is-compact.call-main-local .local-video {
-  object-fit:cover;
+  object-fit:contain;
 }
 
 .call-modal.call-workspace:not(.is-compact) {
@@ -7027,6 +7027,141 @@ select.form-input,
 
 .call-modal.call-workspace:not(.is-compact) .call-control-bar {
   flex:0 0 78px;
+}
+
+.main-content.call-section-active {
+  padding:0 !important;
+  min-height:100dvh;
+  height:100dvh;
+  max-width:calc(100vw - var(--sb-w));
+  background:#000;
+  overflow:hidden;
+}
+
+.main-content.call-section-active > :not(.call-modal) {
+  display:none !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact) {
+  position:relative !important;
+  inset:auto !important;
+  z-index:1;
+  width:100%;
+  height:100dvh;
+  padding:0 !important;
+  background:#000 !important;
+  display:flex;
+  align-items:stretch;
+  justify-content:stretch;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact) .call-modal-panel {
+  width:100% !important;
+  height:100% !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#000 !important;
+  box-shadow:none !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact) .call-topbar {
+  flex:0 0 44px;
+  border-bottom:0;
+  background:#08090b;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact) .call-stage {
+  position:relative;
+  flex:1 1 auto;
+  width:100% !important;
+  min-height:0;
+  margin:0 !important;
+  border-radius:0 !important;
+  background:#000 !important;
+  overflow:hidden;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .call-stage {
+  padding-bottom:168px !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .call-stage::after {
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:168px;
+  background:#000;
+  border-top:1px solid rgba(255,255,255,.05);
+  z-index:2;
+  pointer-events:none;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .screen-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .remote-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .local-video {
+  position:absolute !important;
+  inset:auto !important;
+  top:auto !important;
+  bottom:24px !important;
+  width:clamp(190px,15vw,285px) !important;
+  height:auto !important;
+  aspect-ratio:16 / 9 !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:10px !important;
+  background:#101114 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  object-fit:contain !important;
+  cursor:pointer;
+  z-index:4 !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .screen-video {
+  left:50% !important;
+  transform:translateX(calc(-150% - 18px)) !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .remote-video {
+  left:50% !important;
+  transform:translateX(-50%) !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray .local-video {
+  left:50% !important;
+  right:auto !important;
+  transform:translateX(calc(50% + 18px)) !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).call-main-screen .screen-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).call-main-remote .remote-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).call-main-local .local-video {
+  top:0 !important;
+  bottom:168px !important;
+  left:50% !important;
+  right:auto !important;
+  width:min(100%,1180px) !important;
+  height:auto !important;
+  aspect-ratio:auto !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#000 !important;
+  box-shadow:none !important;
+  transform:translateX(-50%) !important;
+  object-fit:contain !important;
+  z-index:1 !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact):not(.has-feed-tray).call-main-screen .screen-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact):not(.has-feed-tray).call-main-remote .remote-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact):not(.has-feed-tray).call-main-local .local-video {
+  bottom:0 !important;
+}
+
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact) .call-control-bar {
+  flex:0 0 78px;
+  background:#050607;
 }
 
 .chat-expire-toggle {

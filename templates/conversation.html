@@ -252,6 +252,7 @@ const screenVideo = document.getElementById('screenVideo');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
+const mainContent = document.getElementById('mainContent');
 const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 const otherAvatarUrl = {{ (other.avatar_data_url or '')|tojson }};
 const otherDecoration = {{ (other.profile_decoration or '')|tojson }};
@@ -589,6 +590,7 @@ function openCallModal(call, statusText) {
   callStatusText.textContent = status;
   const isConnectedCall = call.status === 'active' || status === 'Connected';
   callModal.classList.toggle('call-workspace', isConnectedCall);
+  mainContent?.classList.toggle('call-section-active', isConnectedCall);
   if (isConnectedCall) {
     callModal.classList.remove('is-compact');
     clearCompactCallFrameStyles();
@@ -746,10 +748,14 @@ function clearCompactCallFrameStyles() {
 function toggleCompactCall() {
   if (callModal.classList.contains('is-compact')) {
     callModal.classList.remove('is-compact');
+    if (callModal.classList.contains('call-workspace')) {
+      mainContent?.classList.add('call-section-active');
+    }
     callModalPanel.classList.remove('is-dragging', 'is-resizing');
     clearCompactCallFrameStyles();
   } else {
     callModal.classList.add('is-compact');
+    mainContent?.classList.remove('call-section-active');
     ensureCompactCallFrame();
   }
 }
@@ -1023,6 +1029,7 @@ function cleanupCall() {
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
   callModal.classList.remove('can-swap-video', 'call-workspace', 'has-feed-tray', 'local-video-main', 'share-camera-main', 'call-main-screen', 'call-main-remote', 'call-main-local', 'local-screen-sharing', 'remote-screen-sharing');
+  mainContent?.classList.remove('call-section-active');
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
   clearCompactCallFrameStyles();
   compactPointerState = null;
