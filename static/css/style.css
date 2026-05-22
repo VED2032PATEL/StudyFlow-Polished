@@ -7245,6 +7245,27 @@ select.form-input,
   transform:translateX(calc(50% + 18px)) !important;
 }
 
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray.call-main-screen .screen-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray.call-main-remote .remote-video,
+.main-content.call-section-active .call-modal.call-workspace:not(.is-compact).has-feed-tray.call-main-local .local-video {
+  position:absolute !important;
+  top:0 !important;
+  bottom:auto !important;
+  left:50% !important;
+  right:auto !important;
+  width:100% !important;
+  height:calc(100% - 168px) !important;
+  max-width:1320px !important;
+  max-height:calc(100% - 168px) !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#000 !important;
+  box-shadow:none !important;
+  transform:translateX(-50%) !important;
+  object-fit:contain !important;
+  z-index:5 !important;
+}
+
 .call-modal.is-compact {
   background:transparent !important;
   pointer-events:none;
