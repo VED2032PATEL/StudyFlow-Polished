@@ -274,6 +274,8 @@ let activeCall = null;
 let localStream = null;
 let remoteStream = null;
 let remoteScreenStream = null;
+let expectedRemoteScreenStreamId = '';
+let expectedRemoteScreenTrackId = '';
 let peerConnection = null;
 let cameraEnabled = false;
 let signalAfter = 0;
@@ -702,6 +704,13 @@ function screenSender() {
   return screenVideoSender || peerConnection.getSenders().find(sender => sender.sfKind === 'screen-video') || null;
 }
 
+function addTrackOnce(stream, track) {
+  if (!stream || !track) return;
+  if (!stream.getTracks().some(item => item.id === track.id)) {
+    stream.addTrack(track);
+  }
+}
+
 function removeScreenAudioSenders() {
   if (!peerConnection || !screenAudioSenders.length) {
     screenAudioSenders = [];
@@ -830,8 +839,10 @@ function ensurePeerConnection() {
     const track = event.track;
     const label = `${track?.label || ''} ${track?.contentHint || ''}`.toLowerCase();
     const streamIds = event.streams?.map(stream => stream.id) || [];
-    const expectedScreenStreamId = typeof remoteScreenExpected === 'string' ? remoteScreenExpected : '';
-    const streamMatchesExpectedScreen = Boolean(expectedScreenStreamId && streamIds.includes(expectedScreenStreamId));
+    const streamMatchesExpectedScreen = Boolean(expectedRemoteScreenStreamId && streamIds.includes(expectedRemoteScreenStreamId));
+    const trackMatchesExpectedScreen = Boolean(expectedRemoteScreenTrackId && track?.id === expectedRemoteScreenTrackId);
+    const belongsToKnownScreenStream = Boolean(remoteScreenStream && event.streams?.some(stream => stream.id === remoteScreenStream.id));
+    const hasExplicitScreenIdentity = Boolean(expectedRemoteScreenStreamId || expectedRemoteScreenTrackId);
     const browserMarksScreen = Boolean(
       label.includes('screen') ||
       label.includes('display') ||
@@ -841,19 +852,23 @@ function ensurePeerConnection() {
     );
     const looksLikeScreen = track?.kind === 'video' && (
       streamMatchesExpectedScreen ||
+      trackMatchesExpectedScreen ||
+      belongsToKnownScreenStream ||
       browserMarksScreen ||
-      (Boolean(remoteScreenExpected) && event.streams?.[0] && event.streams[0] !== remoteStream)
+      (remoteScreenExpected === true && !hasExplicitScreenIdentity && event.streams?.[0] && event.streams[0] !== remoteStream)
     );
     if (looksLikeScreen) {
       remoteScreenExpected = false;
+      expectedRemoteScreenTrackId = '';
+      expectedRemoteScreenStreamId = '';
       remoteScreenStream = event.streams?.[0] || remoteScreenStream || new MediaStream();
-      if (track && !remoteScreenStream.getTracks().some(item => item.id === track.id)) {
-        remoteScreenStream.addTrack(track);
-      }
+      addTrackOnce(remoteScreenStream, track);
       screenVideo.srcObject = remoteScreenStream;
       screenVideo.muted = false;
       track.addEventListener('ended', () => {
         remoteScreenStream = null;
+        expectedRemoteScreenStreamId = '';
+        expectedRemoteScreenTrackId = '';
         screenVideo.srcObject = null;
         callModal.classList.remove('remote-screen-sharing');
         syncVideoLayout();
@@ -869,15 +884,13 @@ function ensurePeerConnection() {
 
     const isRemoteScreenAudio = track?.kind === 'audio' && (
       streamMatchesExpectedScreen ||
-      (remoteScreenStream && event.streams?.some(stream => stream.id === remoteScreenStream.id))
+      belongsToKnownScreenStream
     );
     if (isRemoteScreenAudio) {
       if (!remoteScreenStream) {
         remoteScreenStream = event.streams?.[0] || new MediaStream();
       }
-      if (!remoteScreenStream.getTracks().some(item => item.id === track.id)) {
-        remoteScreenStream.addTrack(track);
-      }
+      addTrackOnce(remoteScreenStream, track);
       screenVideo.srcObject = remoteScreenStream;
       screenVideo.muted = false;
       callMainFeed = 'screen';
@@ -886,13 +899,8 @@ function ensurePeerConnection() {
       return;
     }
 
-    const stream = event.streams?.[0] || remoteStream;
-    if (stream && stream !== remoteStream) {
-      remoteStream = stream;
-      remoteVideo.srcObject = remoteStream;
-    } else if (event.track && remoteStream && !remoteStream.getTracks().some(track => track.id === event.track.id)) {
-      remoteStream.addTrack(event.track);
-    }
+    if (!remoteStream) remoteStream = new MediaStream();
+    addTrackOnce(remoteStream, track);
     remoteVideo.srcObject = remoteStream;
     const hasRemoteVideo = remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
     remoteVideo.classList.toggle('audio-only', !hasRemoteVideo && activeCall?.kind !== 'video');
@@ -962,11 +970,15 @@ async function handleSignal(signal) {
       pendingIceCandidates.push(candidate);
     }
   } else if (signal.type === 'screen-share-start') {
-    remoteScreenExpected = signal.payload?.streamId || true;
+    expectedRemoteScreenStreamId = signal.payload?.streamId || '';
+    expectedRemoteScreenTrackId = signal.payload?.trackId || '';
+    remoteScreenExpected = expectedRemoteScreenStreamId || expectedRemoteScreenTrackId || true;
     callMainFeed = 'screen';
     syncVideoLayout();
   } else if (signal.type === 'screen-share-stop') {
     remoteScreenExpected = false;
+    expectedRemoteScreenStreamId = '';
+    expectedRemoteScreenTrackId = '';
     remoteScreenStream = null;
     screenVideo.srcObject = null;
     callModal.classList.remove('remote-screen-sharing');
@@ -1049,6 +1061,8 @@ function cleanupCall() {
   screenStream?.getTracks().forEach(track => track.stop());
   screenStream = null;
   remoteScreenStream = null;
+  expectedRemoteScreenStreamId = '';
+  expectedRemoteScreenTrackId = '';
   cameraTrackBeforeShare = null;
   screenVideoSender = null;
   screenAudioSenders = [];
@@ -1215,10 +1229,10 @@ async function toggleScreenShare() {
     screenVideo.muted = true;
     screenVideo.hidden = false;
     localVideo.srcObject = localStream;
-    localVideo.hidden = !cameraTrackBeforeShare;
+    cameraEnabled = Boolean(cameraTrackBeforeShare && cameraTrackBeforeShare.readyState !== 'ended' && cameraTrackBeforeShare.enabled);
+    localVideo.hidden = !cameraEnabled;
     callEmptyState.hidden = true;
-    cameraEnabled = true;
-    await sendCallSignal('screen-share-start', { streamId: displayStream.id });
+    await sendCallSignal('screen-share-start', { streamId: displayStream.id, trackId: displayTrack.id });
     ensurePeerConnection();
     const existingScreenSender = screenSender();
     if (existingScreenSender) {
