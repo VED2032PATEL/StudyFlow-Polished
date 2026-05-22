@@ -286,6 +286,7 @@ let cameraTrackBeforeShare = null;
 let screenVideoSender = null;
 let screenAudioSenders = [];
 let remoteScreenExpected = false;
+let callMainFeed = 'remote';
 let compactCallFrame = null;
 let compactPointerState = null;
 let suppressNextVideoSwap = false;
@@ -606,26 +607,62 @@ function syncCallActionButtons(call = activeCall) {
   endCallBtn.setAttribute('aria-label', canAccept ? 'Decline call' : 'End call');
 }
 
+function hasLiveVideo(stream) {
+  return Boolean(stream?.getVideoTracks?.().some(track => track.readyState !== 'ended'));
+}
+
+function availableCallFeeds() {
+  const feeds = [];
+  if (screenStream || remoteScreenStream) feeds.push('screen');
+  if (hasLiveVideo(remoteStream)) feeds.push('remote');
+  if (cameraEnabled && hasLiveVideo(localStream)) feeds.push('local');
+  return feeds;
+}
+
+function keepValidMainFeed() {
+  const feeds = availableCallFeeds();
+  if (!feeds.includes(callMainFeed)) {
+    callMainFeed = feeds.includes('screen') ? 'screen' : (feeds[0] || 'remote');
+  }
+  localVideoIsMain = callMainFeed === 'local';
+  return feeds;
+}
+
 function syncVideoLayout() {
-  const hasAnyScreen = Boolean(screenStream || remoteScreenStream);
-  const canSwap = hasAnyScreen || activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
+  const feeds = keepValidMainFeed();
+  const hasAnyScreen = feeds.includes('screen');
+  const hasRemoteVideo = feeds.includes('remote');
+  const hasLocalVideo = feeds.includes('local');
+  const canSwap = feeds.length > 1;
   swapVideoBtn.hidden = !canSwap;
   swapVideoBtn.disabled = !canSwap;
   callModal.classList.toggle('can-swap-video', Boolean(canSwap));
-  callModal.classList.toggle('local-video-main', Boolean(localVideoIsMain && canSwap && !hasAnyScreen));
-  callModal.classList.toggle('share-camera-main', Boolean(localVideoIsMain && hasAnyScreen));
+  callModal.classList.toggle('local-video-main', callMainFeed === 'local' && !hasAnyScreen);
+  callModal.classList.remove('share-camera-main');
+  callModal.classList.toggle('call-main-screen', callMainFeed === 'screen' && hasAnyScreen);
+  callModal.classList.toggle('call-main-remote', callMainFeed === 'remote' && hasRemoteVideo);
+  callModal.classList.toggle('call-main-local', callMainFeed === 'local' && hasLocalVideo);
   callModal.classList.toggle('local-screen-sharing', Boolean(screenStream));
   callModal.classList.toggle('remote-screen-sharing', Boolean(remoteScreenStream));
   screenVideo.hidden = !hasAnyScreen;
-  swapVideoBtn?.setAttribute('aria-pressed', localVideoIsMain && canSwap ? 'true' : 'false');
+  remoteVideo.hidden = hasAnyScreen && !hasRemoteVideo;
+  localVideo.hidden = !hasLocalVideo;
+  if (hasAnyScreen) callEmptyState.hidden = true;
+  swapVideoBtn?.setAttribute('aria-pressed', canSwap ? 'true' : 'false');
   window.lucide?.createIcons();
 }
 
 function swapVideoLayout() {
-  const hasAnyScreen = Boolean(screenStream || remoteScreenStream);
-  const canSwap = hasAnyScreen || activeCall?.kind === 'video' || cameraEnabled || remoteStream?.getVideoTracks?.().some(track => track.readyState !== 'ended');
-  if (!canSwap) return;
-  localVideoIsMain = !localVideoIsMain;
+  const feeds = availableCallFeeds();
+  if (feeds.length < 2) return;
+  const currentIndex = Math.max(0, feeds.indexOf(callMainFeed));
+  callMainFeed = feeds[(currentIndex + 1) % feeds.length];
+  syncVideoLayout();
+}
+
+function setCallMainFeed(feed) {
+  if (!availableCallFeeds().includes(feed)) return;
+  callMainFeed = feed;
   syncVideoLayout();
 }
 
@@ -768,6 +805,26 @@ function ensurePeerConnection() {
       callModal.classList.add('remote-screen-sharing');
       screenVideo.hidden = false;
       callEmptyState.hidden = true;
+      callMainFeed = 'screen';
+      syncVideoLayout();
+      screenVideo.play?.().catch(() => {});
+      return;
+    }
+
+    const isRemoteScreenAudio = track?.kind === 'audio' && (
+      remoteScreenExpected ||
+      (remoteScreenStream && event.streams?.some(stream => stream.id === remoteScreenStream.id))
+    );
+    if (isRemoteScreenAudio) {
+      if (!remoteScreenStream) {
+        remoteScreenStream = event.streams?.[0] || new MediaStream();
+      }
+      if (!remoteScreenStream.getTracks().some(item => item.id === track.id)) {
+        remoteScreenStream.addTrack(track);
+      }
+      screenVideo.srcObject = remoteScreenStream;
+      screenVideo.muted = false;
+      callMainFeed = 'screen';
       syncVideoLayout();
       screenVideo.play?.().catch(() => {});
       return;
@@ -850,11 +907,16 @@ async function handleSignal(signal) {
     }
   } else if (signal.type === 'screen-share-start') {
     remoteScreenExpected = true;
+    callMainFeed = 'screen';
+    syncVideoLayout();
   } else if (signal.type === 'screen-share-stop') {
     remoteScreenExpected = false;
     remoteScreenStream = null;
     screenVideo.srcObject = null;
     callModal.classList.remove('remote-screen-sharing');
+    if (callMainFeed === 'screen') {
+      callMainFeed = hasLiveVideo(remoteStream) ? 'remote' : 'local';
+    }
     syncVideoLayout();
   }
 }
@@ -942,6 +1004,7 @@ function cleanupCall() {
   remoteStream = null;
   activeCall = null;
   localVideoIsMain = false;
+  callMainFeed = 'remote';
   handledSignalIds.clear();
   if (activeCallChannel) {
     activeCallChannel.unsubscribe();
@@ -952,7 +1015,7 @@ function cleanupCall() {
   callModal.dataset.kind = '';
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
-  callModal.classList.remove('can-swap-video', 'local-video-main', 'share-camera-main', 'local-screen-sharing', 'remote-screen-sharing');
+  callModal.classList.remove('can-swap-video', 'local-video-main', 'share-camera-main', 'call-main-screen', 'call-main-remote', 'call-main-local', 'local-screen-sharing', 'remote-screen-sharing');
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
   clearCompactCallFrameStyles();
   compactPointerState = null;
@@ -1054,6 +1117,9 @@ async function stopScreenShare({ restoreCamera = true } = {}) {
     localVideo.hidden = true;
   }
   callModal.classList.remove('local-screen-sharing');
+  if (callMainFeed === 'screen') {
+    callMainFeed = hasLiveVideo(remoteStream) ? 'remote' : (cameraEnabled ? 'local' : 'remote');
+  }
   await sendCallSignal('screen-share-stop', {});
   updateCallControlStates();
   syncVideoLayout();
@@ -1092,6 +1158,7 @@ async function toggleScreenShare() {
     screenVideo.hidden = false;
     localVideo.srcObject = localStream;
     localVideo.hidden = !cameraTrackBeforeShare;
+    callEmptyState.hidden = true;
     cameraEnabled = true;
     await sendCallSignal('screen-share-start', {});
     ensurePeerConnection();
@@ -1109,7 +1176,7 @@ async function toggleScreenShare() {
       sender.sfKind = 'screen-audio';
       return sender;
     });
-    localVideoIsMain = true;
+    callMainFeed = 'screen';
     callModal.classList.add('local-screen-sharing');
     updateCallControlStates();
     syncVideoLayout();
@@ -1254,21 +1321,21 @@ localVideo.addEventListener('click', () => {
     suppressNextVideoSwap = false;
     return;
   }
-  if (!localVideoIsMain || screenStream) swapVideoLayout();
+  setCallMainFeed('local');
 });
 remoteVideo.addEventListener('click', () => {
   if (suppressNextVideoSwap) {
     suppressNextVideoSwap = false;
     return;
   }
-  if (remoteScreenStream || localVideoIsMain) swapVideoLayout();
+  setCallMainFeed('remote');
 });
 screenVideo.addEventListener('click', () => {
   if (suppressNextVideoSwap) {
     suppressNextVideoSwap = false;
     return;
   }
-  if (localVideoIsMain) swapVideoLayout();
+  setCallMainFeed('screen');
 });
 minimizeCallBtn.addEventListener('click', toggleCompactCall);
 callModalPanel.addEventListener('pointerdown', event => {

@@ -6693,6 +6693,116 @@ select.form-input,
   opacity:1;
 }
 
+.remote-video[hidden],
+.local-video[hidden] {
+  display:none !important;
+}
+
+.call-modal.local-screen-sharing .call-stage,
+.call-modal.remote-screen-sharing .call-stage {
+  background:#05080a;
+}
+
+.call-modal.local-screen-sharing .screen-video,
+.call-modal.remote-screen-sharing .screen-video,
+.call-modal.local-screen-sharing .remote-video,
+.call-modal.remote-screen-sharing .remote-video,
+.call-modal.local-screen-sharing .local-video,
+.call-modal.remote-screen-sharing .local-video {
+  position:absolute;
+  inset:auto;
+  top:auto;
+  bottom:18px;
+  width:min(28%,260px);
+  height:86px;
+  aspect-ratio:auto;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:12px;
+  background:#10191c;
+  box-shadow:0 16px 42px rgba(0,0,0,.34);
+  cursor:pointer;
+  z-index:4;
+}
+
+.call-modal.local-screen-sharing .screen-video,
+.call-modal.remote-screen-sharing .screen-video {
+  left:18px;
+  object-fit:contain;
+}
+
+.call-modal.local-screen-sharing .remote-video,
+.call-modal.remote-screen-sharing .remote-video {
+  left:50%;
+  transform:translateX(-50%);
+  object-fit:cover;
+}
+
+.call-modal.local-screen-sharing .local-video,
+.call-modal.remote-screen-sharing .local-video {
+  right:18px;
+  object-fit:cover;
+}
+
+.call-modal.call-main-screen .screen-video,
+.call-modal.call-main-remote .remote-video,
+.call-modal.call-main-local .local-video {
+  inset:0 0 116px;
+  width:100%;
+  height:auto;
+  aspect-ratio:auto;
+  border:0;
+  border-radius:0;
+  transform:none;
+  box-shadow:none;
+  z-index:1;
+}
+
+.call-modal.call-main-screen .screen-video {
+  object-fit:contain;
+}
+
+.call-modal.call-main-remote .remote-video,
+.call-modal.call-main-local .local-video {
+  object-fit:cover;
+}
+
+.call-modal.call-main-screen .screen-video::after,
+.call-modal.call-main-remote .remote-video::after,
+.call-modal.call-main-local .local-video::after {
+  display:none;
+}
+
+.call-modal.is-compact.local-screen-sharing .screen-video,
+.call-modal.is-compact.remote-screen-sharing .screen-video,
+.call-modal.is-compact.local-screen-sharing .remote-video,
+.call-modal.is-compact.remote-screen-sharing .remote-video,
+.call-modal.is-compact.local-screen-sharing .local-video,
+.call-modal.is-compact.remote-screen-sharing .local-video {
+  bottom:8px;
+  width:30%;
+  height:48px;
+  border-radius:10px;
+}
+
+.call-modal.is-compact.local-screen-sharing .screen-video,
+.call-modal.is-compact.remote-screen-sharing .screen-video {
+  left:8px;
+}
+
+.call-modal.is-compact.local-screen-sharing .local-video,
+.call-modal.is-compact.remote-screen-sharing .local-video {
+  right:8px;
+}
+
+.call-modal.is-compact.call-main-screen .screen-video,
+.call-modal.is-compact.call-main-remote .remote-video,
+.call-modal.is-compact.call-main-local .local-video {
+  inset:0 0 64px;
+  width:100%;
+  height:auto;
+  border-radius:18px 18px 0 0;
+}
+
 .chat-expire-toggle {
   display:inline-flex;
   align-items:center;
