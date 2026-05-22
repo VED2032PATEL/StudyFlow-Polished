@@ -6257,12 +6257,21 @@ select.form-input,
   background:#11191c;
 }
 
+.remote-video {
+  position:relative;
+  z-index:1;
+}
+
 .screen-video {
   position:absolute;
   inset:0;
   object-fit:contain;
   background:#05080a;
   z-index:1;
+}
+
+.screen-video[hidden] {
+  display:none !important;
 }
 
 .remote-video.audio-only {
