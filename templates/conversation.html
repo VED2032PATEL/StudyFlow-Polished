@@ -587,6 +587,10 @@ function openCallModal(call, statusText) {
   callModal.dataset.direction = call.is_caller ? 'outgoing' : 'incoming';
   callModalTitle.textContent = call.peer.username;
   callStatusText.textContent = status;
+  if (call.status === 'active') {
+    callModal.classList.remove('is-compact');
+    clearCompactCallFrameStyles();
+  }
   syncCallActionButtons(call);
   syncVideoLayout();
   localVideo.hidden = call.kind !== 'video' && !screenStream;
@@ -644,6 +648,7 @@ function syncVideoLayout() {
   callModal.classList.toggle('call-main-local', callMainFeed === 'local' && hasLocalVideo);
   callModal.classList.toggle('local-screen-sharing', Boolean(screenStream));
   callModal.classList.toggle('remote-screen-sharing', Boolean(remoteScreenStream));
+  callModal.classList.toggle('has-feed-tray', feeds.length > 1);
   screenVideo.hidden = !hasAnyScreen;
   remoteVideo.hidden = hasAnyScreen && !hasRemoteVideo;
   localVideo.hidden = !hasLocalVideo;
@@ -1015,7 +1020,7 @@ function cleanupCall() {
   callModal.dataset.kind = '';
   callModal.dataset.status = '';
   callModal.dataset.direction = '';
-  callModal.classList.remove('can-swap-video', 'local-video-main', 'share-camera-main', 'call-main-screen', 'call-main-remote', 'call-main-local', 'local-screen-sharing', 'remote-screen-sharing');
+  callModal.classList.remove('can-swap-video', 'has-feed-tray', 'local-video-main', 'share-camera-main', 'call-main-screen', 'call-main-remote', 'call-main-local', 'local-screen-sharing', 'remote-screen-sharing');
   callModalPanel.classList.remove('is-dragging', 'is-resizing');
   clearCompactCallFrameStyles();
   compactPointerState = null;
@@ -1338,6 +1343,11 @@ screenVideo.addEventListener('click', () => {
   setCallMainFeed('screen');
 });
 minimizeCallBtn.addEventListener('click', toggleCompactCall);
+callModal.addEventListener('click', event => {
+  if (event.target === callModal && activeCall?.status === 'active' && !callModal.classList.contains('is-compact')) {
+    toggleCompactCall();
+  }
+});
 callModalPanel.addEventListener('pointerdown', event => {
   if (!callModal.classList.contains('is-compact') || event.button !== 0) return;
   if (event.target.closest('button, a, input, textarea, select')) return;
