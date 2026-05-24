@@ -5136,12 +5136,22 @@ select.form-input,
   gap:18px;
   align-items:stretch;
   margin-bottom:22px;
+  overflow:visible;
+}
+
+.profile-overview-grid:has(.profile-admin-menu[open]) {
+  position:relative;
+  z-index:10000;
 }
 
 .profile-overview-grid .profile-hero {
   min-height:320px;
   height:100%;
   margin-bottom:0;
+}
+
+.profile-hero:has(.profile-admin-menu[open]) {
+  z-index:10001;
 }
 
 .profile-overview-grid .profile-banner {
@@ -5317,7 +5327,7 @@ select.form-input,
   position:absolute;
   top:14px;
   right:14px;
-  z-index:30;
+  z-index:10001;
 }
 
 .profile-admin-menu summary {
@@ -5344,7 +5354,8 @@ select.form-input,
   top:46px;
   right:0;
   width:280px;
-  max-height:min(70vh, 460px);
+  z-index:10002;
+  max-height:min(72vh, 500px);
   overflow:auto;
   padding:12px;
   border:1px solid var(--border);
