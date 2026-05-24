@@ -249,12 +249,12 @@ body.creator-sections-open .user-nav-item {
 .verified-badge.v-badge {
   background:linear-gradient(135deg,#8b5cf6,#38bdf8);
   box-shadow:0 0 0 1px rgba(255,255,255,.16), 0 4px 12px rgba(56,189,248,.22);
-  font-size:.46em;
   font-weight:950;
   letter-spacing:0;
 }
 
 .verified-badge.v-badge span {
+  font-size:.46em;
   line-height:1;
   transform:translateY(.01em);
 }
