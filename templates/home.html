@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}Home{% endblock %}
+
+{% macro social_media(media_url, media_type, class_name='social-post-media') -%}
+  {% if media_url %}
+    {% if media_type.startswith('video') or is_profile_video_media(media_url) %}
+      <video src="{{ media_url }}" class="{{ class_name }}" controls playsinline preload="metadata"></video>
+    {% else %}
+      <img src="{{ media_url }}" class="{{ class_name }}" alt="Post media"/>
+    {% endif %}
+  {% endif %}
+{%- endmacro %}
+
+{% block content %}
+
+<div class="social-home-shell">
+  <div class="social-home-header anim">
+    <div>
+      <h1 class="page-title">Home</h1>
+      <p class="page-sub">Share study wins, notes, stories, and the moments around them.</p>
+    </div>
+    <div class="social-mode-switch" role="tablist" aria-label="Home mode">
+      <a href="{{ url_for('home', mode='feed') }}" class="{% if mode == 'feed' %}active{% endif %}">Feed</a>
+      <a href="{{ url_for('home', mode='study') }}" class="{% if mode == 'study' %}active{% endif %}">Study Board</a>
+    </div>
+  </div>
+
+  {% if mode == 'feed' %}
+  <section class="story-strip anim d1" aria-label="Stories">
+    <form method="POST" action="{{ url_for('create_social_story') }}" class="story-create-card social-upload-form" data-upload-mode="story">
+      {{ ui.decorated_avatar(current_user, 'story-avatar') }}
+      <span class="story-create-plus"><i data-lucide="plus" width="15" height="15"></i></span>
+      <span class="story-name">Your story</span>
+      <input type="hidden" name="media_url" class="social-media-url"/>
+      <input type="hidden" name="media_type" class="social-media-type"/>
+      <input type="text" name="caption" maxlength="260" placeholder="Story caption..." class="story-caption-input"/>
+      <label class="story-file-btn" title="Add story">
+        <input type="file" class="social-media-input" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"/>
+        <span>Upload</span>
+      </label>
+      <button type="submit" class="story-submit-btn" disabled>Post</button>
+    </form>
+
+    {% for tray in stories %}
+    <button type="button"
+            class="story-ring {% if tray.all_seen %}seen{% endif %}"
+            data-story-user="{{ tray.user.username }}"
+            data-story-avatar="{{ tray.user.avatar_data_url }}"
+            data-story-conversation="{{ url_for('conversation_by_user_id', user_id=tray.user.id) }}"
+            data-stories='{{ tray.stories|tojson|forceescape }}'>
+      {{ ui.decorated_avatar(tray.user, 'story-avatar') }}
+      <span class="story-name">{{ tray.user.username[:12] }}{% if tray.user.username|length > 12 %}...{% endif %}</span>
+    </button>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <div class="social-home-grid {% if mode == 'study' %}study-layout{% endif %}">
+    <section class="social-main-feed">
+
+      {# ── Composer ── #}
+      <form method="POST" action="{{ url_for('create_social_post') }}" class="social-composer card anim d1 social-upload-form" data-upload-mode="social_post">
+        <input type="hidden" name="mode" value="{{ mode }}"/>
+        <input type="hidden" name="media_url" class="social-media-url"/>
+        <input type="hidden" name="media_type" class="social-media-type"/>
+        <div class="social-composer-top">
+          {{ ui.decorated_avatar(current_user, 'composer-avatar') }}
+          <textarea name="caption" rows="3" maxlength="2200"
+                    placeholder="{% if mode == 'study' %}Share a study question, resource, achievement, or explanation...{% else %}Write a caption...{% endif %}"></textarea>
+        </div>
+        <div class="social-media-preview" hidden></div>
+        <div class="social-composer-bottom">
+          {% if mode == 'study' %}
+          <label class="social-tags-field">
+            <i data-lucide="hash" width="15" height="15"></i>
+            <input type="text" name="tags" placeholder="DBMS, DSA, Networks..."/>
+          </label>
+          {% else %}
+          <span class="social-composer-hint">Public users and approved followers can see this.</span>
+          {% endif %}
+          <label class="btn btn-ghost btn-sm social-file-btn">
+            <i data-lucide="image-plus" width="16" height="16"></i>
+            <span>Media</span>
+            <input type="file" class="social-media-input" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"/>
+          </label>
+          <button type="submit" class="btn btn-primary btn-sm">Post</button>
+        </div>
+      </form>
+
+      {# ── Posts ── #}
+      {% if posts %}
+        {% for post in posts %}
+        <article class="social-post-card {% if mode == 'study' %}study-post-card{% endif %} anim d2">
+          <header class="social-post-head">
+            <a href="{{ url_for('user_profile_by_id', user_id=post.user.id) }}" class="social-post-author">
+              {{ ui.decorated_avatar(post.user, 'post-avatar') }}
+              <span>
+                <strong>{{ post.user.username }} {{ ui.verified_badge(post.user) }}</strong>
+                <small>{{ post.created_at[:16] }}</small>
+              </span>
+            </a>
+          </header>
+
+          {% if post.caption %}
+          <p class="social-post-caption">{{ post.caption }}</p>
+          {% endif %}
+
+          {% if post.tags %}
+          <div class="social-post-tags">
+            {% for tag in post.tags %}
+            <span class="social-tag">#{{ tag }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% if post.media_url %}
+          <div class="social-post-media-wrap">
+            {{ social_media(post.media_url, post.media_type) }}
+          </div>
+          {% endif %}
+
+          <div class="social-post-meta">
+            <span class="social-post-stat"><i data-lucide="eye" width="14" height="14"></i> {{ post.views or 0 }}</span>
+            {% if mode == 'study' %}
+            <span class="social-post-stat"><i data-lucide="arrow-up" width="14" height="14"></i> {{ post.upvotes or 0 }}</span>
+            {% else %}
+            <span class="social-post-stat"><i data-lucide="heart" width="14" height="14"></i> {{ post.likes or 0 }}</span>
+            {% endif %}
+            <span class="social-post-stat"><i data-lucide="message-circle" width="14" height="14"></i> {{ post.comment_count or 0 }}</span>
+            <span class="social-post-stat"><i data-lucide="share-2" width="14" height="14"></i> {{ post.shares or 0 }}</span>
+          </div>
+
+          <footer class="social-post-actions">
+            {% if mode == 'study' %}
+            <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='upvote') }}">
+              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+              <button type="submit" class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}">
+                <i data-lucide="arrow-up" width="16" height="16"></i>
+                <span>{{ 'Upvoted' if post.viewer_upvoted else 'Upvote' }}</span>
+              </button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='like') }}">
+              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+              <button type="submit" class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}">
+                <i data-lucide="heart" width="16" height="16"></i>
+                <span>{{ 'Liked' if post.viewer_liked else 'Like' }}</span>
+              </button>
+            </form>
+            {% endif %}
+
+            <button type="button" class="social-action-btn" onclick="toggleComments(this, {{ post.id }})">
+              <i data-lucide="message-circle" width="16" height="16"></i>
+              <span>Comment</span>
+            </button>
+
+            <form method="POST" action="{{ url_for('social_post_share', post_id=post.id) }}">
+              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+              <button type="submit" class="social-action-btn">
+                <i data-lucide="share-2" width="16" height="16"></i>
+                <span>Share</span>
+              </button>
+            </form>
+          </footer>
+
+          {# ── Comments section ── #}
+          <div class="social-comments-section" id="comments-{{ post.id }}" hidden>
+            {% if post.comments %}
+            <div class="social-comments-list">
+              {% for comment in post.comments %}
+              <div class="social-comment">
+                {{ ui.decorated_avatar(comment.user, 'comment-avatar') }}
+                <div class="social-comment-body">
+                  <strong>{{ comment.user.username }}</strong>
+                  <span>{{ comment.body }}</span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <form method="POST" action="{{ url_for('social_post_comment', post_id=post.id) }}" class="social-comment-form">
+              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+              {{ ui.decorated_avatar(current_user, 'comment-avatar') }}
+              <input type="text" name="body" placeholder="Write a comment..." maxlength="800" required/>
+              <button type="submit" class="btn btn-primary btn-sm">Send</button>
+            </form>
+          </div>
+
+        </article>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state anim d3">
+        <div class="empty-icon"></div>
+        <p>{% if mode == 'study' %}No study posts yet — share something!{% else %}No posts yet — follow people or post something!{% endif %}</p>
+      </div>
+      {% endif %}
+    </section>
+
+    {# ── Sidebar: suggestions (feed mode only) ── #}
+    {% if mode == 'feed' and suggestions %}
+    <aside class="social-suggestions-sidebar anim d2">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Suggested for you</h2>
+        </div>
+        <div class="suggestion-list">
+          {% for user in suggestions %}
+          <div class="suggestion-row">
+            <a href="{{ url_for('user_profile_by_id', user_id=user.id) }}" class="suggestion-user">
+              {{ ui.decorated_avatar(user, 'suggestion-avatar') }}
+              <div class="suggestion-info">
+                <strong>{{ user.username }} {{ ui.verified_badge(user) }}</strong>
+                <small>{{ user.counts.followers }} followers</small>
+              </div>
+            </a>
+            <form method="POST" action="{{ url_for('follow_user', user_id=user.id) }}">
+              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+              <button type="submit" class="btn btn-primary btn-sm suggestion-follow-btn">
+                <i data-lucide="user-plus" width="14" height="14"></i>
+                Follow
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+    {% elif mode == 'study' and suggestions %}
+    <aside class="social-suggestions-sidebar anim d2">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Study Peers</h2>
+        </div>
+        <div class="suggestion-list">
+          {% for user in suggestions %}
+          <div class="suggestion-row">
+            <a href="{{ url_for('user_profile_by_id', user_id=user.id) }}" class="suggestion-user">
+              {{ ui.decorated_avatar(user, 'suggestion-avatar') }}
+              <div class="suggestion-info">
+                <strong>{{ user.username }} {{ ui.verified_badge(user) }}</strong>
+                <small>{{ user.counts.followers }} followers</small>
+              </div>
+            </a>
+            <form method="POST" action="{{ url_for('follow_user', user_id=user.id) }}">
+              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+              <button type="submit" class="btn btn-primary btn-sm suggestion-follow-btn">
+                <i data-lucide="user-plus" width="14" height="14"></i>
+                Follow
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+    {% endif %}
+
+  </div>{# end social-home-grid #}
+</div>{# end social-home-shell #}
+
+{# ── Story viewer modal ── #}
+<div id="storyModal" class="story-modal" hidden aria-modal="true" role="dialog" aria-label="Story viewer">
+  <div class="story-modal-backdrop" id="storyModalBackdrop"></div>
+  <div class="story-modal-inner">
+    <div class="story-modal-header">
+      <div class="story-modal-user">
+        <img id="storyModalAvatar" src="" alt="" class="story-modal-avatar"/>
+        <span id="storyModalUsername"></span>
+      </div>
+      <div class="story-modal-controls">
+        <a id="storyModalMessage" href="#" class="btn btn-ghost btn-sm">
+          <i data-lucide="send" width="15" height="15"></i> Message
+        </a>
+        <button type="button" class="icon-only-btn" id="storyModalClose" aria-label="Close stories">
+          <i data-lucide="x" width="20" height="20"></i>
+        </button>
+      </div>
+    </div>
+    <div class="story-modal-progress" id="storyModalProgress"></div>
+    <div class="story-modal-media-wrap" id="storyModalMedia"></div>
+    <p class="story-modal-caption" id="storyModalCaption"></p>
+    <button type="button" class="story-nav-btn story-nav-prev" id="storyNavPrev" aria-label="Previous story">
+      <i data-lucide="chevron-left" width="24" height="24"></i>
+    </button>
+    <button type="button" class="story-nav-btn story-nav-next" id="storyNavNext" aria-label="Next story">
+      <i data-lucide="chevron-right" width="24" height="24"></i>
+    </button>
+  </div>
+</div>
+
+<style>
+/* ── Social Home Shell ── */
+.social-home-shell { max-width: 1100px; margin: 0 auto; padding-bottom: 40px; }
+.social-home-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+.social-mode-switch { display: flex; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.social-mode-switch a { padding: 8px 20px; font-size: .85rem; font-weight: 500; color: var(--text-muted); text-decoration: none; transition: background .15s, color .15s; }
+.social-mode-switch a.active { background: var(--accent); color: #fff; }
+
+/* ── Story strip ── */
+.story-strip { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 12px; scrollbar-width: none; margin-bottom: 18px; }
+.story-strip::-webkit-scrollbar { display: none; }
+.story-create-card { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; min-width: 72px; position: relative; background: none; border: none; padding: 0; }
+.story-ring { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; min-width: 72px; background: none; border: none; padding: 0; }
+.story-ring .story-avatar, .story-create-card .story-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); padding: 2px; }
+.story-ring.seen .story-avatar { border-color: var(--border); }
+.story-name { font-size: .72rem; color: var(--text-muted); text-align: center; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.story-create-plus { position: absolute; top: 36px; left: 36px; width: 20px; height: 20px; background: var(--accent); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.story-caption-input, .story-file-btn, .story-submit-btn { display: none; }
+
+/* ── Grid layout ── */
+.social-home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
+.social-home-grid.study-layout { grid-template-columns: 1fr 280px; }
+@media (max-width: 900px) { .social-home-grid, .social-home-grid.study-layout { grid-template-columns: 1fr; } .social-suggestions-sidebar { display: none; } }
+
+/* ── Composer ── */
+.social-composer { padding: 16px; margin-bottom: 16px; }
+.social-composer-top { display: flex; gap: 12px; align-items: flex-start; }
+.social-composer-top textarea { flex: 1; background: var(--input-bg, var(--card-bg)); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text); font-size: .9rem; resize: none; font-family: inherit; }
+.social-composer-top textarea:focus { outline: none; border-color: var(--accent); }
+.social-composer-bottom { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.social-composer-hint { font-size: .78rem; color: var(--text-muted); flex: 1; }
+.social-tags-field { display: flex; align-items: center; gap: 6px; flex: 1; background: var(--input-bg, var(--card-bg)); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+.social-tags-field input { border: none; background: none; color: var(--text); font-size: .85rem; flex: 1; outline: none; }
+.social-file-btn input[type=file] { display: none; }
+.social-media-preview { margin-top: 10px; }
+.social-media-preview img, .social-media-preview video { max-height: 240px; border-radius: 10px; max-width: 100%; }
+
+/* ── Post card ── */
+.social-post-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+.social-post-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.social-post-author { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.social-post-author strong { display: block; font-size: .9rem; }
+.social-post-author small { color: var(--text-muted); font-size: .75rem; }
+.social-post-caption { font-size: .93rem; line-height: 1.55; margin-bottom: 10px; white-space: pre-wrap; word-break: break-word; }
+.social-post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.social-tag { font-size: .78rem; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 6px; padding: 2px 8px; }
+.social-post-media-wrap { margin-bottom: 12px; border-radius: 10px; overflow: hidden; }
+.social-post-media { width: 100%; max-height: 480px; object-fit: cover; display: block; }
+.social-post-meta { display: flex; gap: 14px; font-size: .78rem; color: var(--text-muted); margin-bottom: 10px; }
+.social-post-stat { display: flex; align-items: center; gap: 4px; }
+
+/* ── Post actions ── */
+.social-post-actions { display: flex; gap: 6px; border-top: 1px solid var(--border); padding-top: 10px; flex-wrap: wrap; }
+.social-post-actions form { display: contents; }
+.social-action-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--text-muted); font-size: .83rem; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.social-action-btn:hover { background: var(--hover-bg, rgba(99,102,241,.08)); color: var(--text); border-color: var(--accent); }
+.social-action-btn.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.social-action-btn.liked { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,.08); }
+
+/* ── Comments ── */
+.social-comments-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.social-comments-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.social-comment { display: flex; gap: 10px; align-items: flex-start; }
+.social-comment-body { background: var(--hover-bg, rgba(99,102,241,.06)); border-radius: 10px; padding: 8px 12px; font-size: .85rem; }
+.social-comment-body strong { display: block; font-size: .8rem; margin-bottom: 2px; color: var(--accent); }
+.social-comment-form { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+.social-comment-form input { flex: 1; background: var(--input-bg, var(--card-bg)); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: .85rem; font-family: inherit; }
+.social-comment-form input:focus { outline: none; border-color: var(--accent); }
+
+/* ── Suggestions sidebar ── */
+.social-suggestions-sidebar .card { padding: 16px; }
+.suggestion-list { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.suggestion-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.suggestion-user { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); flex: 1; min-width: 0; }
+.suggestion-info { min-width: 0; }
+.suggestion-info strong { display: block; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion-info small { color: var(--text-muted); font-size: .75rem; }
+.suggestion-follow-btn { white-space: nowrap; flex-shrink: 0; }
+
+/* ── Story Modal ── */
+.story-modal { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; }
+.story-modal[hidden] { display: none; }
+.story-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.85); }
+.story-modal-inner { position: relative; width: min(420px, 96vw); background: #111; border-radius: 18px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+.story-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; position: absolute; top: 0; left: 0; right: 0; z-index: 2; background: linear-gradient(to bottom, rgba(0,0,0,.6), transparent); }
+.story-modal-user { display: flex; align-items: center; gap: 10px; }
+.story-modal-avatar { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
+.story-modal-user span { color: #fff; font-weight: 600; font-size: .9rem; }
+.story-modal-controls { display: flex; align-items: center; gap: 8px; }
+.story-modal-controls .btn { color: #fff; border-color: rgba(255,255,255,.3); }
+.story-modal-controls .icon-only-btn { color: #fff; }
+.story-modal-progress { display: flex; gap: 4px; padding: 8px 12px 0; position: absolute; top: 60px; left: 0; right: 0; z-index: 2; }
+.story-progress-bar { flex: 1; height: 3px; background: rgba(255,255,255,.3); border-radius: 2px; overflow: hidden; }
+.story-progress-fill { height: 100%; background: #fff; width: 0%; transition: width linear; }
+.story-modal-media-wrap { min-height: 520px; max-height: 72vh; display: flex; align-items: center; justify-content: center; background: #000; }
+.story-modal-media-wrap img, .story-modal-media-wrap video { width: 100%; max-height: 72vh; object-fit: contain; display: block; }
+.story-modal-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; color: #fff; font-size: .88rem; background: linear-gradient(to top, rgba(0,0,0,.7), transparent); margin: 0; min-height: 48px; }
+.story-nav-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,.15); border: none; color: #fff; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 3; transition: background .15s; }
+.story-nav-btn:hover { background: rgba(255,255,255,.28); }
+.story-nav-prev { left: 10px; }
+.story-nav-next { right: 10px; }
+</style>
+
+<script>
+// ── Comments toggle ──
+function toggleComments(btn, postId) {
+  const section = document.getElementById('comments-' + postId);
+  if (!section) return;
+  const hidden = section.hidden;
+  section.hidden = !hidden;
+  if (!hidden) return;
+  section.querySelector('input[name=body]')?.focus();
+}
+
+// ── Media preview in composer ──
+document.querySelectorAll('.social-upload-form').forEach(form => {
+  const fileInput = form.querySelector('.social-media-input');
+  const urlInput = form.querySelector('.social-media-url');
+  const typeInput = form.querySelector('.social-media-type');
+  const preview = form.querySelector('.social-media-preview');
+  if (!fileInput) return;
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (urlInput) urlInput.value = e.target.result;
+      if (typeInput) typeInput.value = file.type;
+      if (preview) {
+        preview.hidden = false;
+        preview.innerHTML = file.type.startsWith('video')
+          ? `<video src="${e.target.result}" controls style="max-height:200px;border-radius:10px;max-width:100%"></video>`
+          : `<img src="${e.target.result}" style="max-height:200px;border-radius:10px;max-width:100%"/>`;
+      }
+      // Enable story post button
+      const storyBtn = form.querySelector('.story-submit-btn');
+      if (storyBtn) storyBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+// ── Story viewer ──
+(function() {
+  const modal = document.getElementById('storyModal');
+  const backdrop = document.getElementById('storyModalBackdrop');
+  const closeBtn = document.getElementById('storyModalClose');
+  const prevBtn = document.getElementById('storyNavPrev');
+  const nextBtn = document.getElementById('storyNavNext');
+  const mediaWrap = document.getElementById('storyModalMedia');
+  const captionEl = document.getElementById('storyModalCaption');
+  const progressEl = document.getElementById('storyModalProgress');
+  const avatarEl = document.getElementById('storyModalAvatar');
+  const usernameEl = document.getElementById('storyModalUsername');
+  const msgLink = document.getElementById('storyModalMessage');
+
+  let stories = [];
+  let currentIndex = 0;
+  let progressTimer = null;
+  const STORY_DURATION = 5000;
+
+  function openStories(trayBtn) {
+    try { stories = JSON.parse(trayBtn.dataset.stories || '[]'); } catch(_) { stories = []; }
+    if (!stories.length) return;
+    currentIndex = 0;
+    avatarEl.src = trayBtn.dataset.storyAvatar || '';
+    usernameEl.textContent = trayBtn.dataset.storyUser || '';
+    msgLink.href = trayBtn.dataset.storyConversation || '#';
+    buildProgress();
+    showStory(0);
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    clearTimeout(progressTimer);
+    mediaWrap.innerHTML = '';
+  }
+
+  function buildProgress() {
+    progressEl.innerHTML = stories.map(() =>
+      `<div class="story-progress-bar"><div class="story-progress-fill"></div></div>`
+    ).join('');
+  }
+
+  function showStory(index) {
+    if (index < 0 || index >= stories.length) { closeModal(); return; }
+    currentIndex = index;
+    clearTimeout(progressTimer);
+
+    // Reset progress bars
+    progressEl.querySelectorAll('.story-progress-fill').forEach((bar, i) => {
+      bar.style.transition = 'none';
+      bar.style.width = i < index ? '100%' : '0%';
+    });
+
+    const story = stories[index];
+    captionEl.textContent = story.caption || '';
+
+    // Render media
+    if (story.media_type && story.media_type.startsWith('video')) {
+      mediaWrap.innerHTML = `<video src="${story.media_url}" autoplay playsinline style="width:100%;max-height:72vh;object-fit:contain"></video>`;
+    } else {
+      mediaWrap.innerHTML = `<img src="${story.media_url}" alt="Story"/>`;
+    }
+
+    // Mark viewed
+    if (story.id) {
+      fetch(`/home/stories/${story.id}/view`, { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    }
+
+    // Animate current bar
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const bar = progressEl.querySelectorAll('.story-progress-fill')[index];
+        if (bar) {
+          bar.style.transition = `width ${STORY_DURATION}ms linear`;
+          bar.style.width = '100%';
+        }
+      });
+    });
+
+    progressTimer = setTimeout(() => showStory(index + 1), STORY_DURATION);
+    prevBtn.style.visibility = index > 0 ? 'visible' : 'hidden';
+    nextBtn.style.visibility = index < stories.length - 1 ? 'visible' : 'hidden';
+  }
+
+  document.querySelectorAll('.story-ring').forEach(btn => {
+    btn.addEventListener('click', () => openStories(btn));
+  });
+
+  closeBtn?.addEventListener('click', closeModal);
+  backdrop?.addEventListener('click', closeModal);
+  prevBtn?.addEventListener('click', () => showStory(currentIndex - 1));
+  nextBtn?.addEventListener('click', () => showStory(currentIndex + 1));
+
+  document.addEventListener('keydown', e => {
+    if (modal.hidden) return;
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'ArrowRight') showStory(currentIndex + 1);
+    if (e.key === 'ArrowLeft') showStory(currentIndex - 1);
+  });
+})();
+</script>
+
+{% endblock %}
