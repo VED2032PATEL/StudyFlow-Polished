@@ -249,14 +249,14 @@ body.creator-sections-open .user-nav-item {
 .verified-badge.v-badge {
   background:linear-gradient(135deg,#8b5cf6,#38bdf8);
   box-shadow:0 0 0 1px rgba(255,255,255,.16), 0 4px 12px rgba(56,189,248,.22);
-  font-size:.54em;
+  font-size:.46em;
   font-weight:950;
   letter-spacing:0;
 }
 
 .verified-badge.v-badge span {
   line-height:1;
-  transform:translateY(.02em);
+  transform:translateY(.01em);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -5141,6 +5141,9 @@ select.form-input,
 
 .profile-overview-grid.private-profile-view {
   grid-template-columns:1fr;
+  max-width:980px;
+  margin-left:auto;
+  margin-right:auto;
 }
 
 .profile-overview-grid:has(.profile-admin-menu[open]) {
@@ -5152,16 +5155,19 @@ select.form-input,
   min-height:320px;
   height:100%;
   margin-bottom:0;
+  overflow:hidden !important;
 }
 
 .profile-hero:has(.profile-admin-menu[open]) {
   z-index:10001;
+  overflow:visible !important;
 }
 
 .profile-overview-grid .profile-banner {
   height:100%;
   min-height:320px;
   border-bottom:0;
+  overflow:hidden !important;
 }
 
 .profile-overview-grid .profile-stats-grid {
@@ -5185,22 +5191,25 @@ select.form-input,
 
 .profile-hero {
   position:relative;
-  overflow:visible;
+  overflow:hidden;
   background:var(--surface);
   border:1px solid var(--border);
   border-radius:12px;
   box-shadow:var(--sh-sm);
   margin-bottom:22px;
+  isolation:isolate;
 }
 
 .profile-banner {
   position:relative;
   height:clamp(150px,14vw,220px);
-  overflow:hidden;
+  overflow:hidden !important;
   background:
     linear-gradient(135deg,rgba(99,91,255,.18),rgba(14,165,233,.12)),
     var(--surface-2);
   border-bottom:1px solid var(--border);
+  border-radius:inherit;
+  clip-path:inset(0 round 12px);
 }
 
 .profile-banner::after {
@@ -5225,6 +5234,7 @@ select.form-input,
   object-fit:cover !important;
   object-position:center center !important;
   display:block !important;
+  overflow:hidden !important;
 }
 
 .profile-banner-empty {
@@ -5259,6 +5269,37 @@ select.form-input,
 
 .profile-hero-body .profile-actions {
   pointer-events:auto;
+}
+
+.private-profile-view .profile-hero {
+  min-height:360px !important;
+  max-width:980px;
+}
+
+.private-profile-view .profile-hero-body {
+  left:50%;
+  right:auto;
+  width:min(860px, calc(100% - 48px));
+  transform:translateX(-50%);
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  text-align:center;
+  padding-bottom:28px;
+}
+
+.private-profile-view .profile-hero-left {
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+}
+
+.private-profile-view .profile-follow-meta {
+  justify-content:center;
+}
+
+.private-profile-view .profile-actions {
+  justify-content:center;
 }
 
 .profile-avatar-large {
@@ -5415,8 +5456,9 @@ select.form-input,
   align-items:center;
   justify-content:center;
   gap:16px;
-  margin:10px 0 24px;
-  padding:32px 18px;
+  max-width:980px;
+  margin:22px auto 26px;
+  padding:30px 18px;
   border-top:1px solid var(--border);
   border-bottom:1px solid var(--border);
   color:var(--t1);
@@ -5451,7 +5493,13 @@ select.form-input,
 }
 
 .private-suggestions-section {
-  margin-top:10px;
+  max-width:980px;
+  margin:0 auto 24px;
+  padding:20px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+  box-shadow:var(--sh-sm);
 }
 
 .private-suggestions-section .card-header {
@@ -5481,7 +5529,7 @@ select.form-input,
   padding:18px 14px 14px;
   border:1px solid var(--border);
   border-radius:12px;
-  background:var(--surface);
+  background:var(--surface-2);
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -5489,6 +5537,26 @@ select.form-input,
   text-align:center;
   gap:8px;
   box-shadow:var(--sh-sm);
+  overflow:hidden;
+  isolation:isolate;
+}
+
+.private-suggestion-card::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:linear-gradient(180deg,rgba(15,23,42,.20),rgba(15,23,42,.88));
+}
+
+.private-suggestion-media {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:.45;
+  z-index:-2;
 }
 
 .private-suggestion-avatar {

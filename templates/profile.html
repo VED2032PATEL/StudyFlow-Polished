@@ -24,6 +24,10 @@
     z-index: 10001 !important;
   }
 
+  .profile-hero:has(.profile-admin-menu[open]) {
+    overflow: visible !important;
+  }
+
   .profile-overview-grid {
     display:grid !important;
     grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr) !important;
@@ -33,18 +37,29 @@
     overflow:visible !important;
   }
 
+  .profile-overview-grid.private-profile-view {
+    grid-template-columns: 1fr !important;
+    max-width: 980px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
   .profile-overview-grid .profile-hero {
     min-height:320px;
     height:100%;
     margin-bottom:0;
-    overflow:visible !important;
+    overflow:hidden !important;
+  }
+
+  .profile-overview-grid.private-profile-view .profile-hero {
+    min-height:360px !important;
   }
 
   .profile-overview-grid .profile-banner {
     height:100%;
     min-height:320px;
     border-bottom:0;
-    overflow:visible !important;
+    overflow:hidden !important;
   }
 
   .profile-overview-grid .profile-stats-grid {
@@ -321,6 +336,15 @@
   <div class="private-suggestions-grid">
     {% for person in profile.suggestions %}
     <div class="private-suggestion-card">
+      {% if person.chat_block_video_url %}
+        {% if is_profile_video_media(person.chat_block_video_url) %}
+          <video src="{{ chat_block_media_url(person.chat_block_video_url) }}" class="private-suggestion-media" autoplay loop muted playsinline aria-hidden="true"></video>
+        {% elif is_profile_gif_media(person.chat_block_video_url) %}
+          <img src="{{ chat_block_media_url(person.chat_block_video_url) }}" alt="" class="private-suggestion-media" aria-hidden="true"/>
+        {% else %}
+          <img src="{{ chat_block_media_url(person.chat_block_video_url) }}" alt="" class="private-suggestion-media" aria-hidden="true"/>
+        {% endif %}
+      {% endif %}
       <a href="{{ url_for('user_profile_by_id', user_id=person.id) }}" class="private-suggestion-avatar">
         {{ ui.decorated_avatar(person, 'person-avatar') }}
       </a>

@@ -729,7 +729,7 @@ def get_profile_suggestions(viewer_id, exclude_user_id=None, limit=4):
         if exclude_user_id:
             exclude_clause = "AND u.id<>?"
         rows = _rows_to_dicts(conn.execute(
-            f"""SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.is_private,u.created_at,
+            f"""SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.is_private,u.chat_block_video_url,u.created_at,
                        (SELECT COUNT(*) FROM follows f WHERE f.following_id=u.id) AS follower_count
                 FROM users u
                 WHERE u.id<>?
