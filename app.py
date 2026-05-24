@@ -82,7 +82,10 @@ CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip().lowe
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
 CLOUDINARY_PROFILE_FOLDER = os.environ.get("CLOUDINARY_PROFILE_FOLDER", "studyflow/profile-media")
+CLOUDINARY_SOCIAL_FOLDER = os.environ.get("CLOUDINARY_SOCIAL_FOLDER", "studyflow/social-media")
 CLOUDINARY_UPLOAD_ENABLED = bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+SOCIAL_MEDIA_MAX_BYTES = 12 * 1024 * 1024
+SOCIAL_MEDIA_MAX_MB = "12"
 ABLY_API_KEY = os.environ.get("ABLY_API_KEY", "").strip()
 ABLY_REALTIME_ENABLED = ":" in ABLY_API_KEY
 
@@ -353,6 +356,8 @@ def inject_notification_count():
         "profile_avatar_media_max_mb": PROFILE_AVATAR_MEDIA_MAX_MB,
         "profile_banner_media_max_mb": PROFILE_BANNER_MEDIA_MAX_MB,
         "profile_chat_block_media_max_mb": PROFILE_CHAT_BLOCK_MEDIA_MAX_MB,
+        "social_media_max_bytes": SOCIAL_MEDIA_MAX_BYTES,
+        "social_media_max_mb": SOCIAL_MEDIA_MAX_MB,
         "cloudinary_upload_enabled": CLOUDINARY_UPLOAD_ENABLED,
         "is_profile_video_media": _is_profile_video_media,
         "is_profile_gif_media": _is_profile_gif_media,
