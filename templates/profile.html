@@ -87,17 +87,6 @@
       <span data-lucide="more-horizontal"></span>
     </summary>
 <div class="profile-admin-panel">
-      <form method="POST" action="{{ url_for('creator_adjust_flowcoins', user_id=profile.user.id) }}" class="profile-admin-flowcoin">
-        <label>
-          <span>FlowCoin</span>
-          <input type="number" name="amount" class="form-input" placeholder="+500 or -100" required/>
-        </label>
-        <label>
-          <span>Reason</span>
-          <input type="text" name="reason" class="form-input" placeholder="Manual reward, correction..." required/>
-        </label>
-        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      </form>
       {% if profile.user.moderation_status == 'suspended' %}
       <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
         <input type="hidden" name="action" value="unsuspend"/>
@@ -109,6 +98,7 @@
         <button type="submit" class="profile-admin-action">Suspend</button>
       </form>
       {% endif %}
+
       {% if profile.user.moderation_status == 'banned' %}
       <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
         <input type="hidden" name="action" value="unban"/>
@@ -120,6 +110,17 @@
         <button type="submit" class="profile-admin-action danger">Ban</button>
       </form>
       {% endif %}
+      <form method="POST" action="{{ url_for('creator_adjust_flowcoins', user_id=profile.user.id) }}" class="profile-admin-flowcoin">
+        <label>
+          <span>FlowCoin</span>
+          <input type="number" name="amount" class="form-input" placeholder="+500 or -100" required/>
+        </label>
+        <label>
+          <span>Reason</span>
+          <input type="text" name="reason" class="form-input" placeholder="Manual reward, correction..." required/>
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      </form>
     </div>
   </details>
   {% endif %}
