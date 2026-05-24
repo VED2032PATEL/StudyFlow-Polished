@@ -2197,3 +2197,252 @@ def has_stale_schedule(user_id):
         return len(res.rows) > 0
     finally:
         conn.close()
+# ── Social Home ───────────────────────────────────────────────────────────────
+
+def _social_user_columns(prefix="u"):
+    return (
+        f"{prefix}.id AS user_id,{prefix}.username,{prefix}.email,{prefix}.avatar_data_url,"
+        f"{prefix}.profile_decoration,{prefix}.is_verified,{prefix}.is_private,{prefix}.chat_block_video_url"
+    )
+
+
+def _post_from_row(row):
+    post = dict(row)
+    try:
+        post["tags"] = json.loads(post.get("tags_json") or "[]")
+    except json.JSONDecodeError:
+        post["tags"] = []
+    post["user"] = {
+        "id": post.pop("user_id"),
+        "username": post.pop("username"),
+        "email": post.pop("email", ""),
+        "avatar_data_url": post.pop("avatar_data_url", ""),
+        "profile_decoration": post.pop("profile_decoration", ""),
+        "is_verified": post.pop("is_verified", 0),
+        "is_private": post.pop("is_private", 0),
+        "chat_block_video_url": post.pop("chat_block_video_url", ""),
+    }
+    return post
+
+
+def _attach_post_comments(conn, posts, limit=3):
+    for post in posts:
+        comments = _rows_to_dicts(conn.execute(
+            f"""SELECT c.id,c.body,c.created_at,{_social_user_columns('u')}
+                FROM social_post_comments c
+                JOIN users u ON u.id=c.user_id
+                WHERE c.post_id=?
+                ORDER BY c.created_at ASC LIMIT ?""",
+            [post["id"], limit],
+        ))
+        post["comments"] = [
+            {
+                "id": c["id"],
+                "body": c["body"],
+                "created_at": c["created_at"],
+                "user": {
+                    "id": c["user_id"],
+                    "username": c["username"],
+                    "email": c.get("email", ""),
+                    "avatar_data_url": c.get("avatar_data_url", ""),
+                    "profile_decoration": c.get("profile_decoration", ""),
+                    "is_verified": c.get("is_verified", 0),
+                    "is_private": c.get("is_private", 0),
+                },
+            }
+            for c in comments
+        ]
+    return posts
+
+
+def create_social_post(user_id, mode, caption, tags=None, media_url="", media_type=""):
+    mode = mode if mode in {"study", "feed"} else "feed"
+    caption = (caption or "").strip()
+    media_url = (media_url or "").strip()
+    media_type = (media_type or "").strip()[:40]
+    tags = [str(t).strip().lstrip("#")[:40] for t in (tags or []) if str(t).strip()]
+    if not caption and not media_url:
+        return None
+    conn = get_db()
+    try:
+        res = conn.execute(
+            """INSERT INTO social_posts (user_id,mode,caption,tags_json,media_url,media_type)
+               VALUES (?,?,?,?,?,?)""",
+            [user_id, mode, caption[:2200], json.dumps(tags[:8]), media_url, media_type],
+        )
+        return res.last_insert_rowid
+    finally:
+        conn.close()
+
+
+def get_social_posts(viewer_id, mode="feed", limit=40):
+    mode = mode if mode in {"study", "feed"} else "feed"
+    conn = get_db()
+    try:
+        rows = _rows_to_dicts(conn.execute(
+            f"""SELECT p.*,{_social_user_columns('u')},
+                       (SELECT COUNT(*) FROM social_post_interactions i WHERE i.post_id=p.id AND i.kind='upvote') AS upvotes,
+                       (SELECT COUNT(*) FROM social_post_interactions i WHERE i.post_id=p.id AND i.kind='like') AS likes,
+                       (SELECT COUNT(*) FROM social_post_comments c WHERE c.post_id=p.id) AS comment_count,
+                       (SELECT COUNT(*) FROM social_post_views v WHERE v.post_id=p.id) AS views,
+                       (SELECT COUNT(*) FROM social_post_shares s WHERE s.post_id=p.id) AS shares,
+                       EXISTS(SELECT 1 FROM social_post_interactions i WHERE i.post_id=p.id AND i.user_id=? AND i.kind='upvote') AS viewer_upvoted,
+                       EXISTS(SELECT 1 FROM social_post_interactions i WHERE i.post_id=p.id AND i.user_id=? AND i.kind='like') AS viewer_liked
+                FROM social_posts p
+                JOIN users u ON u.id=p.user_id
+                WHERE p.mode=? AND u.moderation_status<>'banned'
+                ORDER BY p.created_at DESC,p.id DESC
+                LIMIT ?""",
+            [viewer_id, viewer_id, mode, limit],
+        ))
+        posts = [_post_from_row(row) for row in rows]
+        for post in posts:
+            post["viewer_upvoted"] = bool(post.get("viewer_upvoted"))
+            post["viewer_liked"] = bool(post.get("viewer_liked"))
+        return _attach_post_comments(conn, posts)
+    finally:
+        conn.close()
+
+
+def mark_post_views(user_id, post_ids):
+    ids = [int(pid) for pid in post_ids if pid]
+    if not ids:
+        return
+    conn = get_db()
+    try:
+        for post_id in ids:
+            conn.execute(
+                "INSERT OR IGNORE INTO social_post_views (post_id,user_id) VALUES (?,?)",
+                [post_id, user_id],
+            )
+    finally:
+        conn.close()
+
+
+def toggle_social_post_interaction(post_id, user_id, kind):
+    if kind not in {"like", "upvote"}:
+        return False
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT 1 FROM social_post_interactions WHERE post_id=? AND user_id=? AND kind=?",
+            [post_id, user_id, kind],
+        ).rows
+        if existing:
+            conn.execute(
+                "DELETE FROM social_post_interactions WHERE post_id=? AND user_id=? AND kind=?",
+                [post_id, user_id, kind],
+            )
+        else:
+            conn.execute(
+                "INSERT INTO social_post_interactions (post_id,user_id,kind) VALUES (?,?,?)",
+                [post_id, user_id, kind],
+            )
+        return True
+    finally:
+        conn.close()
+
+
+def add_social_comment(post_id, user_id, body):
+    body = (body or "").strip()
+    if not body:
+        return False
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO social_post_comments (post_id,user_id,body) VALUES (?,?,?)",
+            [post_id, user_id, body[:800]],
+        )
+        return True
+    finally:
+        conn.close()
+
+
+def record_social_share(post_id, user_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO social_post_shares (post_id,user_id) VALUES (?,?)",
+            [post_id, user_id],
+        )
+        return True
+    finally:
+        conn.close()
+
+
+def _purge_expired_stories(conn):
+    conn.execute("DELETE FROM social_stories WHERE expires_at <= datetime('now')")
+
+
+def create_social_story(user_id, caption, media_url, media_type=""):
+    media_url = (media_url or "").strip()
+    if not media_url:
+        return None
+    conn = get_db()
+    try:
+        res = conn.execute(
+            """INSERT INTO social_stories (user_id,caption,media_url,media_type)
+               VALUES (?,?,?,?)""",
+            [user_id, (caption or "").strip()[:260], media_url, (media_type or "").strip()[:40]],
+        )
+        return res.last_insert_rowid
+    finally:
+        conn.close()
+
+
+def get_visible_stories(viewer_id, limit_users=14):
+    conn = get_db()
+    try:
+        _purge_expired_stories(conn)
+        rows = _rows_to_dicts(conn.execute(
+            f"""SELECT s.*,{_social_user_columns('u')},
+                       EXISTS(SELECT 1 FROM social_story_views sv WHERE sv.story_id=s.id AND sv.user_id=?) AS viewed
+                FROM social_stories s
+                JOIN users u ON u.id=s.user_id
+                WHERE s.expires_at > datetime('now') AND u.moderation_status<>'banned'
+                ORDER BY s.user_id=? DESC,s.created_at DESC""",
+            [viewer_id, viewer_id],
+        ))
+        grouped = {}
+        for row in rows:
+            uid = row["user_id"]
+            entry = grouped.setdefault(uid, {
+                "user": {
+                    "id": uid,
+                    "username": row["username"],
+                    "email": row.get("email", ""),
+                    "avatar_data_url": row.get("avatar_data_url", ""),
+                    "profile_decoration": row.get("profile_decoration", ""),
+                    "is_verified": row.get("is_verified", 0),
+                    "is_private": row.get("is_private", 0),
+                },
+                "stories": [],
+                "all_seen": True,
+                "is_self": uid == viewer_id,
+            })
+            entry["stories"].append({
+                "id": row["id"],
+                "caption": row["caption"],
+                "media_url": row["media_url"],
+                "media_type": row["media_type"],
+                "created_at": row["created_at"],
+                "expires_at": row["expires_at"],
+                "viewed": bool(row.get("viewed")),
+            })
+            if not row.get("viewed"):
+                entry["all_seen"] = False
+        return list(grouped.values())[:limit_users]
+    finally:
+        conn.close()
+
+
+def mark_story_view(story_id, user_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO social_story_views (story_id,user_id) VALUES (?,?)",
+            [story_id, user_id],
+        )
+        return True
+    finally:
+        conn.close()
