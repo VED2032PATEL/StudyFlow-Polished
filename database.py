@@ -127,6 +127,13 @@ _CREATE = [
         PRIMARY KEY (follower_id, following_id),
         CHECK (follower_id != following_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS follow_requests (
+        requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        target_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (requester_id, target_id),
+        CHECK (requester_id != target_id)
+    )""",
     """CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -269,6 +276,7 @@ _MIGRATIONS = [
     ("users",      "chat_block_video_url",  "ALTER TABLE users ADD COLUMN chat_block_video_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "is_verified",           "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0"),
     ("users",      "is_v_badged",           "ALTER TABLE users ADD COLUMN is_v_badged INTEGER NOT NULL DEFAULT 0"),
+    ("users",      "is_private",            "ALTER TABLE users ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0"),
     ("users",      "moderation_status",     "ALTER TABLE users ADD COLUMN moderation_status TEXT NOT NULL DEFAULT 'active'"),
     ("users",      "profile_decoration",    "ALTER TABLE users ADD COLUMN profile_decoration TEXT NOT NULL DEFAULT ''"),
     ("users",      "user_code",             "ALTER TABLE users ADD COLUMN user_code TEXT NOT NULL DEFAULT ''"),
@@ -442,6 +450,14 @@ def update_preferences(user_id, daily_hours_default, theme, notify_deadline_days
         conn.close()
 
 
+def update_account_privacy(user_id, is_private):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE users SET is_private=? WHERE id=?", [1 if is_private else 0, user_id])
+    finally:
+        conn.close()
+
+
 def update_account(user_id, username, email):
     conn = get_db()
     try:
@@ -526,7 +542,7 @@ def search_users(query, current_user_id, limit=12):
     conn = get_db()
     try:
         rows = _rows_to_dicts(conn.execute(
-            """SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,is_v_badged,moderation_status,created_at
+            """SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,is_v_badged,is_private,moderation_status,created_at
                FROM users
                WHERE id<>? AND moderation_status<>'banned' AND username LIKE ? COLLATE NOCASE
                ORDER BY username LIMIT ?""",
@@ -534,6 +550,7 @@ def search_users(query, current_user_id, limit=12):
         ))
         for row in rows:
             row["is_following"] = is_following(current_user_id, row["id"])
+            row["has_pending_follow_request"] = has_follow_request(current_user_id, row["id"])
             row["counts"] = get_follow_counts(row["id"])
         return rows
     finally:
@@ -547,6 +564,10 @@ def follow_user(follower_id, following_id):
             "INSERT OR IGNORE INTO follows (follower_id,following_id) VALUES (?,?)",
             [follower_id, following_id],
         )
+        conn.execute(
+            "DELETE FROM follow_requests WHERE requester_id=? AND target_id=?",
+            [follower_id, following_id],
+        )
     finally:
         conn.close()
 
@@ -558,6 +579,93 @@ def unfollow_user(follower_id, following_id):
             "DELETE FROM follows WHERE follower_id=? AND following_id=?",
             [follower_id, following_id],
         )
+        conn.execute(
+            "DELETE FROM follow_requests WHERE requester_id=? AND target_id=?",
+            [follower_id, following_id],
+        )
+    finally:
+        conn.close()
+
+
+def request_follow(requester_id, target_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO follow_requests (requester_id,target_id) VALUES (?,?)",
+            [requester_id, target_id],
+        )
+    finally:
+        conn.close()
+
+
+def cancel_follow_request(requester_id, target_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM follow_requests WHERE requester_id=? AND target_id=?",
+            [requester_id, target_id],
+        )
+    finally:
+        conn.close()
+
+
+def has_follow_request(requester_id, target_id):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "SELECT 1 FROM follow_requests WHERE requester_id=? AND target_id=?",
+            [requester_id, target_id],
+        )
+        return bool(res.rows)
+    finally:
+        conn.close()
+
+
+def accept_follow_request(target_id, requester_id):
+    conn = get_db()
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM follow_requests WHERE requester_id=? AND target_id=?",
+            [requester_id, target_id],
+        ).rows
+        if not exists:
+            return False
+        conn.execute(
+            "INSERT OR IGNORE INTO follows (follower_id,following_id) VALUES (?,?)",
+            [requester_id, target_id],
+        )
+        conn.execute(
+            "DELETE FROM follow_requests WHERE requester_id=? AND target_id=?",
+            [requester_id, target_id],
+        )
+        return True
+    finally:
+        conn.close()
+
+
+def reject_follow_request(target_id, requester_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM follow_requests WHERE requester_id=? AND target_id=?",
+            [requester_id, target_id],
+        )
+    finally:
+        conn.close()
+
+
+def get_pending_follow_requests(user_id):
+    conn = get_db()
+    try:
+        return _rows_to_dicts(conn.execute(
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.is_private,u.created_at,
+                      fr.created_at AS requested_at
+               FROM follow_requests fr
+               JOIN users u ON u.id=fr.requester_id
+               WHERE fr.target_id=? AND u.moderation_status<>'banned'
+               ORDER BY fr.created_at DESC""",
+            [user_id],
+        ))
     finally:
         conn.close()
 
@@ -592,7 +700,7 @@ def get_following(user_id):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.created_at,f.created_at AS followed_at
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.is_private,u.created_at,f.created_at AS followed_at
                FROM follows f JOIN users u ON u.id=f.following_id
                WHERE f.follower_id=? ORDER BY f.created_at DESC""",
             [user_id],
@@ -605,11 +713,43 @@ def get_followers(user_id):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.created_at,f.created_at AS followed_at
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.is_private,u.created_at,f.created_at AS followed_at
                FROM follows f JOIN users u ON u.id=f.follower_id
                WHERE f.following_id=? ORDER BY f.created_at DESC""",
             [user_id],
         ))
+    finally:
+        conn.close()
+
+
+def get_profile_suggestions(viewer_id, exclude_user_id=None, limit=4):
+    conn = get_db()
+    try:
+        exclude_clause = ""
+        if exclude_user_id:
+            exclude_clause = "AND u.id<>?"
+        rows = _rows_to_dicts(conn.execute(
+            f"""SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.is_private,u.created_at,
+                       (SELECT COUNT(*) FROM follows f WHERE f.following_id=u.id) AS follower_count
+                FROM users u
+                WHERE u.id<>?
+                  {exclude_clause}
+                  AND u.moderation_status<>'banned'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=u.id
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM follow_requests fr WHERE fr.requester_id=? AND fr.target_id=u.id
+                  )
+                ORDER BY u.is_verified DESC,u.is_v_badged DESC,follower_count DESC,u.created_at DESC
+                LIMIT ?""",
+            ([viewer_id, exclude_user_id, viewer_id, viewer_id, limit] if exclude_user_id else [viewer_id, viewer_id, viewer_id, limit]),
+        ))
+        for row in rows:
+            row["counts"] = get_follow_counts(row["id"])
+            row["is_following"] = False
+            row["has_pending_follow_request"] = False
+        return rows
     finally:
         conn.close()
 
@@ -624,6 +764,9 @@ def _build_public_profile(user, viewer_id):
     subjects = get_all_subjects(user_id)
     is_self = viewer_id == user_id
     is_viewer_following = is_following(viewer_id, user_id) if not is_self else False
+    has_pending_request = has_follow_request(viewer_id, user_id) if not is_self else False
+    is_private = bool(user.get("is_private", 0))
+    can_view_profile = is_self or not is_private or is_viewer_following
     pct = int((stats["completed_topics"] / stats["total_topics"]) * 100) if stats["total_topics"] else 0
     return {
         "user": user,
@@ -634,7 +777,11 @@ def _build_public_profile(user, viewer_id):
         "progress_pct": pct,
         "is_following": is_viewer_following,
         "is_self": is_self,
+        "is_private": is_private,
+        "has_pending_follow_request": has_pending_request,
+        "can_view_profile": can_view_profile,
         "can_view_connections": is_self or is_viewer_following,
+        "suggestions": [] if can_view_profile else get_profile_suggestions(viewer_id, user_id, limit=4),
     }
 
 

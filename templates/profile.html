@@ -90,7 +90,7 @@
   }
 </style>
 
-<div class="profile-overview-grid">
+<div class="profile-overview-grid {% if not profile.can_view_profile %}private-profile-view{% endif %}">
 <div class="profile-hero anim">
   {% if current_user.is_verified and not profile.is_self and not profile.user.is_verified %}
   <details class="profile-admin-menu">
@@ -159,7 +159,10 @@
       <div>
         <a href="{{ url_for('people') }}" class="back-link">← People</a>
         <h1 class="profile-name">{{ profile.user.username }} {{ ui.verified_badge(profile.user) }}</h1>
-        <p class="profile-sub">Member since {{ profile.user.created_at[:10] }}</p>
+        <p class="profile-sub">
+          Member since {{ profile.user.created_at[:10] }}
+          {% if profile.is_private %}<span class="profile-private-chip">Private</span>{% endif %}
+        </p>
         {% if current_user.is_verified and profile.user.moderation_status and profile.user.moderation_status != 'active' %}
           <span class="badge badge-rose">{{ profile.user.moderation_status|title }}</span>
         {% endif %}
@@ -176,16 +179,23 @@
     </div>
     {% if not profile.is_self %}
       <div class="profile-actions">
+      {% if profile.can_view_profile %}
       <a href="{{ url_for('conversation_by_user_id', user_id=profile.user.id) }}" class="btn btn-outline">Message</a>
+      {% endif %}
       {% if profile.is_following %}
       <form method="POST" action="{{ url_for('unfollow_user', user_id=profile.user.id) }}">
         <input type="hidden" name="next" value="{{ url_for('user_profile_by_id', user_id=profile.user.id) }}"/>
         <button type="submit" class="btn btn-ghost">Unfollow</button>
       </form>
+      {% elif profile.is_private and profile.has_pending_follow_request %}
+      <form method="POST" action="{{ url_for('cancel_follow_request', user_id=profile.user.id) }}">
+        <input type="hidden" name="next" value="{{ url_for('user_profile_by_id', user_id=profile.user.id) }}"/>
+        <button type="submit" class="btn btn-ghost">Requested</button>
+      </form>
       {% else %}
       <form method="POST" action="{{ url_for('follow_user', user_id=profile.user.id) }}">
         <input type="hidden" name="next" value="{{ url_for('user_profile_by_id', user_id=profile.user.id) }}"/>
-        <button type="submit" class="btn btn-primary">Follow</button>
+        <button type="submit" class="btn btn-primary">{{ 'Request' if profile.is_private else 'Follow' }}</button>
       </form>
       {% endif %}
       </div>
@@ -193,6 +203,7 @@
   </div>
 </div>
 
+{% if profile.can_view_profile %}
 <div class="stats-grid profile-stats-grid">
   <div class="stat-card stat-blue anim d1">
     <div class="stat-icon-wrap">📋</div>
@@ -288,5 +299,42 @@
   </div>
   {% endif %}
 </div>
+{% else %}
+</div>
+
+<div class="private-profile-panel anim d2">
+  <div class="private-profile-lock">
+    <span data-lucide="lock"></span>
+  </div>
+  <div>
+    <h2>This profile is private</h2>
+    <p>{% if profile.has_pending_follow_request %}Your follow request is waiting for approval.{% else %}Follow to request access to their study progress and profile details.{% endif %}</p>
+  </div>
+</div>
+
+{% if profile.suggestions %}
+<div class="private-suggestions-section anim d3">
+  <div class="card-header">
+    <h2 class="card-title">Suggested for you</h2>
+    <a href="{{ url_for('people') }}" class="small-link">See all</a>
+  </div>
+  <div class="private-suggestions-grid">
+    {% for person in profile.suggestions %}
+    <div class="private-suggestion-card">
+      <a href="{{ url_for('user_profile_by_id', user_id=person.id) }}" class="private-suggestion-avatar">
+        {{ ui.decorated_avatar(person, 'person-avatar') }}
+      </a>
+      <a href="{{ url_for('user_profile_by_id', user_id=person.id) }}" class="private-suggestion-name">{{ person.username }} {{ ui.verified_badge(person) }}</a>
+      <div class="private-suggestion-meta">{{ person.counts.followers }} followers</div>
+      <form method="POST" action="{{ url_for('follow_user', user_id=person.id) }}">
+        <input type="hidden" name="next" value="{{ url_for('user_profile_by_id', user_id=profile.user.id) }}"/>
+        <button type="submit" class="btn btn-primary btn-sm">{{ 'Request' if person.is_private else 'Follow' }}</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endif %}
 
 {% endblock %}

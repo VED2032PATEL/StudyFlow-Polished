@@ -325,6 +325,7 @@ class User(UserMixin):
         self.profile_decoration = row.get("profile_decoration", "")
         self.is_verified = row.get("is_verified", 0)
         self.is_v_badged = row.get("is_v_badged", 0)
+        self.is_private = row.get("is_private", 0)
         self.moderation_status = row.get("moderation_status", "active")
 
     def get_id(self):
@@ -506,11 +507,13 @@ def people():
     results = db.search_users(query, current_user.id) if query else []
     following = db.get_following(current_user.id)
     followers = db.get_followers(current_user.id)
+    follow_requests = db.get_pending_follow_requests(current_user.id)
     return render_template("people.html",
                            query=query,
                            results=results,
                            following=following,
-                           followers=followers)
+                           followers=followers,
+                           follow_requests=follow_requests)
 
 
 def _profile_response(profile):
@@ -929,8 +932,14 @@ def follow_user(user_id):
     if not target:
         flash("User not found.", "error")
         return redirect(url_for("people"))
-    db.follow_user(current_user.id, user_id)
-    flash(f"You are now following {target['username']}.", "success")
+    if db.is_following(current_user.id, user_id):
+        flash(f"You already follow {target['username']}.", "info")
+    elif target.get("is_private"):
+        db.request_follow(current_user.id, user_id)
+        flash(f"Follow request sent to {target['username']}.", "success")
+    else:
+        db.follow_user(current_user.id, user_id)
+        flash(f"You are now following {target['username']}.", "success")
     next_page = request.form.get("next")
     if _is_safe_redirect_url(next_page):
         return redirect(next_page)
@@ -950,6 +959,45 @@ def unfollow_user(user_id):
     if _is_safe_redirect_url(next_page):
         return redirect(next_page)
     return redirect(url_for("user_profile_by_id", user_id=target["id"]))
+
+
+@app.route("/users/<int:user_id>/follow-request/cancel", methods=["POST"])
+@login_required
+def cancel_follow_request(user_id):
+    target = db.get_user_by_id(user_id)
+    if not target:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    db.cancel_follow_request(current_user.id, user_id)
+    flash(f"Follow request cancelled for {target['username']}.", "info")
+    next_page = request.form.get("next")
+    if _is_safe_redirect_url(next_page):
+        return redirect(next_page)
+    return redirect(url_for("user_profile_by_id", user_id=target["id"]))
+
+
+@app.route("/users/<int:user_id>/follow-request/respond", methods=["POST"])
+@login_required
+def respond_follow_request(user_id):
+    requester = db.get_user_by_id(user_id)
+    if not requester:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    action = request.form.get("action")
+    if action == "accept":
+        if db.accept_follow_request(current_user.id, user_id):
+            flash(f"{requester['username']} can now follow you.", "success")
+        else:
+            flash("That follow request is no longer active.", "info")
+    elif action == "reject":
+        db.reject_follow_request(current_user.id, user_id)
+        flash(f"Follow request from {requester['username']} removed.", "info")
+    else:
+        flash("Choose a valid follow request action.", "error")
+    next_page = request.form.get("next")
+    if _is_safe_redirect_url(next_page):
+        return redirect(next_page)
+    return redirect(url_for("people"))
 
 
 # ── Subjects ──────────────────────────────────────────────────────────────────
@@ -1739,6 +1787,12 @@ def settings():
                     row = db.get_user_by_id(uid)
                     login_user(User(row), remember=True)
                     flash("Account updated! ✅", "success")
+
+        elif action == "privacy":
+            db.update_account_privacy(uid, 1 if request.form.get("is_private") else 0)
+            row = db.get_user_by_id(uid)
+            login_user(User(row), remember=True)
+            flash("Account privacy updated.", "success")
 
         elif action == "avatar":
             remove_avatar = request.form.get("remove_avatar")

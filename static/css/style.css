@@ -5139,6 +5139,10 @@ select.form-input,
   overflow:visible;
 }
 
+.profile-overview-grid.private-profile-view {
+  grid-template-columns:1fr;
+}
+
 .profile-overview-grid:has(.profile-admin-menu[open]) {
   position:relative;
   z-index:10000;
@@ -5307,6 +5311,20 @@ select.form-input,
   color:var(--p1);
 }
 
+.profile-private-chip {
+  display:inline-flex;
+  align-items:center;
+  margin-left:8px;
+  padding:2px 8px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  background:rgba(15,23,42,.38);
+  color:rgba(255,255,255,.88);
+  font-size:11px;
+  font-weight:800;
+  vertical-align:middle;
+}
+
 .profile-stats-grid {
   margin-bottom:22px;
 }
@@ -5390,6 +5408,123 @@ select.form-input,
   padding-top:10px;
   display:grid;
   gap:8px;
+}
+
+.private-profile-panel {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+  margin:10px 0 24px;
+  padding:32px 18px;
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  color:var(--t1);
+  text-align:left;
+}
+
+.private-profile-lock {
+  width:54px;
+  height:54px;
+  border:1.5px solid var(--border);
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--t1);
+  flex-shrink:0;
+}
+
+.private-profile-lock svg {
+  width:24px;
+  height:24px;
+}
+
+.private-profile-panel h2 {
+  font-size:18px;
+  margin-bottom:4px;
+}
+
+.private-profile-panel p {
+  color:var(--t2);
+  margin:0;
+}
+
+.private-suggestions-section {
+  margin-top:10px;
+}
+
+.private-suggestions-section .card-header {
+  margin-bottom:14px;
+}
+
+.small-link {
+  color:var(--p1);
+  font-size:13px;
+  font-weight:800;
+  text-decoration:none;
+}
+
+.small-link:hover {
+  text-decoration:underline;
+}
+
+.private-suggestions-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:14px;
+}
+
+.private-suggestion-card {
+  position:relative;
+  min-height:210px;
+  padding:18px 14px 14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  text-align:center;
+  gap:8px;
+  box-shadow:var(--sh-sm);
+}
+
+.private-suggestion-avatar {
+  display:inline-flex;
+  color:inherit;
+  text-decoration:none;
+}
+
+.private-suggestion-avatar .person-avatar {
+  width:72px;
+  height:72px;
+  font-size:24px;
+}
+
+.private-suggestion-name {
+  color:var(--t1);
+  font-weight:850;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.private-suggestion-meta {
+  color:var(--t2);
+  font-size:12px;
+  margin-bottom:auto;
+}
+
+.private-suggestion-card form,
+.private-suggestion-card .btn {
+  width:100%;
+}
+
+.account-privacy-form {
+  margin-top:16px;
 }
 
 .profile-admin-flowcoin label span {

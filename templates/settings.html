@@ -389,6 +389,23 @@
           ✏️ Update Account
         </button>
       </form>
+      <form method="POST" action="{{ url_for('settings') }}" class="account-privacy-form">
+        <input type="hidden" name="action" value="privacy"/>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row-title">Private Account</div>
+            <div class="toggle-row-sub">Followers must request access before seeing your full profile.</div>
+          </div>
+          <label class="sf-toggle">
+            <input type="checkbox" name="is_private" value="1"
+                   {% if user.is_private %}checked{% endif %}
+                   onchange="this.form.submit()"/>
+            <span class="sf-toggle-track">
+              <span class="sf-toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+      </form>
     </div>
 
     <!-- Change Password -->
