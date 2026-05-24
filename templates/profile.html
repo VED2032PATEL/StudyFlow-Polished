@@ -76,14 +76,29 @@
       <span data-lucide="more-horizontal"></span>
     </summary>
     <div class="profile-admin-panel">
+      {% if profile.user.moderation_status == 'suspended' %}
+      <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
+        <input type="hidden" name="action" value="unsuspend"/>
+        <button type="submit" class="profile-admin-action" style="color:#10b981;">Unsuspend</button>
+      </form>
+      {% else %}
       <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
         <input type="hidden" name="action" value="suspend"/>
         <button type="submit" class="profile-admin-action">Suspend</button>
       </form>
+      {% endif %}
+
+      {% if profile.user.moderation_status == 'banned' %}
+      <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
+        <input type="hidden" name="action" value="unban"/>
+        <button type="submit" class="profile-admin-action" style="color:#10b981;">Unban</button>
+      </form>
+      {% else %}
       <form method="POST" action="{{ url_for('moderate_user', user_id=profile.user.id) }}">
         <input type="hidden" name="action" value="ban"/>
         <button type="submit" class="profile-admin-action danger">Ban</button>
       </form>
+      {% endif %}
       <form method="POST" action="{{ url_for('creator_adjust_flowcoins', user_id=profile.user.id) }}" class="profile-admin-flowcoin">
         <label>
           <span>FlowCoin</span>
