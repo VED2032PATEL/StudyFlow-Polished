@@ -135,31 +135,27 @@
             {% if mode == 'study' %}
             <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='upvote') }}">
               <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-              <button type="submit" class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}">
-                <i data-lucide="arrow-up" width="16" height="16"></i>
-                <span>{{ 'Upvoted' if post.viewer_upvoted else 'Upvote' }}</span>
+              <button type="submit" class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}" title="Upvote">
+                <i data-lucide="arrow-up" width="18" height="18"></i>
               </button>
             </form>
             {% else %}
             <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='like') }}">
               <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-              <button type="submit" class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}">
-                <i data-lucide="heart" width="16" height="16"></i>
-                <span>{{ 'Liked' if post.viewer_liked else 'Like' }}</span>
+              <button type="submit" class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}" title="Like">
+                <i data-lucide="heart" width="18" height="18"></i>
               </button>
             </form>
             {% endif %}
 
-            <button type="button" class="social-action-btn" onclick="toggleComments(this, {{ post.id }})">
-              <i data-lucide="message-circle" width="16" height="16"></i>
-              <span>Comment</span>
+            <button type="button" class="social-action-btn" onclick="toggleComments(this, {{ post.id }})" title="Comment">
+              <i data-lucide="message-circle" width="18" height="18"></i>
             </button>
 
             <form method="POST" action="{{ url_for('social_post_share', post_id=post.id) }}">
               <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-              <button type="submit" class="social-action-btn">
-                <i data-lucide="share-2" width="16" height="16"></i>
-                <span>Share</span>
+              <button type="submit" class="social-action-btn" title="Share">
+                <i data-lucide="share-2" width="18" height="18"></i>
               </button>
             </form>
           </footer>
