@@ -42,7 +42,16 @@
 
   <span class="nav-section-label">Main Menu</span>
 
+  <span class="nav-section-label">Main Menu</span>
+
   <ul class="nav-links">
+    <li class="user-nav-item">
+      <a href="{{ url_for('home') }}"
+         class="nav-item {% if request.endpoint in ['home', 'create_social_post', 'create_social_story', 'social_post_interaction', 'social_post_comment', 'social_post_share'] %}active{% endif %}">
+        <span class="nav-icon">🏡</span>
+        <span>Home</span>
+      </a>
+    </li>
     <li class="user-nav-item">
       <a href="{{ url_for('dashboard') }}"
          class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
@@ -197,6 +206,7 @@
     if (!window.lucide) return;
 
     const navIcons = {
+      Home: 'home',
       Dashboard: 'layout-dashboard',
       Reviews: 'repeat-2',
       Analytics: 'chart-no-axes-combined',
@@ -231,6 +241,7 @@
     });
 
     const titleIcons = [
+      ['Home', 'home'],
       ['Dashboard', 'layout-dashboard'],
       ['Subjects', 'book-open'],
       ['Study Schedule', 'calendar-days'],
