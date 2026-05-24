@@ -177,6 +177,22 @@ def _is_safe_redirect_url(target):
     )
 
 
+def _split_social_tags(value):
+    raw = re.split(r"[,\s]+", value or "")
+    tags = []
+    seen = set()
+    for tag in raw:
+        clean = re.sub(r"[^A-Za-z0-9_+\-#.]", "", tag).strip().lstrip("#")
+        if not clean:
+            continue
+        key = clean.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        tags.append(clean[:40])
+    return tags[:8]
+
+
 def _redirect_back(default_endpoint="dashboard"):
     next_page = request.args.get("next")
     if _is_safe_redirect_url(next_page):
@@ -358,6 +374,8 @@ def inject_notification_count():
         "profile_chat_block_media_max_mb": PROFILE_CHAT_BLOCK_MEDIA_MAX_MB,
         "social_media_max_bytes": SOCIAL_MEDIA_MAX_BYTES,
         "social_media_max_mb": SOCIAL_MEDIA_MAX_MB,
+        "social_media_max_bytes": SOCIAL_MEDIA_MAX_BYTES,
+        "social_media_max_mb": SOCIAL_MEDIA_MAX_MB,
         "cloudinary_upload_enabled": CLOUDINARY_UPLOAD_ENABLED,
         "is_profile_video_media": _is_profile_video_media,
         "is_profile_gif_media": _is_profile_gif_media,
@@ -504,6 +522,87 @@ def dashboard():
                            today=date.today().isoformat(),
                            timedelta=timedelta)
 # Social / People
+
+@app.route("/home")
+@login_required
+def home():
+    mode = request.args.get("mode", "feed")
+    if mode not in {"feed", "study"}:
+        mode = "feed"
+    posts = db.get_social_posts(current_user.id, mode)
+    db.mark_post_views(current_user.id, [post["id"] for post in posts])
+    return render_template(
+        "home.html",
+        mode=mode,
+        posts=posts,
+        stories=db.get_visible_stories(current_user.id) if mode == "feed" else [],
+        suggestions=db.get_profile_suggestions(current_user.id, limit=8),
+    )
+
+
+@app.route("/home/posts", methods=["POST"])
+@login_required
+def create_social_post():
+    mode = request.form.get("mode", "feed")
+    if mode not in {"feed", "study"}:
+        mode = "feed"
+    post_id = db.create_social_post(
+        current_user.id,
+        mode,
+        request.form.get("caption", ""),
+        _split_social_tags(request.form.get("tags", "")),
+        request.form.get("media_url", ""),
+        request.form.get("media_type", ""),
+    )
+    flash("Post shared." if post_id else "Add a caption or media before posting.", "success" if post_id else "error")
+    return redirect(url_for("home", mode=mode))
+
+
+@app.route("/home/stories", methods=["POST"])
+@login_required
+def create_social_story():
+    story_id = db.create_social_story(
+        current_user.id,
+        request.form.get("caption", ""),
+        request.form.get("media_url", ""),
+        request.form.get("media_type", ""),
+    )
+    flash("Story shared for 24 hours." if story_id else "Add a photo or video for your story.", "success" if story_id else "error")
+    return redirect(url_for("home", mode="feed"))
+
+
+@app.route("/home/posts/<int:post_id>/<kind>", methods=["POST"])
+@login_required
+def social_post_interaction(post_id, kind):
+    if kind not in {"like", "upvote"}:
+        return redirect(url_for("home"))
+    db.toggle_social_post_interaction(post_id, current_user.id, kind)
+    return _redirect_back("home")
+
+
+@app.route("/home/posts/<int:post_id>/comment", methods=["POST"])
+@login_required
+def social_post_comment(post_id):
+    if not db.add_social_comment(post_id, current_user.id, request.form.get("body", "")):
+        flash("Comment could not be added.", "error")
+    return _redirect_back("home")
+
+
+@app.route("/home/posts/<int:post_id>/share", methods=["POST"])
+@login_required
+def social_post_share(post_id):
+    ok = db.record_social_share(post_id, current_user.id)
+    if request.headers.get("Accept") == "application/json":
+        return jsonify({"ok": ok})
+    flash("Share counted. Copy the current page link to send it anywhere." if ok else "Post unavailable.", "success" if ok else "error")
+    return _redirect_back("home")
+
+
+@app.route("/home/stories/<int:story_id>/view", methods=["POST"])
+@login_required
+def social_story_view(story_id):
+    return jsonify({"ok": db.mark_story_view(story_id, current_user.id)})
+
 
 @app.route("/people")
 @login_required
@@ -2005,28 +2104,28 @@ def sign_profile_media():
     data = request.get_json(silent=True) or {}
     mode = data.get("mode", "avatar")
     resource_type = data.get("resource_type", "auto")
-    if mode not in {"avatar", "banner", "chat_block"}:
+    if mode not in {"avatar", "banner", "chat_block", "social_post", "story"}:
         return jsonify({"error": "Invalid upload target."}), 400
     if resource_type not in {"auto", "image", "video"}:
         resource_type = "auto"
-    if resource_type == "video" and not _can_use_animated_profile_media():
-        return jsonify({"error": "Animated profile media requires a creator blue tick or V badge."}), 403
+    if mode in {"avatar", "banner", "chat_block"} and resource_type == "video" and not current_user.is_verified:
+        return jsonify({"error": "Animated profile media is verified-only."}), 403
 
     timestamp = int(time.time())
+    folder = CLOUDINARY_SOCIAL_FOLDER if mode in {"social_post", "story"} else CLOUDINARY_PROFILE_FOLDER
     params = {
-        "folder": CLOUDINARY_PROFILE_FOLDER,
+        "folder": folder,
         "timestamp": timestamp,
     }
     cloud_name = CLOUDINARY_CLOUD_NAME
     return jsonify({
         "apiKey": CLOUDINARY_API_KEY,
         "cloudName": cloud_name,
-        "folder": CLOUDINARY_PROFILE_FOLDER,
+        "folder": folder,
         "timestamp": timestamp,
         "signature": _cloudinary_signature(params),
         "uploadUrl": f"https://api.cloudinary.com/v1_1/{cloud_name}/auto/upload",
     })
-
 
 # ── Ollama AI endpoints ───────────────────────────────────────────────────────
 
