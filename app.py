@@ -794,6 +794,14 @@ def moderate_user(user_id):
         flash("Creator accounts cannot be moderated from this menu.", "error")
         return redirect(url_for("user_profile_by_id", user_id=user_id))
     action = request.form.get("action", "suspend")
+
+    if action in {"unsuspend", "unban"}:
+        db.update_user_moderation_status(user_id, "active")
+        label = "unsuspended" if action == "unsuspend" else "unbanned"
+        _log_creator_action(action, "user", user_id, f"Account {label} by creator")
+        flash(f"{target['username']} has been {label} and their account is active again.", "success")
+        return redirect(url_for("user_profile_by_id", user_id=user_id))
+
     status = "banned" if action == "ban" else "suspended"
     reason = request.form.get("reason", "").strip() or f"Account {status} by creator"
     db.update_user_moderation_status(user_id, status)
