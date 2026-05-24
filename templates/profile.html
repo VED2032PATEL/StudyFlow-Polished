@@ -5,12 +5,18 @@
 {% block content %}
 
 <style>
+  .profile-admin-panel {
+    max-height:none !important;
+    overflow:visible !important;
+    z-index:9999 !important;
+  }
   .profile-overview-grid {
     display:grid !important;
     grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr) !important;
     gap:18px;
     align-items:stretch;
     margin-bottom:22px;
+    overflow:visible !important;
   }
 
   .profile-overview-grid .profile-hero {
