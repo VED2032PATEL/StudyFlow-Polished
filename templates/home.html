@@ -343,8 +343,10 @@
 /* ── Post actions ── */
 .social-post-actions { display: flex; gap: 6px; border-top: 1px solid var(--border); padding-top: 10px; flex-wrap: wrap; }
 .social-post-actions form { display: contents; }
-.social-action-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--text-muted); font-size: .83rem; cursor: pointer; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; }
-.social-action-btn span { display: inline !important; visibility: visible !important; opacity: 1 !important; }
+.social-action-btn { display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--t2); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.social-action-btn:hover { background: var(--p-bg); color: var(--t1); border-color: var(--p1); }
+.social-action-btn.active { color: var(--p1); border-color: var(--p1); background: var(--p-bg); }
+.social-action-btn.liked { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,.08); }
 .social-action-btn:hover { background: var(--hover-bg, rgba(99,102,241,.08)); color: var(--text); border-color: var(--accent); }
 .social-action-btn.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .social-action-btn.liked { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,.08); }
