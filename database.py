@@ -268,6 +268,7 @@ _MIGRATIONS = [
     ("users",      "banner_data_url",       "ALTER TABLE users ADD COLUMN banner_data_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "chat_block_video_url",  "ALTER TABLE users ADD COLUMN chat_block_video_url TEXT NOT NULL DEFAULT ''"),
     ("users",      "is_verified",           "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0"),
+    ("users",      "is_v_badged",           "ALTER TABLE users ADD COLUMN is_v_badged INTEGER NOT NULL DEFAULT 0"),
     ("users",      "moderation_status",     "ALTER TABLE users ADD COLUMN moderation_status TEXT NOT NULL DEFAULT 'active'"),
     ("users",      "profile_decoration",    "ALTER TABLE users ADD COLUMN profile_decoration TEXT NOT NULL DEFAULT ''"),
     ("users",      "user_code",             "ALTER TABLE users ADD COLUMN user_code TEXT NOT NULL DEFAULT ''"),
@@ -507,6 +508,17 @@ def update_user_moderation_status(user_id, status):
         conn.close()
 
 
+def update_user_v_badge(user_id, enabled):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE users SET is_v_badged=? WHERE id=? AND is_verified=0",
+            [1 if enabled else 0, user_id],
+        )
+    finally:
+        conn.close()
+
+
 def search_users(query, current_user_id, limit=12):
     query = (query or "").strip()
     if not query:
@@ -514,7 +526,7 @@ def search_users(query, current_user_id, limit=12):
     conn = get_db()
     try:
         rows = _rows_to_dicts(conn.execute(
-            """SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,moderation_status,created_at
+            """SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,is_v_badged,moderation_status,created_at
                FROM users
                WHERE id<>? AND moderation_status<>'banned' AND username LIKE ? COLLATE NOCASE
                ORDER BY username LIMIT ?""",
@@ -580,7 +592,7 @@ def get_following(user_id):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.created_at,f.created_at AS followed_at
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.created_at,f.created_at AS followed_at
                FROM follows f JOIN users u ON u.id=f.following_id
                WHERE f.follower_id=? ORDER BY f.created_at DESC""",
             [user_id],
@@ -593,7 +605,7 @@ def get_followers(user_id):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.created_at,f.created_at AS followed_at
+            """SELECT u.id,u.username,u.email,u.avatar_data_url,u.profile_decoration,u.is_verified,u.is_v_badged,u.created_at,f.created_at AS followed_at
                FROM follows f JOIN users u ON u.id=f.follower_id
                WHERE f.following_id=? ORDER BY f.created_at DESC""",
             [user_id],
@@ -938,7 +950,7 @@ def create_call(call_id, caller_id, receiver_id, kind):
 def _call_to_dict(row, viewer_id, conn):
     peer_id = row["receiver_id"] if row["caller_id"] == viewer_id else row["caller_id"]
     peer = _rows_to_dicts(conn.execute(
-        "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified FROM users WHERE id=?",
+        "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,is_v_badged FROM users WHERE id=?",
         [peer_id],
     ))
     data = dict(row)
@@ -1056,7 +1068,7 @@ def get_conversations(user_id):
             peer_id = peer["peer_id"]
             purge_expired_messages(user_id, peer_id)
             user_rows = _rows_to_dicts(conn.execute(
-                "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,chat_block_video_url FROM users WHERE id=?",
+                "SELECT id,username,email,avatar_data_url,profile_decoration,is_verified,is_v_badged,chat_block_video_url FROM users WHERE id=?",
                 [peer_id],
             ))
             if not user_rows:
@@ -1136,7 +1148,7 @@ def get_user_note(user_id):
         _purge_expired_user_notes(conn)
         rows = _rows_to_dicts(conn.execute(
             """SELECT n.user_id AS id,u.username,u.email,u.avatar_data_url,u.profile_decoration,
-                      u.is_verified,n.body,n.created_at,n.expires_at
+                      u.is_verified,u.is_v_badged,n.body,n.created_at,n.expires_at
                FROM user_notes n
                JOIN users u ON u.id=n.user_id
                WHERE n.user_id=? AND n.expires_at > datetime('now')""",
@@ -1172,7 +1184,7 @@ def get_visible_user_notes(viewer_id, limit=12):
         params = list(user_ids) + [viewer_id, limit]
         rows = _rows_to_dicts(conn.execute(
             f"""SELECT n.user_id AS id,u.username,u.email,u.avatar_data_url,u.profile_decoration,
-                       u.is_verified,n.body,n.created_at,n.expires_at
+                       u.is_verified,u.is_v_badged,n.body,n.created_at,n.expires_at
                 FROM user_notes n
                 JOIN users u ON u.id=n.user_id
                 WHERE n.expires_at > datetime('now') AND n.user_id IN ({placeholders})
@@ -1674,7 +1686,7 @@ def get_recent_users(limit=8):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT id,user_code,username,email,avatar_data_url,profile_decoration,is_verified,moderation_status,created_at
+            """SELECT id,user_code,username,email,avatar_data_url,profile_decoration,is_verified,is_v_badged,moderation_status,created_at
                FROM users ORDER BY created_at DESC,id DESC LIMIT ?""",
             [limit],
         ))
@@ -1692,7 +1704,7 @@ def get_support_tickets(status=None, limit=80):
             params.append(status)
         params.append(limit)
         return _rows_to_dicts(conn.execute(
-            f"""SELECT st.*,u.username,u.avatar_data_url,u.is_verified
+            f"""SELECT st.*,u.username,u.avatar_data_url,u.is_verified,u.is_v_badged
                 FROM support_tickets st
                 LEFT JOIN users u ON u.id=st.user_id
                 {where}
@@ -1718,7 +1730,7 @@ def get_audit_logs(limit=100):
     conn = get_db()
     try:
         return _rows_to_dicts(conn.execute(
-            """SELECT al.*,u.username,u.avatar_data_url,u.is_verified
+            """SELECT al.*,u.username,u.avatar_data_url,u.is_verified,u.is_v_badged
                FROM admin_audit_logs al
                LEFT JOIN users u ON u.id=al.actor_id
                ORDER BY al.created_at DESC,al.id DESC LIMIT ?""",

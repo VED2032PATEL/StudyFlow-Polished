@@ -246,6 +246,19 @@ body.creator-sections-open .user-nav-item {
   stroke:currentColor;
 }
 
+.verified-badge.v-badge {
+  background:linear-gradient(135deg,#8b5cf6,#38bdf8);
+  box-shadow:0 0 0 1px rgba(255,255,255,.16), 0 4px 12px rgba(56,189,248,.22);
+  font-size:.54em;
+  font-weight:950;
+  letter-spacing:0;
+}
+
+.verified-badge.v-badge span {
+  line-height:1;
+  transform:translateY(.02em);
+}
+
 /* ═══════════════════════════════════════════════════════════
    MAIN CONTENT
 ═══════════════════════════════════════════════════════════ */
@@ -5158,7 +5171,7 @@ select.form-input,
 
 .profile-hero {
   position:relative;
-  overflow:hidden;
+  overflow:visible;
   background:var(--surface);
   border:1px solid var(--border);
   border-radius:12px;
@@ -5304,7 +5317,7 @@ select.form-input,
   position:absolute;
   top:14px;
   right:14px;
-  z-index:5;
+  z-index:30;
 }
 
 .profile-admin-menu summary {
@@ -5331,6 +5344,8 @@ select.form-input,
   top:46px;
   right:0;
   width:280px;
+  max-height:min(70vh, 460px);
+  overflow:auto;
   padding:12px;
   border:1px solid var(--border);
   border-radius:12px;

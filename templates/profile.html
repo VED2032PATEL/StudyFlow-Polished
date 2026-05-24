@@ -6,7 +6,6 @@
 
 <style>
   .profile-admin-panel {
-    .profile-admin-panel {
     position: fixed !important;
     top: 60px !important;
     right: 20px !important;
@@ -111,6 +110,12 @@
         <button type="submit" class="profile-admin-action danger">Ban</button>
       </form>
       {% endif %}
+      <form method="POST" action="{{ url_for('creator_update_v_badge', user_id=profile.user.id) }}">
+        <input type="hidden" name="enabled" value="{{ 0 if profile.user.is_v_badged else 1 }}"/>
+        <button type="submit" class="profile-admin-action">
+          {{ 'Remove V badge' if profile.user.is_v_badged else 'Grant V badge' }}
+        </button>
+      </form>
       <form method="POST" action="{{ url_for('creator_adjust_flowcoins', user_id=profile.user.id) }}" class="profile-admin-flowcoin">
         <label>
           <span>FlowCoin</span>

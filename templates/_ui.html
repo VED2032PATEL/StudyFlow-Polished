@@ -3,6 +3,10 @@
     <span class="verified-badge" title="Verified creator" aria-label="Verified creator">
       <i data-lucide="check" width="10" height="10" stroke-width="4"></i>
     </span>
+  {% elif user and user.is_v_badged %}
+    <span class="verified-badge v-badge" title="V badge" aria-label="V badge">
+      <span>V</span>
+    </span>
   {% endif %}
 {%- endmacro %}
 

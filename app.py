@@ -324,6 +324,7 @@ class User(UserMixin):
         self.chat_block_video_url = row.get("chat_block_video_url", "")
         self.profile_decoration = row.get("profile_decoration", "")
         self.is_verified = row.get("is_verified", 0)
+        self.is_v_badged = row.get("is_v_badged", 0)
         self.moderation_status = row.get("moderation_status", "active")
 
     def get_id(self):
@@ -658,7 +659,7 @@ def _clean_profile_media_data_url(value, max_bytes, label, allow_animated=False,
         if not _is_cloudinary_media_url(value):
             raise ValueError(f"{label} must be uploaded through StudyFlow media storage.")
         if (_is_profile_video_media(value) or _is_profile_gif_media(value)) and not allow_animated:
-            raise ValueError(f"Animated {label.lower()} media is only available to verified accounts.")
+            raise ValueError(f"Animated {label.lower()} media requires a creator blue tick or V badge.")
         return value
     if ";base64," not in value or not value.startswith("data:"):
         raise ValueError(f"{label} could not be read.")
@@ -677,7 +678,7 @@ def _clean_profile_media_data_url(value, max_bytes, label, allow_animated=False,
     if len(raw) > max_bytes:
         raise ValueError(f"{label} is too large.")
     if _is_animated_profile_media(content_type) and not allow_animated:
-        raise ValueError(f"Animated {label.lower()} media is only available to verified accounts.")
+        raise ValueError(f"Animated {label.lower()} media requires a creator blue tick or V badge.")
     if content_type == "image/gif":
         gif_seconds = _gif_duration_seconds(raw)
         if gif_seconds and gif_seconds > PROFILE_MEDIA_MAX_SECONDS:
@@ -692,6 +693,11 @@ def _clean_profile_media_data_url(value, max_bytes, label, allow_animated=False,
         if seconds > PROFILE_MEDIA_MAX_SECONDS:
             raise ValueError(f"{label} video must be {PROFILE_MEDIA_MAX_SECONDS} seconds or shorter.")
     return f"data:{content_type};base64,{encoded}"
+
+
+def _can_use_animated_profile_media(user=None):
+    user = user or current_user
+    return bool(getattr(user, "is_verified", 0) or getattr(user, "is_v_badged", 0))
 
 
 def _creator_required():
@@ -838,6 +844,26 @@ def creator_adjust_flowcoins(user_id):
     )
     _log_creator_action("adjust_flowcoins", "user", user_id, f"{amount}: {reason}")
     flash(f"FlowCoins updated for {target['username']}.", "success")
+    return redirect(url_for("user_profile_by_id", user_id=user_id))
+
+
+@app.route("/creator/users/<int:user_id>/v-badge", methods=["POST"])
+@login_required
+def creator_update_v_badge(user_id):
+    if not _creator_required():
+        return redirect(url_for("dashboard"))
+    target = db.get_user_by_id(user_id)
+    if not target:
+        flash("User not found.", "error")
+        return redirect(url_for("people"))
+    if target.get("is_verified") or target["id"] == current_user.id:
+        flash("Creator accounts do not need a V badge.", "error")
+        return redirect(url_for("user_profile_by_id", user_id=user_id))
+    enabled = request.form.get("enabled") == "1"
+    db.update_user_v_badge(user_id, enabled)
+    action = "grant_v_badge" if enabled else "remove_v_badge"
+    _log_creator_action(action, "user", user_id, "V badge animated-media access")
+    flash(f"V badge {'granted to' if enabled else 'removed from'} {target['username']}.", "success")
     return redirect(url_for("user_profile_by_id", user_id=user_id))
 
 
@@ -1730,7 +1756,7 @@ def settings():
                         cropped_avatar,
                         PROFILE_AVATAR_MEDIA_MAX_BYTES,
                         "Profile photo",
-                        allow_animated=bool(current_user.is_verified),
+                        allow_animated=_can_use_animated_profile_media(),
                         duration_seconds=avatar_duration,
                     ))
                 except ValueError as exc:
@@ -1750,7 +1776,7 @@ def settings():
                         f"data:{content_type};base64,{encoded}",
                         PROFILE_AVATAR_MEDIA_MAX_BYTES,
                         "Profile photo",
-                        allow_animated=bool(current_user.is_verified),
+                        allow_animated=_can_use_animated_profile_media(),
                         duration_seconds=avatar_duration,
                     ))
                 except ValueError as exc:
@@ -1776,7 +1802,7 @@ def settings():
                         cropped_banner,
                         PROFILE_BANNER_MEDIA_MAX_BYTES,
                         "Profile banner",
-                        allow_animated=bool(current_user.is_verified),
+                        allow_animated=_can_use_animated_profile_media(),
                         duration_seconds=banner_duration,
                     ))
                 except ValueError as exc:
@@ -1796,7 +1822,7 @@ def settings():
                         f"data:{content_type};base64,{encoded}",
                         PROFILE_BANNER_MEDIA_MAX_BYTES,
                         "Profile banner",
-                        allow_animated=bool(current_user.is_verified),
+                        allow_animated=_can_use_animated_profile_media(),
                         duration_seconds=banner_duration,
                     ))
                 except ValueError as exc:
@@ -1822,7 +1848,7 @@ def settings():
                         chat_block_data,
                         PROFILE_CHAT_BLOCK_MEDIA_MAX_BYTES,
                         "Chat block video",
-                        allow_animated=bool(current_user.is_verified),
+                        allow_animated=_can_use_animated_profile_media(),
                         duration_seconds=chat_block_duration,
                     ))
                 except ValueError as exc:
@@ -1842,7 +1868,7 @@ def settings():
                         f"data:{content_type};base64,{encoded}",
                         PROFILE_CHAT_BLOCK_MEDIA_MAX_BYTES,
                         "Chat block video",
-                        allow_animated=bool(current_user.is_verified),
+                        allow_animated=_can_use_animated_profile_media(),
                         duration_seconds=chat_block_duration,
                     ))
                 except ValueError as exc:
@@ -1924,8 +1950,8 @@ def sign_profile_media():
         return jsonify({"error": "Invalid upload target."}), 400
     if resource_type not in {"auto", "image", "video"}:
         resource_type = "auto"
-    if resource_type == "video" and not current_user.is_verified:
-        return jsonify({"error": "Animated profile media is verified-only."}), 403
+    if resource_type == "video" and not _can_use_animated_profile_media():
+        return jsonify({"error": "Animated profile media requires a creator blue tick or V badge."}), 403
 
     timestamp = int(time.time())
     params = {

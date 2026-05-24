@@ -3,6 +3,7 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
+{% set can_use_animated_profile_media = current_user.is_verified or current_user.is_v_badged %}
 
 <div class="page-header anim">
   <div>
@@ -205,16 +206,16 @@
           <div class="profile-photo-copy">
             <div class="profile-photo-title">Profile Photo</div>
             <p class="form-hint">
-              {% if current_user.is_verified %}
+              {% if can_use_animated_profile_media %}
                 Upload JPG, PNG, WebP, GIF, MP4, WebM, or MOV up to {{ profile_avatar_media_max_mb }} MB. Animated media must be {{ profile_media_max_seconds }} seconds or shorter.
               {% else %}
-                Upload a JPG, PNG, or WebP up to {{ profile_avatar_media_max_mb }} MB. Animated media is verified-only.
+                Upload a JPG, PNG, or WebP up to {{ profile_avatar_media_max_mb }} MB. Animated media requires a creator blue tick or V badge.
               {% endif %}
             </p>
             <div class="profile-photo-actions">
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Photo
-                <input type="file" name="avatar" accept="{% if current_user.is_verified %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
+                <input type="file" name="avatar" accept="{% if can_use_animated_profile_media %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
                        onchange="openImageCropper(this, 'avatar')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Photo</button>
@@ -293,16 +294,16 @@
           <div class="profile-photo-copy">
             <div class="profile-photo-title">Profile Banner</div>
             <p class="form-hint">
-              {% if current_user.is_verified %}
+              {% if can_use_animated_profile_media %}
                 Images can be cropped; GIF/video banners loop automatically, up to {{ profile_banner_media_max_mb }} MB, and must be {{ profile_media_max_seconds }} seconds or shorter.
               {% else %}
-                Upload a JPG, PNG, or WebP banner up to {{ profile_banner_media_max_mb }} MB. Animated banners are verified-only.
+                Upload a JPG, PNG, or WebP banner up to {{ profile_banner_media_max_mb }} MB. Animated banners require a creator blue tick or V badge.
               {% endif %}
             </p>
             <div class="profile-photo-actions">
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Banner
-                <input type="file" name="banner" accept="{% if current_user.is_verified %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
+                <input type="file" name="banner" accept="{% if can_use_animated_profile_media %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
                        onchange="openImageCropper(this, 'banner')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Banner</button>
@@ -337,16 +338,16 @@
             <div class="profile-photo-title">Chat Block Video</div>
             <p class="form-hint">
               Add a short video or image that appears inside your row in other users' message lists at 60% transparency.
-              {% if current_user.is_verified %}
+              {% if can_use_animated_profile_media %}
                 Media can be up to {{ profile_chat_block_media_max_mb }} MB and {{ profile_media_max_seconds }} seconds or shorter.
               {% else %}
-                Animated media is verified-only.
+                Animated media requires a creator blue tick or V badge.
               {% endif %}
             </p>
             <div class="profile-photo-actions">
               <label class="btn btn-outline btn-sm profile-file-btn">
                 Choose Video
-                <input type="file" name="chat_block_video" accept="{% if current_user.is_verified %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
+                <input type="file" name="chat_block_video" accept="{% if can_use_animated_profile_media %}image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime{% else %}image/png,image/jpeg,image/webp{% endif %}"
                        onchange="openImageCropper(this, 'chat_block')"/>
               </label>
               <button type="submit" class="btn btn-primary btn-sm">Save Chat Block</button>
@@ -541,7 +542,7 @@ const cropState = {
   lastX: 0,
   lastY: 0
 };
-const profileAnimationAllowed = {{ current_user.is_verified|tojson }};
+const profileAnimationAllowed = {{ can_use_animated_profile_media|tojson }};
 const profileMediaMaxSeconds = {{ profile_media_max_seconds|tojson }};
 const profileAvatarMediaMaxBytes = {{ profile_avatar_media_max_bytes|tojson }};
 const profileBannerMediaMaxBytes = {{ profile_banner_media_max_bytes|tojson }};
@@ -676,7 +677,7 @@ function openImageCropper(input, mode) {
   const animatedMedia = file.type === 'image/gif' || file.type.startsWith('video/');
   if (animatedMedia) {
     if (!profileAnimationAllowed) {
-      alert('Animated profile media is only available to verified accounts.');
+      alert('Animated profile media requires a creator blue tick or V badge.');
       input.value = '';
       return;
     }
