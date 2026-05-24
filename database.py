@@ -259,6 +259,64 @@ _CREATE = [
         reason TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )""",
+  """CREATE TABLE IF NOT EXISTS social_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        mode TEXT NOT NULL CHECK(mode IN ('study','feed')),
+        caption TEXT NOT NULL DEFAULT '',
+        tags_json TEXT NOT NULL DEFAULT '[]',
+        media_url TEXT NOT NULL DEFAULT '',
+        media_type TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS social_post_interactions (
+        post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK(kind IN ('like','upvote')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (post_id,user_id,kind)
+    )""",
+    """CREATE TABLE IF NOT EXISTS social_post_comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS social_post_views (
+        post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        viewed_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (post_id,user_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS social_post_shares (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS social_stories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        caption TEXT NOT NULL DEFAULT '',
+        media_url TEXT NOT NULL,
+        media_type TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        expires_at TEXT NOT NULL DEFAULT (datetime('now','+24 hours'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS social_story_views (
+        story_id INTEGER NOT NULL REFERENCES social_stories(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        viewed_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (story_id,user_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS follow_requests (
+        requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        target_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (requester_id, target_id),
+        CHECK (requester_id != target_id)
+    )""",
 ]
 
 _MIGRATIONS = [
