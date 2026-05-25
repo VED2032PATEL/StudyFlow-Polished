@@ -303,8 +303,8 @@
 .story-caption-input, .story-file-btn, .story-submit-btn { display: none; }
 
 /* ── Grid layout ── */
-.social-home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
-.social-home-grid.study-layout { grid-template-columns: 1fr 280px; }
+.social-home-grid { display: grid; grid-template-columns: minmax(0, 600px) 300px; gap: 22px; align-items: start; justify-content: center; }
+.social-home-grid.study-layout { grid-template-columns: minmax(0, 600px) 260px; }
 @media (max-width: 900px) { .social-home-grid, .social-home-grid.study-layout { grid-template-columns: 1fr; } .social-suggestions-sidebar { display: none; } }
 
 /* ── Composer ── */
