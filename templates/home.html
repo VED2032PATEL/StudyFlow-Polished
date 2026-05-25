@@ -152,12 +152,10 @@
               <i data-lucide="message-circle" width="18" height="18"></i>
             </button>
 
-            <form method="POST" action="{{ url_for('social_post_share', post_id=post.id) }}">
-              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-              <button type="submit" class="social-action-btn" title="Share">
-                <i data-lucide="share-2" width="18" height="18"></i>
-              </button>
-            </form>
+            <button type="button" class="social-action-btn" title="Share"
+                    onclick="sharePost({{ post.id }}, '{{ url_for('social_post_view', post_id=post.id, _external=True) }}')">
+              <i data-lucide="share-2" width="18" height="18"></i>
+            </button>
           </footer>
 
           {# ── Comments section ── #}
@@ -398,6 +396,50 @@
 </style>
 
 <script>
+  // ── Share post ──
+function sharePost(postId, postUrl) {
+  fetch(`/home/posts/${postId}/share`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Accept': 'application/json' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    const url = data.url || postUrl;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        showShareToast('Link copied to clipboard!');
+      }).catch(() => {
+        showShareToast(url);
+      });
+    } else {
+      showShareToast(url);
+    }
+  })
+  .catch(() => showShareToast(postUrl));
+}
+
+function showShareToast(msg) {
+  let toast = document.getElementById('share-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'share-toast';
+    toast.style.cssText = `
+      position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:10px; padding:10px 20px; font-size:13px; font-weight:600;
+      color:var(--t1); box-shadow:0 8px 24px rgba(0,0,0,.15);
+      z-index:99999; transition:opacity .3s; white-space:nowrap;
+      max-width:90vw; overflow:hidden; text-overflow:ellipsis;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
 // ── Comments toggle ──
 function toggleComments(btn, postId) {
   const section = document.getElementById('comments-' + postId);
