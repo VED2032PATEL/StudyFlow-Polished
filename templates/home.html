@@ -338,6 +338,25 @@
 .story-avatar-wrap .story-avatar,
 .story-avatar-wrap .decorated-avatar { width:64px !important; height:64px !important; border-radius:50% !important; }
 
+/* Gradient ring for unseen stories */
+.story-unseen { padding:3px; background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); border-radius:50%; }
+.story-unseen .story-avatar,
+.story-unseen .decorated-avatar { outline:2.5px solid var(--surface); outline-offset:0px; border-radius:50% !important; }
+
+/* Grey ring for seen stories */
+.story-ring-btn.seen .story-avatar-wrap { padding:3px; background:var(--border); border-radius:50%; }
+.story-ring-btn.seen .story-avatar,
+.story-ring-btn.seen .decorated-avatar { outline:2.5px solid var(--surface); border-radius:50% !important; }
+
+.your-story-wrap { padding:3px; background:linear-gradient(135deg,var(--p1),var(--p2)); border-radius:50%; transition:transform .2s; }
+.your-story-wrap .story-avatar,
+.your-story-wrap .decorated-avatar { outline:2.5px solid var(--surface); border-radius:50% !important; }
+
+.story-create-plus { position:absolute; bottom:0; right:0; width:22px; height:22px; background:var(--p1); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid var(--surface); z-index:2; }
+
+.story-name { font-size:.72rem; color:var(--t2); text-align:center; max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+
 /* ── Grid layout ── */
 .social-home-grid { display: grid; grid-template-columns: minmax(0, 600px) 300px; gap: 22px; align-items: start; justify-content: center; }
 .social-home-grid.study-layout { grid-template-columns: minmax(0, 600px) 260px; }
@@ -412,6 +431,54 @@
 .story-modal[hidden] { display:none; }
 .story-modal-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.9); }
 .story-modal-inner { position:relative; width:min(400px,96vw); height:min(710px,92vh); background:#111; border-radius:16px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.7); display:flex; flex-direction:column; }
+  /* Progress bars */
+.story-progress-bar-row { display:flex; gap:3px; padding:10px 12px 6px; position:relative; z-index:3; flex-shrink:0; }
+.story-prog-bar { flex:1; height:2.5px; background:rgba(255,255,255,.35); border-radius:2px; overflow:hidden; }
+.story-prog-fill { height:100%; background:#fff; width:0%; }
+
+/* Header */
+.story-modal-header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px 6px; position:relative; z-index:3; flex-shrink:0; }
+.story-modal-user { display:flex; align-items:center; gap:10px; }
+.story-modal-avatar-img { width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.8); object-fit:cover; flex-shrink:0; }
+.story-modal-user-info { display:flex; flex-direction:column; gap:1px; }
+.story-modal-username { color:#fff; font-weight:700; font-size:.9rem; text-shadow:0 1px 4px rgba(0,0,0,.5); }
+.story-modal-time { color:rgba(255,255,255,.7); font-size:.72rem; }
+.story-modal-close-btn { background:none; border:none; color:#fff; cursor:pointer; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s; }
+.story-modal-close-btn:hover { background:rgba(255,255,255,.15); }
+
+/* Media */
+.story-modal-media-wrap { flex:1; min-height:0; position:relative; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.story-modal-media-wrap img,
+.story-modal-media-wrap video { width:100%; height:100%; object-fit:contain; display:block; }
+.story-tap-prev,
+.story-tap-next { position:absolute; top:0; bottom:0; width:40%; background:none; border:none; cursor:pointer; z-index:2; }
+.story-tap-prev { left:0; }
+.story-tap-next { right:0; }
+
+/* Caption */
+.story-modal-caption { padding:8px 14px 6px; color:rgba(255,255,255,.9); font-size:.85rem; text-align:center; flex-shrink:0; min-height:28px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+
+/* Footer */
+.story-modal-footer { padding:10px 14px 14px; display:flex; align-items:center; gap:10px; flex-shrink:0; background:linear-gradient(to top,rgba(0,0,0,.5),transparent); }
+.story-reply-form { flex:1; display:flex; align-items:center; background:transparent; border:1.5px solid rgba(255,255,255,.5); border-radius:999px; overflow:hidden; padding:0 4px 0 14px; }
+.story-reply-input { flex:1; background:none; border:none; outline:none; color:#fff; font-size:.88rem; padding:10px 0; font-family:inherit; }
+.story-reply-input::placeholder { color:rgba(255,255,255,.6); }
+.story-reply-send { background:none; border:none; color:#fff; cursor:pointer; padding:8px 10px; display:flex; align-items:center; }
+.story-footer-actions { display:flex; gap:8px; flex-shrink:0; }
+.story-footer-btn { background:none; border:none; color:#fff; cursor:pointer; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s, transform .15s; }
+.story-footer-btn:hover { background:rgba(255,255,255,.15); transform:scale(1.1); }
+.story-footer-btn.liked { color:#f43f5e; }
+
+/* Story upload preview */
+.story-preview-inner { position:relative; width:min(420px,96vw); background:var(--surface); border-radius:16px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.5); }
+.story-preview-header { display:flex; align-items:center; justify-content:space-between; padding:18px 18px 14px; border-bottom:1px solid var(--border); }
+.story-preview-header h3 { font-size:1rem; font-weight:700; color:var(--t1); }
+.story-preview-media { background:#000; min-height:200px; max-height:420px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.story-preview-media img,
+.story-preview-media video { max-width:100%; max-height:420px; object-fit:contain; display:block; }
+.story-preview-form { padding:14px 18px 18px; display:flex; flex-direction:column; gap:12px; }
+.story-preview-caption-input { border:1.5px solid var(--border); border-radius:10px; padding:10px 14px; font-size:.9rem; color:var(--t1); background:var(--surface-2); outline:none; font-family:inherit; }
+.story-preview-caption-input:focus { border-color:var(--p1); }
 </style>
 
 <script>
