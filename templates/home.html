@@ -44,7 +44,7 @@
 
     {% for tray in stories %}
     <button type="button"
-            class="story-ring {% if tray.all_seen %}seen{% else %}unseen{% endif %}"
+            class="story-ring {% if tray.all_seen %}seen{% endif %}"
             data-story-user="{{ tray.user.username }}"
             data-story-avatar="{{ tray.user.avatar_data_url }}"
             data-story-conversation="{{ url_for('conversation_by_user_id', user_id=tray.user.id) }}"
