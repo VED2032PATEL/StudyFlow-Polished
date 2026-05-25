@@ -592,10 +592,31 @@ def social_post_comment(post_id):
 @login_required
 def social_post_share(post_id):
     ok = db.record_social_share(post_id, current_user.id)
+    post_url = url_for("social_post_view", post_id=post_id, _external=True)
     if request.headers.get("Accept") == "application/json":
-        return jsonify({"ok": ok})
-    flash("Share counted. Copy the current page link to send it anywhere." if ok else "Post unavailable.", "success" if ok else "error")
+        return jsonify({"ok": ok, "url": post_url})
+    flash(f"Share link: {post_url}" if ok else "Post unavailable.", "success" if ok else "error")
     return _redirect_back("home")
+
+
+@app.route("/home/posts/<int:post_id>")
+@login_required
+def social_post_view(post_id):
+    posts = db.get_social_posts(current_user.id, "feed", limit=200)
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        posts = db.get_social_posts(current_user.id, "study", limit=200)
+        post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        flash("Post not found or not visible to you.", "error")
+        return redirect(url_for("home"))
+    return render_template("home.html",
+        mode=post.get("mode", "feed"),
+        posts=[post],
+        stories=[],
+        suggestions=db.get_profile_suggestions(current_user.id, limit=4),
+        highlight_post_id=post_id,
+    )
 
 
 @app.route("/home/stories/<int:story_id>/view", methods=["POST"])
