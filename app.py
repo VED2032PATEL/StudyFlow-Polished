@@ -590,7 +590,11 @@ def social_post_comment(post_id):
 @app.route("/home/comments/<int:comment_id>/delete", methods=["POST"])
 @login_required
 def social_comment_delete(comment_id):
-    if not db.delete_social_comment(comment_id, current_user.id):
+    ok = db.delete_social_comment(comment_id, current_user.id)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or \
+       request.headers.get("Accept", "").startswith("application/json"):
+        return jsonify({"ok": ok}), (200 if ok else 403)
+    if not ok:
         flash("Could not delete comment.", "error")
     return _redirect_back("home")
 
