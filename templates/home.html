@@ -126,16 +126,6 @@
           </div>
           {% endif %}
 
-          <div class="social-post-meta">
-            {% if mode == 'study' %}
-            <span class="social-post-stat"><i data-lucide="arrow-up" width="15" height="15"></i> {{ post.upvotes or 0 }}</span>
-            {% else %}
-            <span class="social-post-stat"><i data-lucide="heart" width="15" height="15"></i> {{ post.likes or 0 }}</span>
-            {% endif %}
-            <span class="social-post-stat"><i data-lucide="message-circle" width="15" height="15"></i> {{ post.comment_count or 0 }}</span>
-            <span class="social-post-stat"><i data-lucide="share-2" width="15" height="15"></i> {{ post.shares or 0 }}</span>
-          </div>
-
           <footer class="social-post-actions">
             {% if mode == 'study' %}
             <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='upvote') }}">
