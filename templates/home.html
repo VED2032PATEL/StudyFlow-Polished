@@ -229,13 +229,7 @@
           {% for user in suggestions %}
           <div class="suggestion-row">
             <a href="{{ url_for('user_profile_by_id', user_id=user.id) }}" class="suggestion-user">
-              <span class="suggestion-avatar">
-                {% if user.avatar_data_url %}
-                  <img src="{{ user.avatar_data_url }}" alt="{{ user.username }}"/>
-                {% else %}
-                  <span class="avatar-core">{{ user.username[0].upper() }}</span>
-                {% endif %}
-              </span>
+              {{ ui.decorated_avatar(user, 'suggestion-avatar') }}
               <div class="suggestion-info">
                 <strong>{{ user.username }} {{ ui.verified_badge(user) }}</strong>
                 <small>{{ user.counts.followers }} followers</small>
