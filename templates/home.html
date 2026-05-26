@@ -97,22 +97,42 @@
       {# ── Posts ── #}
       {% if posts %}
         {% for post in posts %}
-        <article class="social-post-card {% if mode == 'study' %}study-post-card{% endif %} anim d2">
+        <article class="social-post-card {% if mode == 'study' %}study-post-card{% endif %} anim d2" data-post-id="{{ post.id }}">
+
+          {# ── Header: avatar, username, time, follow, dots ── #}
           <header class="social-post-head">
             <a href="{{ url_for('user_profile_by_id', user_id=post.user.id) }}" class="social-post-author">
               {{ ui.decorated_avatar(post.user, 'post-avatar') }}
-              <span>
+              <span class="social-post-author-info">
                 <strong>{{ post.user.username }} {{ ui.verified_badge(post.user) }}</strong>
                 <small>{{ post.created_at[:16] }}</small>
               </span>
             </a>
+            <div class="social-post-head-right">
+              {% if not post.user.id == current_user.id %}
+              <form method="POST" action="{{ url_for('follow_user', user_id=post.user.id) }}" class="post-follow-form">
+                <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+                <button type="submit" class="post-follow-btn">Follow</button>
+              </form>
+              {% endif %}
+              <button type="button" class="post-dots-btn" onclick="togglePostMenu(this, {{ post.id }})">
+                <i data-lucide="more-horizontal" width="18" height="18"></i>
+              </button>
+              <div class="post-dots-menu" id="post-menu-{{ post.id }}" hidden>
+                <button type="button" class="post-dots-item" onclick="sharePost({{ post.id }}, '{{ url_for('social_post_view', post_id=post.id, _external=True) }}')">
+                  <i data-lucide="link" width="14" height="14"></i> Copy link
+                </button>
+                {% if post.user.id == current_user.id %}
+                <button type="button" class="post-dots-item danger" onclick="deletePost({{ post.id }})">
+                  <i data-lucide="trash-2" width="14" height="14"></i> Delete post
+                </button>
+                {% endif %}
+              </div>
+            </div>
           </header>
 
-          {% if post.caption %}
-          <p class="social-post-caption">{{ post.caption }}</p>
-          {% endif %}
-
-          {% if post.tags %}
+          {# ── Tags (study board only, above media) ── #}
+          {% if post.tags and mode == 'study' %}
           <div class="social-post-tags">
             {% for tag in post.tags %}
             <span class="social-tag">#{{ tag }}</span>
@@ -120,42 +140,66 @@
           </div>
           {% endif %}
 
+          {# ── Media ── #}
           {% if post.media_url %}
           <div class="social-post-media-wrap">
             {{ social_media(post.media_url, post.media_type) }}
           </div>
           {% endif %}
 
+          {# ── Actions ── #}
           <footer class="social-post-actions">
-            {% if mode == 'study' %}
-            <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='upvote') }}">
-              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-              <button type="submit" class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}" title="Upvote">
-                <i data-lucide="arrow-up" width="20" height="20"></i>
-                <span>{{ post.upvotes or 0 }}</span>
+            <div class="social-post-actions-left">
+              {% if mode == 'study' %}
+              <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='upvote') }}">
+                <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+                <button type="submit" class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}" title="Upvote">
+                  <i data-lucide="arrow-up" width="22" height="22"></i>
+                </button>
+              </form>
+              {% else %}
+              <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='like') }}">
+                <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+                <button type="submit" class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}" title="Like">
+                  <i data-lucide="heart" width="22" height="22"></i>
+                </button>
+              </form>
+              {% endif %}
+              <button type="button" class="social-action-btn" onclick="toggleComments(this, {{ post.id }})" title="Comment">
+                <i data-lucide="message-circle" width="22" height="22"></i>
               </button>
-            </form>
-            {% else %}
-            <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='like') }}">
-              <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-              <button type="submit" class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}" title="Like">
-                <i data-lucide="heart" width="20" height="20"></i>
-                <span>{{ post.likes or 0 }}</span>
+              <button type="button" class="social-action-btn" title="Share"
+                      onclick="sharePost({{ post.id }}, '{{ url_for('social_post_view', post_id=post.id, _external=True) }}')">
+                <i data-lucide="send" width="22" height="22"></i>
               </button>
-            </form>
-            {% endif %}
-
-            <button type="button" class="social-action-btn" onclick="toggleComments(this, {{ post.id }})" title="Comment">
-              <i data-lucide="message-circle" width="20" height="20"></i>
-              <span>{{ post.comment_count or 0 }}</span>
-            </button>
-
-            <button type="button" class="social-action-btn" title="Share"
-                    onclick="sharePost({{ post.id }}, '{{ url_for('social_post_view', post_id=post.id, _external=True) }}')">
-              <i data-lucide="share-2" width="20" height="20"></i>
-              <span>{{ post.shares or 0 }}</span>
-            </button>
+            </div>
           </footer>
+
+          {# ── Like count ── #}
+          {% if mode == 'study' %}
+            {% if post.upvotes %}
+            <p class="social-post-likecount">{{ post.upvotes }} upvote{{ 's' if post.upvotes != 1 }}</p>
+            {% endif %}
+          {% else %}
+            {% if post.likes %}
+            <p class="social-post-likecount">{{ post.likes }} like{{ 's' if post.likes != 1 }}</p>
+            {% endif %}
+          {% endif %}
+
+          {# ── Caption below actions ── #}
+          {% if post.caption %}
+          <p class="social-post-caption">
+            <a href="{{ url_for('user_profile_by_id', user_id=post.user.id) }}" class="social-post-caption-user">{{ post.user.username }}</a>
+            {{ post.caption }}
+          </p>
+          {% endif %}
+
+          {# ── Comment count ── #}
+          {% if post.comment_count %}
+          <button type="button" class="social-post-viewcomments" onclick="toggleComments(this, {{ post.id }})">
+            View all {{ post.comment_count }} comment{{ 's' if post.comment_count != 1 }}
+          </button>
+          {% endif %}
 
           {# ── Comments section ── #}
           <div class="social-comments-section" id="comments-{{ post.id }}" hidden>
@@ -398,32 +442,52 @@
 
 /* ── Post card ── */
 .social-post-card { background: transparent; border: none; border-radius: 0; padding: 16px 0; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
-.social-post-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.social-post-author { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--t1); }
+/* ── Post head ── */
+.social-post-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+.social-post-author { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--t1); flex: 1; min-width: 0; }
+.social-post-author-info { display: flex; flex-direction: column; min-width: 0; }
+.social-post-author strong { display: block; font-size: .88rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.social-post-author small { color: var(--t2); font-size: .72rem; }
 .post-avatar { width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--p1), var(--p2)); color: #fff; font-weight: 800; font-size: 16px; overflow: visible; }
 .post-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
-.social-post-author strong { display: block; font-size: .9rem; }
-.social-post-author small { color: var(--text-muted); font-size: .75rem; }
-.social-post-caption { font-size: .93rem; line-height: 1.55; margin-bottom: 10px; white-space: pre-wrap; word-break: break-word; }
+.social-post-head-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; position: relative; }
+.post-follow-btn { background: none; border: none; color: var(--p1); font-weight: 700; font-size: .85rem; cursor: pointer; padding: 4px 8px; font-family: inherit; transition: opacity .15s; }
+.post-follow-btn:hover { opacity: .7; }
+.post-dots-btn { background: none; border: none; color: var(--t2); cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background .15s; }
+.post-dots-btn:hover { background: var(--surface-2); }
+.post-dots-menu { position: absolute; top: 36px; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,.15); z-index: 100; }
+.post-dots-menu[hidden] { display: none; }
+.post-dots-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: none; background: none; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 600; font-family: inherit; color: var(--t1); transition: background .15s; text-align: left; }
+.post-dots-item:hover { background: var(--surface-2); }
+.post-dots-item.danger { color: #f43f5e; }
+
+/* ── Post media ── */
 .social-post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.social-tag { font-size: .78rem; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 6px; padding: 2px 8px; }
-.social-post-media-wrap { margin-bottom: 12px; border-radius: 10px; overflow: hidden; background: var(--card-bg); display: flex; align-items: center; justify-content: center; }
+.social-tag { font-size: .78rem; color: var(--p1); background: var(--p-bg); border-radius: 6px; padding: 2px 8px; }
+.social-post-media-wrap { margin-bottom: 0; border-radius: 6px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
 .social-post-media-wrap.ratio-square { aspect-ratio: 1 / 1; }
 .social-post-media-wrap.ratio-portrait { aspect-ratio: 4 / 5; }
 .social-post-media-wrap.ratio-landscape { aspect-ratio: 16 / 9; }
 .social-post-media-wrap.ratio-tall { aspect-ratio: 9 / 16; max-height: 560px; }
 .social-post-media { width: 100%; height: 100%; object-fit: cover; display: block; }
-.social-post-meta { display: flex; gap: 14px; font-size: .88rem; color: var(--t2); margin-bottom: 10px; }
-.social-post-stat { display: flex; align-items: center; gap: 5px; font-weight: 600; }
-.social-post-stat.hide { display: none; }
 
 /* ── Post actions ── */
-.social-post-actions { display: flex; gap: 0; border-top: none; padding-top: 0; }
+.social-post-actions { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 2px; }
+.social-post-actions-left { display: flex; align-items: center; gap: 2px; }
 .social-post-actions form { display: contents; }
-.social-action-btn { display: flex; align-items: center; gap: 7px; padding: 8px 18px 8px 0; border: none; background: none; color: var(--t2); cursor: pointer; transition: color .15s; font-size: .9rem; font-weight: 600; }
-.social-action-btn:hover { background: none; color: var(--t1); border: none; }
-.social-action-btn.active { color: var(--p1); border: none; background: none; }
-.social-action-btn.liked { color: #f43f5e; border: none; background: none; }
+.social-action-btn { display: flex; align-items: center; justify-content: center; padding: 8px 10px 8px 0; border: none; background: none; color: var(--t1); cursor: pointer; transition: color .15s, transform .15s; }
+.social-action-btn:hover { background: none; color: var(--t2); transform: scale(1.1); }
+.social-action-btn.active { color: var(--p1); }
+.social-action-btn.liked { color: #f43f5e; }
+
+/* ── Caption below actions (Instagram style) ── */
+.social-post-likecount { font-size: .88rem; font-weight: 700; color: var(--t1); margin: 2px 0 4px; }
+.social-post-caption { font-size: .88rem; line-height: 1.5; margin: 0 0 6px; white-space: pre-wrap; word-break: break-word; color: var(--t1); }
+.social-post-caption-user { font-weight: 700; color: var(--t1); text-decoration: none; margin-right: 6px; }
+.social-post-caption-user:hover { text-decoration: underline; }
+.social-post-viewcomments { background: none; border: none; color: var(--t2); font-size: .83rem; cursor: pointer; padding: 0; margin-bottom: 6px; font-family: inherit; display: block; }
+.social-post-viewcomments:hover { color: var(--t1); }
+.social-post-meta { display: none; }
 
 /* ── Comments ── */
 .social-comments-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
@@ -592,7 +656,35 @@ function showShareToast(msg) {
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 }
+// ── Post dots menu ──
+function togglePostMenu(btn, postId) {
+  const menu = document.getElementById(`post-menu-${postId}`);
+  if (!menu) return;
+  const isHidden = menu.hidden;
+  // Close all other menus
+  document.querySelectorAll('.post-dots-menu').forEach(m => m.hidden = true);
+  menu.hidden = !isHidden;
+  if (!menu.hidden) window.lucide?.createIcons();
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.post-dots-btn') && !e.target.closest('.post-dots-menu')) {
+    document.querySelectorAll('.post-dots-menu').forEach(m => m.hidden = true);
+  }
+});
 
+// ── Delete post ──
+async function deletePost(postId) {
+  if (!confirm('Delete this post?')) return;
+  try {
+    const res = await fetch(`/home/posts/${postId}/delete`, {
+      method: 'POST', credentials: 'same-origin'
+    });
+    if (res.ok) {
+      document.querySelector(`article[data-post-id="${postId}"]`)?.remove();
+      location.reload();
+    }
+  } catch(_) {}
+}
 // ── Comments toggle ──
 function toggleComments(btn, postId) {
   const section = document.getElementById('comments-' + postId);
