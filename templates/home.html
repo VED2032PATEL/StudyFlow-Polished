@@ -162,14 +162,20 @@
             {% if post.comments %}
             <div class="social-comments-list">
               {% for comment in post.comments %}
-              <div class="social-comment">
-                {{ ui.decorated_avatar(comment.user, 'comment-avatar') }}
-                <div class="social-comment-body">
-                  <strong>{{ comment.user.username }}</strong>
-                  <span>{{ comment.body }}</span>
-                </div>
-              </div>
-              {% endfor %}
+<div class="social-comment" id="comment-{{ comment.id }}">
+  {{ ui.decorated_avatar(comment.user, 'comment-avatar') }}
+  <div class="social-comment-body">
+    <strong>{{ comment.user.username }}</strong>
+    <span>{{ comment.body }}</span>
+  </div>
+  {% if current_user.id == comment.user.id or current_user.id == post.user_id %}
+  <button type="button" class="comment-delete-btn" title="Delete comment"
+    onclick="deleteComment(this, {{ comment.id }}, '{{ url_for('social_comment_delete', comment_id=comment.id) }}')">
+    <i data-lucide="x" width="12" height="12"></i>
+  </button>
+  {% endif %}
+</div>
+{% endfor %}
             </div>
             {% endif %}
             <form method="POST" action="{{ url_for('social_post_comment', post_id=post.id) }}" class="social-comment-form">
@@ -420,6 +426,16 @@
 .social-comment-form { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
 .social-comment-form input { flex: 1; background: var(--input-bg, var(--card-bg)); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: .85rem; font-family: inherit; }
 .social-comment-form input:focus { outline: none; border-color: var(--accent); }
+.social-comment { position: relative; }
+.comment-delete-btn {
+  display: none; position: absolute; top: 4px; right: 4px;
+  background: rgba(239,68,68,.15); border: none; border-radius: 50%;
+  width: 20px; height: 20px; cursor: pointer; color: #ef4444;
+  align-items: center; justify-content: center; padding: 0; line-height: 1;
+  transition: background .15s;
+}
+.comment-delete-btn:hover { background: rgba(239,68,68,.3); }
+.social-comment:hover .comment-delete-btn { display: flex; }
 
 /* ── Suggestions sidebar ── */
 .social-suggestions-sidebar .card { padding: 16px; }
@@ -553,6 +569,27 @@ function toggleComments(btn, postId) {
   section.hidden = !hidden;
   if (!hidden) return;
   section.querySelector('input[name=body]')?.focus();
+}
+
+async function deleteComment(btn, commentId, url) {
+  if (!confirm('Delete this comment?')) return;
+  try {
+    const fd = new FormData();
+    fd.append('next', window.location.href);
+    const resp = await fetch(url, { method: 'POST', body: fd });
+    if (resp.ok || resp.redirected) {
+      const el = document.getElementById('comment-' + commentId);
+      if (el) el.remove();
+    } else {
+      alert('Could not delete comment.');
+    }
+  } catch (e) {
+    const f = document.createElement('form');
+    f.method = 'POST'; f.action = url;
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'next'; inp.value = window.location.href;
+    f.appendChild(inp); document.body.appendChild(f); f.submit();
+  }
 }
 
 // ── Media preview in composer ──
