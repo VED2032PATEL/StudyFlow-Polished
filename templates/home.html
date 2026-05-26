@@ -626,7 +626,7 @@ async function deleteComment(btn, commentId, url) {
   try {
     const fd = new FormData();
     fd.append('next', window.location.href);
-    const resp = await fetch(url, { method: 'POST', body: fd });
+    const resp = await fetch(url, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     if (resp.ok || resp.redirected) {
       const el = document.getElementById('comment-' + commentId);
       if (el) el.remove();
