@@ -2279,6 +2279,15 @@ def get_social_posts(viewer_id, mode="feed", limit=40):
     mode = mode if mode in {"study", "feed"} else "feed"
     conn = get_db()
     try:
+        if mode == 'feed':
+            visibility = f"""AND (p.user_id=? OR EXISTS (
+                SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=p.user_id
+            ))"""
+            params = [viewer_id, viewer_id, mode, viewer_id, viewer_id, limit]
+        else:
+            visibility = ""
+            params = [viewer_id, viewer_id, mode, limit]
+
         rows = _rows_to_dicts(conn.execute(
             f"""SELECT p.*,{_social_user_columns('u')},
                        (SELECT COUNT(*) FROM social_post_interactions i WHERE i.post_id=p.id AND i.kind='upvote') AS upvotes,
@@ -2291,9 +2300,10 @@ def get_social_posts(viewer_id, mode="feed", limit=40):
                 FROM social_posts p
                 JOIN users u ON u.id=p.user_id
                 WHERE p.mode=? AND u.moderation_status<>'banned'
+                {visibility}
                 ORDER BY p.created_at DESC,p.id DESC
                 LIMIT ?""",
-            [viewer_id, viewer_id, mode, limit],
+            params,
         ))
         posts = [_post_from_row(row) for row in rows]
         for post in posts:
@@ -2400,8 +2410,11 @@ def get_visible_stories(viewer_id, limit_users=14):
                 FROM social_stories s
                 JOIN users u ON u.id=s.user_id
                 WHERE s.expires_at > datetime('now') AND u.moderation_status<>'banned'
+                  AND (s.user_id=? OR EXISTS (
+                    SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=s.user_id
+                  ))
                 ORDER BY s.user_id=? DESC,s.created_at DESC""",
-            [viewer_id, viewer_id],
+            [viewer_id, viewer_id, viewer_id, viewer_id],
         ))
         grouped = {}
         for row in rows:
