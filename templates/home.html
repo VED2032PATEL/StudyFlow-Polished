@@ -259,15 +259,29 @@
     <div class="story-progress-bar-row" id="storyModalProgress"></div>
     <div class="story-modal-header">
       <div class="story-modal-user">
-        <img id="storyModalAvatar" src="" alt="" class="story-modal-avatar-img"/>
+        <div class="story-modal-avatar-wrap">
+          <img id="storyModalAvatar" src="" alt="" class="story-modal-avatar-img"/>
+          <div id="storyModalAvatarInitial" class="story-modal-avatar-initial"></div>
+        </div>
         <div class="story-modal-user-info">
           <span id="storyModalUsername" class="story-modal-username"></span>
           <span id="storyModalTime" class="story-modal-time"></span>
         </div>
       </div>
-      <button type="button" class="story-modal-close-btn" id="storyModalClose" aria-label="Close">
-        <i data-lucide="x" width="20" height="20"></i>
-      </button>
+      <div class="story-modal-header-actions">
+        <button type="button" class="story-modal-dots-btn" id="storyModalDots" aria-label="More options" hidden>
+          <i data-lucide="more-horizontal" width="20" height="20"></i>
+        </button>
+        <div class="story-dots-menu" id="storyDotsMenu" hidden>
+          <button type="button" id="storyDeleteBtn" class="story-dots-item danger">
+            <i data-lucide="trash-2" width="15" height="15"></i>
+            Delete story
+          </button>
+        </div>
+        <button type="button" class="story-modal-close-btn" id="storyModalClose" aria-label="Close">
+          <i data-lucide="x" width="20" height="20"></i>
+        </button>
+      </div>
     </div>
     <div class="story-modal-media-wrap" id="storyModalMedia">
       <button type="button" class="story-tap-prev" id="storyTapPrev"></button>
@@ -433,7 +447,18 @@
 /* Header */
 .story-modal-header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px 6px; position:relative; z-index:3; flex-shrink:0; }
 .story-modal-user { display:flex; align-items:center; gap:10px; }
-.story-modal-avatar-img { width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.8); object-fit:cover; flex-shrink:0; }
+.story-modal-avatar-wrap { width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,.8); flex-shrink: 0; overflow: hidden; background: linear-gradient(135deg, var(--p1), var(--p2)); display: flex; align-items: center; justify-content: center; position: relative; }
+.story-modal-avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.story-modal-avatar-img[src=""] { display: none; }
+.story-modal-avatar-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 15px; }
+.story-modal-header-actions { display: flex; align-items: center; gap: 4px; position: relative; }
+.story-modal-dots-btn { background: none; border: none; color: #fff; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background .15s; }
+.story-modal-dots-btn:hover { background: rgba(255,255,255,.15); }
+.story-dots-menu { position: absolute; top: 40px; right: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,.3); z-index: 10; }
+.story-dots-menu[hidden] { display: none; }
+.story-dots-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: none; background: none; border-radius: 8px; cursor: pointer; font-size: .88rem; font-weight: 600; font-family: inherit; transition: background .15s; }
+.story-dots-item:hover { background: var(--surface-2); }
+.story-dots-item.danger { color: #f43f5e; }
 .story-modal-user-info { display:flex; flex-direction:column; gap:1px; }
 .story-modal-username { color:#fff; font-weight:700; font-size:.9rem; text-shadow:0 1px 4px rgba(0,0,0,.5); }
 .story-modal-time { color:rgba(255,255,255,.7); font-size:.72rem; }
@@ -653,9 +678,28 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
     currentConversationUrl = btn.dataset.storyConversation || '#';
     currentUserId = btn.dataset.storyUserId || null;
     const avatarSrc = btn.dataset.storyAvatar || '';
-    avatarEl.src = avatarSrc;
-    avatarEl.onerror = () => { avatarEl.style.display = 'none'; };
-    usernameEl.textContent = btn.dataset.storyUser || '';
+    const username = btn.dataset.storyUser || '';
+    const isOwnStory = btn.dataset.storyUserId == '{{ current_user.id }}';
+    usernameEl.textContent = username;
+
+    // Show avatar or initial
+    const avatarInitial = document.getElementById('storyModalAvatarInitial');
+    if (avatarSrc) {
+      avatarEl.src = avatarSrc;
+      avatarEl.style.display = 'block';
+      avatarInitial.textContent = '';
+    } else {
+      avatarEl.style.display = 'none';
+      avatarInitial.textContent = username[0]?.toUpperCase() || '?';
+    }
+    avatarEl.onerror = () => {
+      avatarEl.style.display = 'none';
+      avatarInitial.textContent = username[0]?.toUpperCase() || '?';
+    };
+
+    // Show dots menu only for own stories
+    const dotsBtn = document.getElementById('storyModalDots');
+    dotsBtn.hidden = !isOwnStory;
     buildProgress();
     showStory(0);
     modal.hidden = false;
@@ -668,6 +712,7 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
     document.body.style.overflow = '';
     clearProgress();
     mediaWrap.querySelectorAll('img,video').forEach(el => el.remove());
+    document.getElementById('storyDotsMenu').hidden = true;
   }
 
   function buildProgress() {
@@ -803,6 +848,48 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
   // Close
   closeBtn?.addEventListener('click', closeModal);
   backdrop?.addEventListener('click', closeModal);
+  // Dots menu toggle
+  document.getElementById('storyModalDots')?.addEventListener('click', e => {
+    e.stopPropagation();
+    const menu = document.getElementById('storyDotsMenu');
+    menu.hidden = !menu.hidden;
+    if (!menu.hidden) window.lucide?.createIcons();
+  });
+
+  // Close dots menu when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#storyModalDots') && !e.target.closest('#storyDotsMenu')) {
+      document.getElementById('storyDotsMenu').hidden = true;
+    }
+  });
+
+  // Delete story
+  document.getElementById('storyDeleteBtn')?.addEventListener('click', async () => {
+    const story = stories[currentIndex];
+    if (!story?.id) return;
+    try {
+      const res = await fetch(`/home/stories/${story.id}/delete`, {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        stories.splice(currentIndex, 1);
+        if (stories.length === 0) {
+          closeModal();
+          // Remove the story ring from the strip
+          document.querySelectorAll('.story-ring-btn').forEach(btn => {
+            if (btn.dataset.storyUserId == '{{ current_user.id }}') {
+              btn.remove();
+            }
+          });
+        } else {
+          buildProgress();
+          showStory(Math.min(currentIndex, stories.length - 1));
+        }
+      }
+    } catch(_) {}
+    document.getElementById('storyDotsMenu').hidden = true;
+  });
 
   // Open story rings
   document.querySelectorAll('.story-ring-btn').forEach(btn => {
