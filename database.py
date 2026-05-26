@@ -2383,6 +2383,7 @@ def delete_social_comment(comment_id, requesting_user_id):
         if requesting_user_id not in (row["commenter_id"], row["post_owner_id"]):
             return False
         conn.execute("DELETE FROM social_post_comments WHERE id = ?", [comment_id])
+        conn.commit()
         return True
     finally:
         conn.close()
