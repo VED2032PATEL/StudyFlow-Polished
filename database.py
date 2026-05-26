@@ -2371,19 +2371,20 @@ def delete_social_comment(comment_id, requesting_user_id):
     """Delete a comment if the requester is the commenter OR the post owner."""
     conn = get_db()
     try:
-        row = conn.execute(
+        res = conn.execute(
             """SELECT c.user_id AS commenter_id, p.user_id AS post_owner_id
                FROM social_post_comments c
                JOIN social_posts p ON p.id = c.post_id
                WHERE c.id = ?""",
             [comment_id],
-        ).fetchone()
-        if not row:
+        )
+        rows = _rows_to_dicts(res)
+        if not rows:
             return False
+        row = rows[0]
         if requesting_user_id not in (row["commenter_id"], row["post_owner_id"]):
             return False
         conn.execute("DELETE FROM social_post_comments WHERE id = ?", [comment_id])
-        conn.commit()
         return True
     finally:
         conn.close()
