@@ -587,6 +587,13 @@ def social_post_comment(post_id):
         flash("Comment could not be added.", "error")
     return _redirect_back("home")
 
+@app.route("/home/comments/<int:comment_id>/delete", methods=["POST"])
+@login_required
+def social_comment_delete(comment_id):
+    if not db.delete_social_comment(comment_id, current_user.id):
+        flash("Could not delete comment.", "error")
+    return _redirect_back("home")
+
 
 @app.route("/home/posts/<int:post_id>/share", methods=["POST"])
 @login_required
