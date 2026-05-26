@@ -2459,3 +2459,14 @@ def mark_story_view(story_id, user_id):
         return True
     finally:
         conn.close()
+
+def delete_social_story(story_id, user_id):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            "DELETE FROM social_stories WHERE id=? AND user_id=?",
+            [story_id, user_id],
+        )
+        return bool(getattr(res, 'rows_affected', 1))
+    finally:
+        conn.close()
