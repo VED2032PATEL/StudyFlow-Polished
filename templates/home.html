@@ -429,6 +429,10 @@
 .social-comments-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
 .social-comments-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 .social-comment { display: flex; gap: 10px; align-items: flex-start; }
+.comment-avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--p1), var(--p2)); color: #fff; font-weight: 800; font-size: 12px; overflow: hidden; }
+.comment-avatar .avatar-core { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.comment-avatar img, .comment-avatar .avatar-photo-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.comment-avatar .avatar-initial { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; }
 .social-comment-body { background: var(--hover-bg, rgba(99,102,241,.06)); border-radius: 10px; padding: 8px 12px; font-size: .85rem; }
 .social-comment-body strong { display: block; font-size: .8rem; margin-bottom: 2px; color: var(--accent); }
 .social-comment-form { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
