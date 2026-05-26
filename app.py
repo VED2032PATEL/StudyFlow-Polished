@@ -609,7 +609,12 @@ def social_post_share(post_id):
     flash(f"Share link: {post_url}" if ok else "Post unavailable.", "success" if ok else "error")
     return _redirect_back("home")
 
-
+@app.route("/home/posts/<int:post_id>/delete", methods=["POST"])
+@login_required
+def social_post_delete(post_id):
+    ok = db.delete_social_post(post_id, current_user.id)
+    return jsonify({"ok": ok})
+  
 @app.route("/home/posts/<int:post_id>")
 @login_required
 def social_post_view(post_id):
