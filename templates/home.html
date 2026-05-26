@@ -169,10 +169,18 @@
     <span>{{ comment.body }}</span>
   </div>
   {% if current_user.id == comment.user.id or current_user.id == post.user_id %}
-  <button type="button" class="comment-delete-btn" title="Delete comment"
-    onclick="deleteComment(this, {{ comment.id }}, '{{ url_for('social_comment_delete', comment_id=comment.id) }}')">
-    <i data-lucide="x" width="12" height="12"></i>
-  </button>
+  <div class="comment-menu-wrap">
+    <button type="button" class="comment-dots-btn" onclick="toggleCommentMenu(this)">
+      <i data-lucide="more-horizontal" width="15" height="15"></i>
+    </button>
+    <div class="comment-dropdown" hidden>
+      <button type="button" class="comment-dropdown-item danger"
+        onclick="deleteComment(this, {{ comment.id }}, '{{ url_for('social_comment_delete', comment_id=comment.id) }}')">
+        <i data-lucide="trash-2" width="13" height="13"></i>
+        Delete comment
+      </button>
+    </div>
+  </div>
   {% endif %}
 </div>
 {% endfor %}
@@ -426,16 +434,36 @@
 .social-comment-form { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
 .social-comment-form input { flex: 1; background: var(--input-bg, var(--card-bg)); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: .85rem; font-family: inherit; }
 .social-comment-form input:focus { outline: none; border-color: var(--accent); }
-.social-comment { position: relative; }
-.comment-delete-btn {
-  display: none; position: absolute; top: 4px; right: 4px;
-  background: rgba(239,68,68,.15); border: none; border-radius: 50%;
-  width: 20px; height: 20px; cursor: pointer; color: #ef4444;
-  align-items: center; justify-content: center; padding: 0; line-height: 1;
-  transition: background .15s;
+.social-comment { position: relative; align-items: center; }
+.comment-menu-wrap { position: relative; margin-left: auto; flex-shrink: 0; }
+.comment-dots-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); padding: 4px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+  opacity: 0; pointer-events: none;
 }
-.comment-delete-btn:hover { background: rgba(239,68,68,.3); }
-.social-comment:hover .comment-delete-btn { display: flex; }
+.social-comment:hover .comment-dots-btn,
+.social-comment:focus-within .comment-dots-btn {
+  opacity: 1; pointer-events: auto;
+}
+.comment-dots-btn:hover { background: var(--hover-bg); color: var(--text); }
+.comment-dropdown {
+  position: absolute; right: 0; top: 28px;
+  background: var(--surface, #1e1e2e); border: 1px solid var(--border);
+  border-radius: 10px; padding: 5px; min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3); z-index: 100;
+}
+.comment-dropdown[hidden] { display: none; }
+.comment-dropdown-item {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border: none; background: none; border-radius: 7px;
+  cursor: pointer; font-size: .85rem; font-weight: 600;
+  font-family: inherit; transition: background .15s; color: var(--text);
+}
+.comment-dropdown-item:hover { background: var(--hover-bg); }
+.comment-dropdown-item.danger { color: #f43f5e; }
+.comment-dropdown-item.danger:hover { background: rgba(244,63,94,.1); }
 
 /* ── Suggestions sidebar ── */
 .social-suggestions-sidebar .card { padding: 16px; }
@@ -571,7 +599,29 @@ function toggleComments(btn, postId) {
   section.querySelector('input[name=body]')?.focus();
 }
 
+function toggleCommentMenu(btn) {
+  const dropdown = btn.nextElementSibling;
+  const isHidden = dropdown.hidden;
+  // close all other open menus first
+  document.querySelectorAll('.comment-dropdown').forEach(d => d.hidden = true);
+  dropdown.hidden = !isHidden;
+  if (!dropdown.hidden) {
+    window.lucide?.createIcons();
+    // close when clicking outside
+    setTimeout(() => {
+      document.addEventListener('click', function handler(e) {
+        if (!dropdown.contains(e.target) && e.target !== btn) {
+          dropdown.hidden = true;
+        }
+        document.removeEventListener('click', handler);
+      });
+    }, 0);
+  }
+}
+
 async function deleteComment(btn, commentId, url) {
+  // close the dropdown first
+  btn.closest('.comment-dropdown').hidden = true;
   if (!confirm('Delete this comment?')) return;
   try {
     const fd = new FormData();
