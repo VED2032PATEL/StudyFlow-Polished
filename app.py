@@ -624,6 +624,12 @@ def social_post_view(post_id):
 def social_story_view(story_id):
     return jsonify({"ok": db.mark_story_view(story_id, current_user.id)})
 
+@app.route("/home/stories/<int:story_id>/delete", methods=["POST"])
+@login_required
+def social_story_delete(story_id):
+    ok = db.delete_social_story(story_id, current_user.id)
+    return jsonify({"ok": ok})
+
 
 @app.route("/people")
 @login_required
