@@ -317,6 +317,14 @@ _CREATE = [
         PRIMARY KEY (requester_id, target_id),
         CHECK (requester_id != target_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS section_unlocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        section TEXT NOT NULL,
+        unlocked_until TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(user_id, section)
+    )""",
 ]
 
 _MIGRATIONS = [
@@ -2500,5 +2508,42 @@ def delete_social_story(story_id, user_id):
             [story_id, user_id],
         )
         return bool(getattr(res, 'rows_affected', 1))
+    finally:
+        conn.close()
+# ── Section Unlocks ───────────────────────────────────────────────────────────
+
+def get_section_unlock(user_id, section):
+    conn = get_db()
+    try:
+        res = conn.execute(
+            """SELECT unlocked_until FROM section_unlocks
+               WHERE user_id=? AND section=?
+               AND unlocked_until > datetime('now')""",
+            [user_id, section],
+        )
+        rows = _rows_to_dicts(res)
+        return rows[0] if rows else None
+    finally:
+        conn.close()
+
+
+def unlock_section(user_id, section, minutes):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO section_unlocks (user_id, section, unlocked_until)
+               VALUES (?, ?, datetime('now', ?))
+               ON CONFLICT(user_id, section) DO UPDATE SET
+               unlocked_until = CASE
+                 WHEN unlocked_until > datetime('now')
+                 THEN datetime(unlocked_until, ?)
+                 ELSE datetime('now', ?)
+               END""",
+            [user_id, section,
+             f'+{minutes} minutes',
+             f'+{minutes} minutes',
+             f'+{minutes} minutes'],
+        )
+        return True
     finally:
         conn.close()
