@@ -14,7 +14,34 @@
 
 {% block content %}
 
-<div class="social-home-shell">
+<div id="homeLockScreen" class="section-lock-screen" hidden>
+  <div class="section-lock-card">
+    <div class="section-lock-icon">🔒</div>
+    <h2 class="section-lock-title">Home is Locked</h2>
+    <p class="section-lock-sub">Spend FlowCoins to unlock access to the Home feed.</p>
+    <div class="section-lock-plans" id="homeLockPlans">
+      <button type="button" class="section-lock-plan active" data-fc="10" data-label="1 hour">
+        <span class="plan-fc">10 🪙</span>
+        <span class="plan-duration">1 hour</span>
+      </button>
+      <button type="button" class="section-lock-plan" data-fc="20" data-label="2 hours">
+        <span class="plan-fc">20 🪙</span>
+        <span class="plan-duration">2 hours</span>
+      </button>
+      <button type="button" class="section-lock-plan" data-fc="30" data-label="3 hours">
+        <span class="plan-fc">30 🪙</span>
+        <span class="plan-duration">3 hours</span>
+      </button>
+    </div>
+    <div class="section-lock-balance">Your balance: <strong id="homeLockBalance">0</strong> 🪙</div>
+    <button type="button" class="btn btn-primary section-lock-unlock-btn" id="homeUnlockBtn">
+      Unlock Home
+    </button>
+    <p class="section-lock-error" id="homeLockError"></p>
+  </div>
+</div>
+
+<div id="homeContent" class="social-home-shell">
   <div class="social-home-header anim">
     <div>
       <h1 class="page-title">Home</h1>
@@ -1085,6 +1112,92 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
     if (e.key === 'ArrowRight') showStory(currentIndex + 1);
     if (e.key === 'ArrowLeft') showStory(currentIndex - 1);
   });
+})();
+</script>
+
+</div>{# end homeContent #}
+
+<script>
+(function() {
+  const lockScreen = document.getElementById('homeLockScreen');
+  const content = document.getElementById('homeContent');
+  const balanceEl = document.getElementById('homeLockBalance');
+  const errorEl = document.getElementById('homeLockError');
+  const unlockBtn = document.getElementById('homeUnlockBtn');
+  let selectedPlan = 10;
+  let lockTimer = null;
+
+  function formatTimeLeft(until) {
+    const diff = Math.max(0, new Date(until + 'Z') - new Date());
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  }
+
+  function showLocked(balance) {
+    lockScreen.hidden = false;
+    content.hidden = true;
+    if (balanceEl) balanceEl.textContent = balance || 0;
+  }
+
+  function showUnlocked(until) {
+    lockScreen.hidden = true;
+    content.hidden = false;
+    clearTimeout(lockTimer);
+    const diff = new Date(until + 'Z') - new Date();
+    if (diff > 0) {
+      lockTimer = setTimeout(() => checkStatus(), diff + 500);
+    }
+  }
+
+  async function checkStatus() {
+    try {
+      const res = await fetch('/api/sections/home/status', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (data.unlimited || !data.locked) {
+        showUnlocked(data.unlocked_until || '2099-01-01 00:00:00');
+      } else {
+        showLocked(data.balance);
+      }
+    } catch(_) {
+      content.hidden = false;
+      lockScreen.hidden = true;
+    }
+  }
+
+  // Plan selection
+  document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPlan = parseInt(btn.dataset.fc);
+    });
+  });
+
+  // Unlock button
+  unlockBtn?.addEventListener('click', async () => {
+    unlockBtn.disabled = true;
+    errorEl.textContent = '';
+    try {
+      const res = await fetch('/api/sections/home/unlock', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fc: selectedPlan })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showUnlocked(data.unlocked_until || '2099-01-01 00:00:00');
+      } else {
+        errorEl.textContent = data.error || 'Could not unlock.';
+      }
+    } catch(_) {
+      errorEl.textContent = 'Something went wrong.';
+    }
+    unlockBtn.disabled = false;
+  });
+
+  checkStatus();
 })();
 </script>
 
