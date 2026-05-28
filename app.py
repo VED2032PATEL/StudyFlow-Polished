@@ -522,7 +522,60 @@ def dashboard():
                            today=date.today().isoformat(),
                            timedelta=timedelta)
 # Social / People
+SECTION_UNLOCK_PLANS = {
+    "home": [
+        {"fc": 10, "minutes": 60,  "label": "1 hour"},
+        {"fc": 20, "minutes": 120, "label": "2 hours"},
+        {"fc": 30, "minutes": 180, "label": "3 hours"},
+    ],
+    "chat": [
+        {"fc": 10, "minutes": 30,  "label": "30 mins"},
+        {"fc": 20, "minutes": 60,  "label": "1 hour"},
+        {"fc": 30, "minutes": 90,  "label": "1.5 hours"},
+    ],
+}
 
+
+@app.route("/api/sections/<section>/unlock", methods=["POST"])
+@login_required
+def api_unlock_section(section):
+    if section not in SECTION_UNLOCK_PLANS:
+        return jsonify({"error": "Invalid section"}), 400
+    if getattr(current_user, "is_verified", 0):
+        return jsonify({"ok": True, "unlimited": True})
+    data = request.get_json(silent=True) or {}
+    fc_amount = int(data.get("fc", 0))
+    plans = SECTION_UNLOCK_PLANS[section]
+    plan = next((p for p in plans if p["fc"] == fc_amount), None)
+    if not plan:
+        return jsonify({"error": "Invalid plan"}), 400
+    balance = db.get_flowcoin_balance(current_user.id)
+    if balance < fc_amount:
+        return jsonify({"error": f"Need {fc_amount} FlowCoins, you have {balance}"}), 400
+    db.adjust_flowcoins(
+        current_user.id,
+        -fc_amount,
+        f"Unlocked {section} section for {plan['label']}",
+        f"unlock:{section}:{current_user.id}:{uuid.uuid4().hex}",
+    )
+    db.unlock_section(current_user.id, section, plan["minutes"])
+    unlock = db.get_section_unlock(current_user.id, section)
+    return jsonify({"ok": True, "unlocked_until": unlock["unlocked_until"] if unlock else ""})
+
+
+@app.route("/api/sections/<section>/status")
+@login_required
+def api_section_status(section):
+    if getattr(current_user, "is_verified", 0):
+        return jsonify({"locked": False, "unlimited": True})
+    unlock = db.get_section_unlock(current_user.id, section)
+    balance = db.get_flowcoin_balance(current_user.id)
+    return jsonify({
+        "locked": unlock is None,
+        "unlocked_until": unlock["unlocked_until"] if unlock else None,
+        "balance": balance,
+        "plans": SECTION_UNLOCK_PLANS.get(section, []),
+    })
 @app.route("/home")
 @login_required
 def home():
