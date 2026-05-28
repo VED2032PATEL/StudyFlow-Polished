@@ -3,7 +3,34 @@
 {% block title %}Messages{% endblock %}
 
 {% block content %}
+<div id="chatLockScreen" class="section-lock-screen" hidden>
+  <div class="section-lock-card">
+    <div class="section-lock-icon">💬</div>
+    <h2 class="section-lock-title">Messages is Locked</h2>
+    <p class="section-lock-sub">Spend FlowCoins to unlock access to your messages.</p>
+    <div class="section-lock-plans" id="chatLockPlans">
+      <button type="button" class="section-lock-plan active" data-fc="10" data-label="30 mins">
+        <span class="plan-fc">10 🪙</span>
+        <span class="plan-duration">30 mins</span>
+      </button>
+      <button type="button" class="section-lock-plan" data-fc="20" data-label="1 hour">
+        <span class="plan-fc">20 🪙</span>
+        <span class="plan-duration">1 hour</span>
+      </button>
+      <button type="button" class="section-lock-plan" data-fc="30" data-label="1.5 hours">
+        <span class="plan-fc">30 🪙</span>
+        <span class="plan-duration">1.5 hours</span>
+      </button>
+    </div>
+    <div class="section-lock-balance">Your balance: <strong id="chatLockBalance">0</strong> 🪙</div>
+    <button type="button" class="btn btn-primary section-lock-unlock-btn" id="chatUnlockBtn">
+      Unlock Messages
+    </button>
+    <p class="section-lock-error" id="chatLockError"></p>
+  </div>
+</div>
 
+<div id="chatContent" hidden>
 <div class="messages-split-shell anim">
   <aside class="messages-sidebar-panel">
     <div class="messages-sidebar-header">
@@ -215,5 +242,78 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 </script>
+</div>{# end chatContent #}
 
+<script>
+(function() {
+  const lockScreen = document.getElementById('chatLockScreen');
+  const content = document.getElementById('chatContent');
+  const balanceEl = document.getElementById('chatLockBalance');
+  const errorEl = document.getElementById('chatLockError');
+  const unlockBtn = document.getElementById('chatUnlockBtn');
+  let selectedPlan = 10;
+  let lockTimer = null;
+
+  function showLocked(balance) {
+    lockScreen.hidden = false;
+    content.hidden = true;
+    if (balanceEl) balanceEl.textContent = balance || 0;
+  }
+
+  function showUnlocked(until) {
+    lockScreen.hidden = true;
+    content.hidden = false;
+    clearTimeout(lockTimer);
+    const diff = new Date(until + 'Z') - new Date();
+    if (diff > 0) lockTimer = setTimeout(() => checkStatus(), diff + 500);
+  }
+
+  async function checkStatus() {
+    try {
+      const res = await fetch('/api/sections/chat/status', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (data.unlimited || !data.locked) {
+        showUnlocked(data.unlocked_until || '2099-01-01 00:00:00');
+      } else {
+        showLocked(data.balance);
+      }
+    } catch(_) {
+      content.hidden = false;
+      lockScreen.hidden = true;
+    }
+  }
+
+  document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPlan = parseInt(btn.dataset.fc);
+    });
+  });
+
+  unlockBtn?.addEventListener('click', async () => {
+    unlockBtn.disabled = true;
+    errorEl.textContent = '';
+    try {
+      const res = await fetch('/api/sections/chat/unlock', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fc: selectedPlan })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showUnlocked(data.unlocked_until || '2099-01-01 00:00:00');
+      } else {
+        errorEl.textContent = data.error || 'Could not unlock.';
+      }
+    } catch(_) {
+      errorEl.textContent = 'Something went wrong.';
+    }
+    unlockBtn.disabled = false;
+  });
+
+  checkStatus();
+})();
+</script>
 {% endblock %}
