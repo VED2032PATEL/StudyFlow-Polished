@@ -154,37 +154,30 @@
               <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='upvote') }}">
                 <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
                 <button type="submit" class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}" title="Upvote">
-                  <i data-lucide="arrow-up" width="22" height="22"></i>
+                  <i data-lucide="arrow-up" width="26" height="26"></i>
+                  <span>{{ post.upvotes or 0 }}</span>
                 </button>
               </form>
               {% else %}
               <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='like') }}">
                 <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
                 <button type="submit" class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}" title="Like">
-                  <i data-lucide="heart" width="22" height="22"></i>
+                  <i data-lucide="heart" width="26" height="26"></i>
+                  <span>{{ post.likes or 0 }}</span>
                 </button>
               </form>
               {% endif %}
               <button type="button" class="social-action-btn" onclick="toggleComments(this, {{ post.id }})" title="Comment">
-                <i data-lucide="message-circle" width="22" height="22"></i>
+                <i data-lucide="message-circle" width="26" height="26"></i>
+                <span>{{ post.comment_count or 0 }}</span>
               </button>
               <button type="button" class="social-action-btn" title="Share"
                       onclick="sharePost({{ post.id }}, '{{ url_for('social_post_view', post_id=post.id, _external=True) }}')">
-                <i data-lucide="send" width="22" height="22"></i>
+                <i data-lucide="send" width="26" height="26"></i>
+                <span>{{ post.shares or 0 }}</span>
               </button>
             </div>
           </footer>
-
-          {# ── Like count ── #}
-          {% if mode == 'study' %}
-            {% if post.upvotes %}
-            <p class="social-post-likecount">{{ post.upvotes }} upvote{{ 's' if post.upvotes != 1 }}</p>
-            {% endif %}
-          {% else %}
-            {% if post.likes %}
-            <p class="social-post-likecount">{{ post.likes }} like{{ 's' if post.likes != 1 }}</p>
-            {% endif %}
-          {% endif %}
 
           {# ── Caption below actions ── #}
           {% if post.caption %}
@@ -475,7 +468,7 @@
 .social-post-actions { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 2px; }
 .social-post-actions-left { display: flex; align-items: center; gap: 2px; }
 .social-post-actions form { display: contents; }
-.social-action-btn { display: flex; align-items: center; justify-content: center; padding: 8px 10px 8px 0; border: none; background: none; color: var(--t1); cursor: pointer; transition: color .15s, transform .15s; }
+.social-action-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px 8px 0; border: none; background: none; color: var(--t1); cursor: pointer; transition: color .15s, transform .15s; font-size: .88rem; font-weight: 600; }
 .social-action-btn:hover { background: none; color: var(--t2); transform: scale(1.1); }
 .social-action-btn.active { color: var(--p1); }
 .social-action-btn.liked { color: #f43f5e; }
