@@ -251,6 +251,9 @@ body.creator-sections-open .user-nav-item {
   box-shadow:0 0 0 1px rgba(255,255,255,.16), 0 4px 12px rgba(56,189,248,.22);
   font-weight:950;
   letter-spacing:0;
+  vertical-align:middle;
+  position:relative;
+  top:-2px;
 }
 
 .verified-badge.v-badge span {
