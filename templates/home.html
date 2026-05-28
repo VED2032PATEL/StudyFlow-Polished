@@ -479,6 +479,8 @@
 .social-action-btn:hover { background: none; color: var(--t2); transform: scale(1.1); }
 .social-action-btn.active { color: var(--p1); }
 .social-action-btn.liked { color: #f43f5e; }
+.social-action-btn.liked i[data-lucide="heart"] { fill: #f43f5e; stroke: #f43f5e; }
+.social-action-btn.liked svg { fill: #f43f5e; stroke: #f43f5e; }
 
 /* ── Caption below actions (Instagram style) ── */
 .social-post-likecount { font-size: .88rem; font-weight: 700; color: var(--t1); margin: 2px 0 4px; }
@@ -598,7 +600,8 @@
 .story-footer-actions { display:flex; gap:8px; flex-shrink:0; }
 .story-footer-btn { background:none; border:none; color:#fff; cursor:pointer; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s, transform .15s; }
 .story-footer-btn:hover { background:rgba(255,255,255,.15); transform:scale(1.1); }
-.story-footer-btn.liked { color:#f43f5e; }
+.story-footer-btn.liked { color: #f43f5e; }
+.story-footer-btn.liked svg { fill: #f43f5e; stroke: #f43f5e; }
 
 /* Story upload preview */
 .story-preview-inner { position:relative; width:min(420px,96vw); background:var(--surface); border-radius:16px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.5); }
@@ -610,6 +613,9 @@
 .story-preview-form { padding:14px 18px 18px; display:flex; flex-direction:column; gap:12px; }
 .story-preview-caption-input { border:1.5px solid var(--border); border-radius:10px; padding:10px 14px; font-size:.9rem; color:var(--t1); background:var(--surface-2); outline:none; font-family:inherit; }
 .story-preview-caption-input:focus { border-color:var(--p1); }
+.liked svg[data-lucide="heart"],
+.liked i[data-lucide="heart"] ~ svg,
+[data-liked="true"] svg { fill: #f43f5e; stroke: #f43f5e; }
 </style>
 
 <script>
