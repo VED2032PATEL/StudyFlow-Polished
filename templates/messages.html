@@ -3,11 +3,11 @@
 {% block title %}Messages{% endblock %}
 
 {% block content %}
-<div id="chatLockScreen" class="section-lock-screen" hidden style="position:fixed;inset:0;z-index:8000;display:flex;align-items:center;justify-content:center;background:rgba(10,12,28,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);">
+<div id="chatLockScreen" class="section-lock-screen" hidden>
   <div class="section-lock-card">
-    <div class="section-lock-icon">💬</div>
+    <span class="section-lock-icon">💬</span>
     <h2 class="section-lock-title">Messages is Locked</h2>
-    <p class="section-lock-sub">Spend FlowCoins to unlock access to your messages.</p>
+    <p class="section-lock-sub">Choose a plan below to unlock access to your messages.</p>
     <div class="section-lock-plans" id="chatLockPlans">
       <button type="button" class="section-lock-plan active" data-fc="10" data-label="30 mins">
         <span class="plan-fc">10 🪙</span>
@@ -285,23 +285,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedPlan = parseInt(btn.dataset.fc);
-    });
-  });
-
-  unlockBtn?.addEventListener('click', async () => {
+  async function doUnlock(fc) {
     unlockBtn.disabled = true;
     errorEl.textContent = '';
+    document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(b => b.disabled = true);
     try {
       const res = await fetch('/api/sections/chat/unlock', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fc: selectedPlan })
+        body: JSON.stringify({ fc })
       });
       const data = await res.json();
       if (data.ok) {
@@ -313,8 +306,19 @@ document.addEventListener('DOMContentLoaded', () => {
       errorEl.textContent = 'Something went wrong.';
     }
     unlockBtn.disabled = false;
+    document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(b => b.disabled = false);
+  }
+
+  document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#chatLockPlans .section-lock-plan').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPlan = parseInt(btn.dataset.fc);
+      doUnlock(selectedPlan);
+    });
   });
 
+  unlockBtn?.addEventListener('click', () => doUnlock(selectedPlan));
   checkStatus();
 })();
 </script>
