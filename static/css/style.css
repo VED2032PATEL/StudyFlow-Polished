@@ -9489,61 +9489,65 @@ select.form-input,
   }
 }
 /* ── Section Lock Screen ── */
+/* ── Section lock — scoped to main-content only ── */
+.main-content { position: relative; }
+
 .section-lock-screen {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 8000;
+  z-index: 400;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(10, 12, 28, .72);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(10, 12, 28, .55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
-.section-lock-screen[hidden] { display: none; }
+.section-lock-screen[hidden] { display: none !important; }
 
 .section-lock-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 36px 32px 28px;
-  max-width: 400px;
+  border-radius: 24px;
+  padding: 40px 36px 32px;
+  max-width: 420px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 24px 64px rgba(0,0,0,.4);
-  animation: modalPop .25s cubic-bezier(.22,1,.36,1);
+  box-shadow: 0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.05);
+  animation: modalPop .28s cubic-bezier(.22,1,.36,1);
 }
 
 .section-lock-icon {
-  font-size: 44px;
-  margin-bottom: 14px;
+  font-size: 48px;
+  margin-bottom: 16px;
   display: block;
+  line-height: 1;
 }
 
 .section-lock-title {
-  font-size: 22px;
+  font-size: 23px;
   font-weight: 800;
   color: var(--t1);
   margin-bottom: 8px;
-  letter-spacing: -.3px;
+  letter-spacing: -.4px;
 }
 
 .section-lock-sub {
   color: var(--t2);
   font-size: 13.5px;
-  margin-bottom: 24px;
-  line-height: 1.55;
+  margin-bottom: 26px;
+  line-height: 1.6;
 }
 
-/* ── Single segmented plan bar ── */
+/* ── Segmented plan selector bar ── */
 .section-lock-plans {
   display: flex;
   background: var(--surface-2);
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .section-lock-plan {
@@ -9551,18 +9555,19 @@ select.form-input,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 12px 8px;
+  gap: 4px;
+  padding: 14px 8px;
   border: none;
   border-right: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
-  transition: background .15s, color .15s;
+  transition: background .18s, color .18s;
+  font-family: inherit;
 }
 
 .section-lock-plan:last-child { border-right: none; }
 
-.section-lock-plan:hover { background: var(--p-bg); }
+.section-lock-plan:hover:not(.active) { background: var(--p-bg); }
 
 .section-lock-plan.active {
   background: var(--p1);
@@ -9572,25 +9577,26 @@ select.form-input,
 .section-lock-plan.active .plan-duration { color: #fff; }
 
 .plan-fc { font-size: 14px; font-weight: 800; color: var(--t1); }
-.plan-duration { font-size: 11px; font-weight: 600; color: var(--t2); }
+.plan-duration { font-size: 11px; font-weight: 600; color: var(--t2); letter-spacing: .2px; }
 
 .section-lock-balance {
   font-size: 13px;
   color: var(--t2);
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 .section-lock-balance strong { color: var(--t1); font-weight: 800; }
 
 .section-lock-unlock-btn {
   width: 100%;
   justify-content: center;
-  height: 46px;
+  height: 48px;
   font-size: 15px;
+  border-radius: 12px;
 }
 
 .section-lock-error {
   color: #f43f5e;
   font-size: 13px;
-  margin-top: 10px;
+  margin-top: 12px;
   min-height: 20px;
 }
