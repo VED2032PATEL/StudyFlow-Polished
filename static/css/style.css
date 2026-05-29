@@ -9491,17 +9491,108 @@ select.form-input,
 /* ── Section Lock Screen ── */
 .section-lock-screen {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: var(--sb-w);
+  right: 0;
+  bottom: 0;
   z-index: 8000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(10, 12, 28, .72);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(15, 18, 35, .60);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .section-lock-screen[hidden] { display: none; }
+
+.section-lock-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px 24px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.05) inset;
+  animation: modalPop .25s cubic-bezier(.22,1,.36,1);
+}
+
+.section-lock-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.section-lock-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--t1);
+  margin-bottom: 6px;
+  letter-spacing: -.3px;
+}
+
+.section-lock-sub {
+  color: var(--t2);
+  font-size: 13px;
+  margin-bottom: 20px;
+  line-height: 1.55;
+}
+
+/* ── Segmented plan selector bar ── */
+.section-lock-plans {
+  display: flex;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.section-lock-plan {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 11px 6px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: background .15s;
+  font-family: inherit;
+}
+
+.section-lock-plan:last-child { border-right: none; }
+.section-lock-plan:hover { background: rgba(99,91,255,.08); }
+.section-lock-plan.active { background: var(--p1); }
+.section-lock-plan.active .plan-fc,
+.section-lock-plan.active .plan-duration { color: #fff; }
+
+.plan-fc { font-size: 13px; font-weight: 800; color: var(--t1); }
+.plan-duration { font-size: 11px; font-weight: 600; color: var(--t2); }
+
+.section-lock-balance {
+  font-size: 13px;
+  color: var(--t2);
+  margin-bottom: 16px;
+}
+.section-lock-balance strong { color: var(--t1); font-weight: 800; }
+
+.section-lock-unlock-btn {
+  width: 100%;
+  justify-content: center;
+  height: 44px;
+  font-size: 14px;
+}
+
+.section-lock-error {
+  color: #f43f5e;
+  font-size: 12.5px;
+  margin-top: 8px;
+  min-height: 18px;
+}
 
 .section-lock-card {
   background: var(--surface);
