@@ -14,11 +14,11 @@
 
 {% block content %}
 
-<div id="homeLockScreen" class="section-lock-screen" hidden style="position:fixed;inset:0;z-index:8000;display:flex;align-items:center;justify-content:center;background:rgba(10,12,28,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);">
+<div id="homeLockScreen" class="section-lock-screen" hidden>
   <div class="section-lock-card">
-    <div class="section-lock-icon">🔒</div>
+    <span class="section-lock-icon">🔒</span>
     <h2 class="section-lock-title">Home is Locked</h2>
-    <p class="section-lock-sub">Spend FlowCoins to unlock access to the Home feed.</p>
+    <p class="section-lock-sub">Choose a plan below to unlock access to the Home feed.</p>
     <div class="section-lock-plans" id="homeLockPlans">
       <button type="button" class="section-lock-plan active" data-fc="10" data-label="1 hour">
         <span class="plan-fc">10 🪙</span>
@@ -1168,24 +1168,16 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
   }
 
   // Plan selection
-  document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedPlan = parseInt(btn.dataset.fc);
-    });
-  });
-
-  // Unlock button
-  unlockBtn?.addEventListener('click', async () => {
+  async function doUnlock(fc) {
     unlockBtn.disabled = true;
     errorEl.textContent = '';
+    document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(b => b.disabled = true);
     try {
       const res = await fetch('/api/sections/home/unlock', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fc: selectedPlan })
+        body: JSON.stringify({ fc })
       });
       const data = await res.json();
       if (data.ok) {
@@ -1197,8 +1189,21 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
       errorEl.textContent = 'Something went wrong.';
     }
     unlockBtn.disabled = false;
+    document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(b => b.disabled = false);
+  }
+
+  // Plan selection → immediately unlocks on click
+  document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPlan = parseInt(btn.dataset.fc);
+      doUnlock(selectedPlan);
+    });
   });
 
+  // Unlock button (fallback)
+  unlockBtn?.addEventListener('click', () => doUnlock(selectedPlan));
   checkStatus();
 })();
 </script>
