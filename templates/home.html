@@ -1135,13 +1135,15 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
   }
 
   function showLocked(balance) {
-    lockScreen.hidden = false;
+    lockScreen.removeAttribute('hidden');
+    lockScreen.style.display = 'flex';
     content.hidden = true;
     if (balanceEl) balanceEl.textContent = balance || 0;
   }
 
   function showUnlocked(until) {
     lockScreen.hidden = true;
+    lockScreen.style.display = 'none';
     content.hidden = false;
     clearTimeout(lockTimer);
     const diff = new Date(until + 'Z') - new Date();
