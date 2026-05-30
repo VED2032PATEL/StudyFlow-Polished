@@ -178,21 +178,21 @@
           <footer class="social-post-actions">
             <div class="social-post-actions-left">
               {% if mode == 'study' %}
-              <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='upvote') }}">
-                <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-                <button type="submit" class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}" title="Upvote">
-                  <i data-lucide="arrow-up" width="26" height="26"></i>
-                  <span>{{ post.upvotes or 0 }}</span>
-                </button>
-              </form>
+              <button type="button"
+                class="social-action-btn {% if post.viewer_upvoted %}active{% endif %}"
+                title="Upvote"
+                onclick="toggleInteraction(this, {{ post.id }}, 'upvote')">
+                <i data-lucide="arrow-up" width="26" height="26"></i>
+                <span>{{ post.upvotes or 0 }}</span>
+              </button>
               {% else %}
-              <form method="POST" action="{{ url_for('social_post_interaction', post_id=post.id, kind='like') }}">
-                <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
-                <button type="submit" class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}" title="Like">
-                  <i data-lucide="heart" width="26" height="26"></i>
-                  <span>{{ post.likes or 0 }}</span>
-                </button>
-              </form>
+              <button type="button"
+                class="social-action-btn {% if post.viewer_liked %}active liked{% endif %}"
+                title="Like"
+                onclick="toggleInteraction(this, {{ post.id }}, 'like')">
+                <i data-lucide="heart" width="26" height="26"></i>
+                <span>{{ post.likes or 0 }}</span>
+              </button>
               {% endif %}
               <button type="button" class="social-action-btn" onclick="toggleComments(this, {{ post.id }})" title="Comment">
                 <i data-lucide="message-circle" width="26" height="26"></i>
@@ -783,6 +783,44 @@
 </style>
 
 <script>
+  // ── Like / Upvote toggle (no reload) ──
+async function toggleInteraction(btn, postId, kind) {
+  try {
+    const res = await fetch(`/home/posts/${postId}/${kind}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `next=/home`
+    });
+    if (!res.ok) return;
+
+    const countEl = btn.querySelector('span');
+    const current = parseInt(countEl?.textContent || '0');
+
+    if (kind === 'like') {
+      const isLiked = btn.classList.contains('liked');
+      if (isLiked) {
+        btn.classList.remove('liked', 'active');
+        btn.querySelector('svg')?.setAttribute('fill', 'none');
+        if (countEl) countEl.textContent = Math.max(0, current - 1);
+      } else {
+        btn.classList.add('liked', 'active');
+        btn.querySelector('svg')?.setAttribute('fill', '#f43f5e');
+        btn.querySelector('svg')?.setAttribute('stroke', '#f43f5e');
+        if (countEl) countEl.textContent = current + 1;
+      }
+    } else if (kind === 'upvote') {
+      const isActive = btn.classList.contains('active');
+      if (isActive) {
+        btn.classList.remove('active');
+        if (countEl) countEl.textContent = Math.max(0, current - 1);
+      } else {
+        btn.classList.add('active');
+        if (countEl) countEl.textContent = current + 1;
+      }
+    }
+  } catch(_) {}
+}
   // ── Share post ──
 function sharePost(postId, postUrl) {
   fetch(`/home/posts/${postId}/share`, {
