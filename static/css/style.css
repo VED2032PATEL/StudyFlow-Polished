@@ -8028,6 +8028,53 @@ select.form-input,
   display:block;
 }
 
+/* ── Story reply card (Instagram-style) ── */
+.story-reply-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 6px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  max-width: 220px;
+}
+.chat-mine .story-reply-card {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.18);
+}
+.story-reply-label {
+  font-size: .72rem;
+  color: var(--t2);
+  padding: 7px 10px 4px;
+  font-weight: 500;
+}
+.chat-mine .story-reply-label { color: rgba(255,255,255,.7); }
+.story-reply-media {
+  width: 100%;
+  aspect-ratio: 9/16;
+  overflow: hidden;
+  background: #000;
+}
+.story-reply-media-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.story-reply-media-unavailable {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+  color: var(--t3);
+  background: var(--surface-2);
+  padding: 16px;
+  text-align: center;
+}
+
 .chat-time {
   margin-top:5px;
   font-size:10.5px;
