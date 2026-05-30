@@ -69,6 +69,7 @@
             data-story-user="{{ tray.user.username }}"
             data-story-user-id="{{ tray.user.id }}"
             data-story-avatar="{{ tray.user.avatar_data_url }}"
+            data-story-avatar-type="{% if is_profile_video_media(tray.user.avatar_data_url) %}video{% elif is_profile_gif_media(tray.user.avatar_data_url) %}gif{% else %}image{% endif %}"
             data-story-conversation="{{ url_for('conversation_by_user_id', user_id=tray.user.id) }}"
             data-stories='{{ tray.stories|tojson|forceescape }}'>
       <div class="story-avatar-wrap {% if not tray.all_seen %}story-unseen{% endif %}">
@@ -336,8 +337,9 @@
     <div class="story-progress-bar-row" id="storyModalProgress"></div>
     <div class="story-modal-header">
       <div class="story-modal-user">
-        <div class="story-modal-avatar-wrap">
+        <div class="story-modal-avatar-wrap" id="storyModalAvatarWrap">
           <img id="storyModalAvatar" src="" alt="" class="story-modal-avatar-img"/>
+          <video id="storyModalAvatarVideo" src="" class="story-modal-avatar-img" autoplay loop muted playsinline style="display:none;"></video>
           <div id="storyModalAvatarInitial" class="story-modal-avatar-initial"></div>
         </div>
         <div class="story-modal-user-info">
@@ -890,20 +892,35 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
     const isOwnStory = btn.dataset.storyUserId == '{{ current_user.id }}';
     usernameEl.textContent = username;
 
-    // Show avatar or initial
+    // Show avatar — handle image, video (Cloudinary /video/upload/), and gif types
     const avatarInitial = document.getElementById('storyModalAvatarInitial');
-    if (avatarSrc) {
+    const avatarVideoEl = document.getElementById('storyModalAvatarVideo');
+    const avatarType = btn.dataset.storyAvatarType || 'image';
+
+    // Reset all
+    avatarEl.style.display = 'none';
+    avatarEl.src = '';
+    avatarVideoEl.style.display = 'none';
+    avatarVideoEl.src = '';
+    avatarInitial.textContent = '';
+
+    if (avatarSrc && avatarType === 'video') {
+      avatarVideoEl.src = avatarSrc;
+      avatarVideoEl.style.display = 'block';
+      avatarVideoEl.onerror = () => {
+        avatarVideoEl.style.display = 'none';
+        avatarInitial.textContent = username[0]?.toUpperCase() || '?';
+      };
+    } else if (avatarSrc) {
       avatarEl.src = avatarSrc;
       avatarEl.style.display = 'block';
-      avatarInitial.textContent = '';
+      avatarEl.onerror = () => {
+        avatarEl.style.display = 'none';
+        avatarInitial.textContent = username[0]?.toUpperCase() || '?';
+      };
     } else {
-      avatarEl.style.display = 'none';
       avatarInitial.textContent = username[0]?.toUpperCase() || '?';
     }
-    avatarEl.onerror = () => {
-      avatarEl.style.display = 'none';
-      avatarInitial.textContent = username[0]?.toUpperCase() || '?';
-    };
 
     // Show dots menu only for own stories
     const dotsBtn = document.getElementById('storyModalDots');
