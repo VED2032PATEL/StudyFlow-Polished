@@ -4,29 +4,29 @@
 
 {% block content %}
 <div id="chatLockScreen" hidden>
-  <div class="section-lock-card">
-    <div class="section-lock-icon">💬</div>
-    <h2 class="section-lock-title">Messages is Locked</h2>
-    <p class="section-lock-sub">Spend FlowCoins to unlock access to your messages.</p>
-    <div class="section-lock-plans" id="chatLockPlans">
-      <button type="button" class="section-lock-plan active" data-fc="10" data-label="30 mins">
-        <span class="plan-fc">10 🪙</span>
-        <span class="plan-duration">30 mins</span>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 28px 24px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+    <div style="font-size:40px;margin-bottom:12px;">💬</div>
+    <h2 style="font-size:20px;font-weight:800;color:var(--t1);margin-bottom:6px;">Messages is Locked</h2>
+    <p style="color:var(--t2);font-size:13px;margin-bottom:20px;line-height:1.55;">Spend FlowCoins to unlock access to your messages.</p>
+    <div id="chatLockPlans" style="display:flex;background:var(--surface-2);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px;">
+      <button type="button" class="section-lock-plan active" data-fc="10" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:11px 6px;border:none;border-right:1px solid var(--border);background:var(--p1);cursor:pointer;font-family:inherit;">
+        <span style="font-size:13px;font-weight:800;color:#fff;">10 🪙</span>
+        <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,.8);">30 mins</span>
       </button>
-      <button type="button" class="section-lock-plan" data-fc="20" data-label="1 hour">
-        <span class="plan-fc">20 🪙</span>
-        <span class="plan-duration">1 hour</span>
+      <button type="button" class="section-lock-plan" data-fc="20" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:11px 6px;border:none;border-right:1px solid var(--border);background:transparent;cursor:pointer;font-family:inherit;">
+        <span style="font-size:13px;font-weight:800;color:var(--t1);">20 🪙</span>
+        <span style="font-size:11px;font-weight:600;color:var(--t2);">1 hour</span>
       </button>
-      <button type="button" class="section-lock-plan" data-fc="30" data-label="1.5 hours">
-        <span class="plan-fc">30 🪙</span>
-        <span class="plan-duration">1.5 hours</span>
+      <button type="button" class="section-lock-plan" data-fc="30" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:11px 6px;border:none;background:transparent;cursor:pointer;font-family:inherit;">
+        <span style="font-size:13px;font-weight:800;color:var(--t1);">30 🪙</span>
+        <span style="font-size:11px;font-weight:600;color:var(--t2);">1.5 hours</span>
       </button>
     </div>
-    <div class="section-lock-balance">Your balance: <strong id="chatLockBalance">0</strong> 🪙</div>
-    <button type="button" class="btn btn-primary section-lock-unlock-btn" id="chatUnlockBtn">
+    <div style="font-size:13px;color:var(--t2);margin-bottom:16px;">Your balance: <strong style="color:var(--t1);font-weight:800;" id="chatLockBalance">0</strong> 🪙</div>
+    <button type="button" id="chatUnlockBtn" style="width:100%;height:44px;background:var(--p1);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
       Unlock Messages
     </button>
-    <p class="section-lock-error" id="chatLockError"></p>
+    <p id="chatLockError" style="color:#f43f5e;font-size:12.5px;margin-top:8px;min-height:18px;"></p>
   </div>
 </div>
 
