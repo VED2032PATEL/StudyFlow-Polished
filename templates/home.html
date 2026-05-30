@@ -1183,34 +1183,27 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     const isOwnStory = btn.dataset.storyUserId == '{{ current_user.id }}';
     usernameEl.textContent = username;
 
-    // Show avatar — handle image, video (Cloudinary /video/upload/), and gif types
+    // Show avatar — fall back to default avatar image, never initials
     const avatarInitial = document.getElementById('storyModalAvatarInitial');
     const avatarVideoEl = document.getElementById('storyModalAvatarVideo');
     const avatarType = btn.dataset.storyAvatarType || 'image';
-
+    const DEFAULT_AVATAR = "{{ url_for('static', filename='default-avatar.png') }}";
+    avatarInitial.textContent = '';
     // Reset all
     avatarEl.style.display = 'none';
     avatarEl.src = '';
-    avatarVideoEl.style.display = 'none';
-    avatarVideoEl.src = '';
-    avatarInitial.textContent = '';
-
+    if (avatarVideoEl) { avatarVideoEl.style.display = 'none'; avatarVideoEl.src = ''; }
     if (avatarSrc && avatarType === 'video') {
       avatarVideoEl.src = avatarSrc;
       avatarVideoEl.style.display = 'block';
-      avatarVideoEl.onerror = () => {
-        avatarVideoEl.style.display = 'none';
-        avatarInitial.textContent = username[0]?.toUpperCase() || '?';
-      };
+      avatarVideoEl.onerror = () => { avatarVideoEl.style.display = 'none'; avatarEl.src = DEFAULT_AVATAR; avatarEl.style.display = 'block'; };
     } else if (avatarSrc) {
       avatarEl.src = avatarSrc;
       avatarEl.style.display = 'block';
-      avatarEl.onerror = () => {
-        avatarEl.style.display = 'none';
-        avatarInitial.textContent = username[0]?.toUpperCase() || '?';
-      };
+      avatarEl.onerror = () => { avatarEl.src = DEFAULT_AVATAR; };
     } else {
-      avatarInitial.textContent = username[0]?.toUpperCase() || '?';
+      avatarEl.src = DEFAULT_AVATAR;
+      avatarEl.style.display = 'block';
     }
 
     // Show dots menu only for own stories
