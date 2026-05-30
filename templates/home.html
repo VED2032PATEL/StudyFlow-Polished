@@ -572,48 +572,103 @@
 /* ── Story Modal ── */
 .story-modal { position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center; }
 .story-modal[hidden] { display:none; }
-.story-modal-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.9); }
-.story-modal-inner { position:relative; width:min(400px,96vw); height:min(710px,92vh); background:#111; border-radius:16px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.7); display:grid; grid-template-rows:auto auto 1fr auto auto; }
-  /* Progress bars */
-.story-progress-bar-row { display:flex; gap:3px; padding:10px 12px 4px; position:relative; z-index:3; }
-.story-prog-bar { flex:1; height:2.5px; background:rgba(255,255,255,.35); border-radius:2px; overflow:hidden; }
-.story-prog-fill { height:100%; background:#fff; width:0%; }
+.story-modal-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.92); }
 
-/* Header */
-.story-modal-header { display:flex; align-items:center; justify-content:space-between; padding:4px 12px 10px; position:relative; z-index:3; }
-.story-modal-user { display:flex; align-items:center; gap:10px; }
-.story-modal-avatar-wrap { width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,.8); flex-shrink: 0; overflow: hidden; background: linear-gradient(135deg, var(--p1), var(--p2)); display: flex; align-items: center; justify-content: center; position: relative; }
-.story-modal-avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
-.story-modal-avatar-img[src=""] { display: none; }
-.story-modal-avatar-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 15px; }
-.story-modal-header-actions { display: flex; align-items: center; gap: 4px; position: relative; }
-.story-modal-dots-btn { background: none; border: none; color: #fff; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background .15s; }
-.story-modal-dots-btn:hover { background: rgba(255,255,255,.15); }
-.story-dots-menu { position: absolute; top: 40px; right: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; min-width: 160px; box-shadow: 0 8px 24px rgba(0,0,0,.3); z-index: 10; }
-.story-dots-menu[hidden] { display: none; }
-.story-dots-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: none; background: none; border-radius: 8px; cursor: pointer; font-size: .88rem; font-weight: 600; font-family: inherit; transition: background .15s; }
-.story-dots-item:hover { background: var(--surface-2); }
-.story-dots-item.danger { color: #f43f5e; }
-.story-modal-user-info { display:flex; align-items:center; gap:6px; }
-.story-modal-username { color:#fff; font-weight:700; font-size:.9rem; text-shadow:0 1px 4px rgba(0,0,0,.5); }
-.story-modal-time { color:rgba(255,255,255,.65); font-size:.82rem; font-weight:400; }
-.story-modal-close-btn { background:none; border:none; color:#fff; cursor:pointer; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s; }
-.story-modal-close-btn:hover { background:rgba(255,255,255,.15); }
+/* Card — media is the base layer, everything else floats on top */
+.story-modal-inner {
+  position:relative;
+  width:min(400px,96vw);
+  height:min(710px,92vh);
+  background:#000;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,.8);
+}
 
-/* Media */
-.story-modal-media-wrap { flex:1; min-height:0; position:relative; background:#000; display:flex; align-items:stretch; justify-content:center; overflow:hidden; }
+/* Media fills the entire card */
+.story-modal-media-wrap {
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background:#000;
+}
 .story-modal-media-wrap img,
-.story-modal-media-wrap video { width:100%; height:100%; object-fit:cover; display:block; }
+.story-modal-media-wrap video {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
 .story-tap-prev,
 .story-tap-next { position:absolute; top:0; bottom:0; width:40%; background:none; border:none; cursor:pointer; z-index:2; }
 .story-tap-prev { left:0; }
 .story-tap-next { right:0; }
 
-/* Caption */
-.story-modal-caption { padding:8px 14px 6px; color:rgba(255,255,255,.9); font-size:.85rem; text-align:center; flex-shrink:0; min-height:28px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+/* Top overlay — progress + header float above media */
+.story-progress-bar-row {
+  position:absolute;
+  top:0; left:0; right:0;
+  display:flex;
+  gap:3px;
+  padding:10px 12px 6px;
+  z-index:3;
+  background:linear-gradient(to bottom, rgba(0,0,0,.45) 0%, transparent 100%);
+}
+.story-prog-bar { flex:1; height:2.5px; background:rgba(255,255,255,.35); border-radius:2px; overflow:hidden; }
+.story-prog-fill { height:100%; background:#fff; width:0%; }
+
+/* Header floats below progress */
+.story-modal-header {
+  position:absolute;
+  top:28px; left:0; right:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 12px 10px;
+  z-index:3;
+}
+.story-modal-user { display:flex; align-items:center; gap:10px; }
+.story-modal-avatar-wrap { width:36px; height:36px; border-radius:50%; border:2px solid rgba(255,255,255,.8); flex-shrink:0; overflow:hidden; background:linear-gradient(135deg, var(--p1), var(--p2)); display:flex; align-items:center; justify-content:center; position:relative; }
+.story-modal-avatar-img { width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
+.story-modal-avatar-img[src=""] { display:none; }
+.story-modal-avatar-initial { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; }
+.story-modal-header-actions { display:flex; align-items:center; gap:4px; position:relative; }
+.story-modal-dots-btn { background:none; border:none; color:#fff; cursor:pointer; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s; }
+.story-modal-dots-btn:hover { background:rgba(255,255,255,.15); }
+.story-dots-menu { position:absolute; top:40px; right:40px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:6px; min-width:160px; box-shadow:0 8px 24px rgba(0,0,0,.3); z-index:10; }
+.story-dots-menu[hidden] { display:none; }
+.story-dots-item { width:100%; display:flex; align-items:center; gap:8px; padding:9px 12px; border:none; background:none; border-radius:8px; cursor:pointer; font-size:.88rem; font-weight:600; font-family:inherit; transition:background .15s; }
+.story-dots-item:hover { background:var(--surface-2); }
+.story-dots-item.danger { color:#f43f5e; }
+.story-modal-user-info { display:flex; align-items:center; gap:6px; }
+.story-modal-username { color:#fff; font-weight:700; font-size:.9rem; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+.story-modal-time { color:rgba(255,255,255,.65); font-size:.82rem; font-weight:400; }
+.story-modal-close-btn { background:none; border:none; color:#fff; cursor:pointer; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s; }
+.story-modal-close-btn:hover { background:rgba(255,255,255,.15); }
+
+/* Caption + footer float at the bottom */
+.story-modal-caption {
+  position:absolute;
+  bottom:80px; left:0; right:0;
+  padding:6px 16px;
+  color:rgba(255,255,255,.92);
+  font-size:.85rem;
+  text-align:center;
+  text-shadow:0 1px 6px rgba(0,0,0,.7);
+  z-index:3;
+}
 
 /* Footer */
-.story-modal-footer { padding:10px 14px 14px; display:flex; align-items:center; gap:10px; flex-shrink:0; background:linear-gradient(to top,rgba(0,0,0,.5),transparent); }
+.story-modal-footer {
+  position:absolute;
+  bottom:0; left:0; right:0;
+  padding:12px 14px 16px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  z-index:3;
+  background:linear-gradient(to top, rgba(0,0,0,.55) 0%, transparent 100%);
+}
 .story-reply-form { flex:1; display:flex; align-items:center; background:transparent; border:1.5px solid rgba(255,255,255,.5); border-radius:999px; overflow:hidden; padding:0 4px 0 14px; }
 .story-reply-input { flex:1; background:none; border:none; outline:none; color:#fff; font-size:.88rem; padding:10px 0; font-family:inherit; }
 .story-reply-input::placeholder { color:rgba(255,255,255,.6); }
