@@ -1094,16 +1094,43 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     document.getElementById('storyPreviewModal').hidden = true;
     document.body.style.overflow = '';
   });
-  document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
-    const modal = document.getElementById('storyPreviewModal');
-    const form  = document.getElementById('storyUploadForm');
-    const caption = document.getElementById('storyPreviewCaption').value.trim();
-    form.querySelector('.social-media-url').value  = modal._fileData || '';
-    form.querySelector('.social-media-type').value = modal._fileType || '';
+ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
+    const modal    = document.getElementById('storyPreviewModal');
+    const form     = document.getElementById('storyUploadForm');
+    const caption  = document.getElementById('storyPreviewCaption').value.trim();
+    const fileType = modal._fileType || '';
     form.querySelector('.story-caption-val').value = caption;
-    modal.hidden = true;
-    document.body.style.overflow = '';
-    form.submit();
+
+    function submit(dataUrl, mimeType) {
+      form.querySelector('.social-media-url').value  = dataUrl;
+      form.querySelector('.social-media-type').value = mimeType;
+      modal.hidden = true;
+      document.body.style.overflow = '';
+      form.submit();
+    }
+
+    if (fileType.startsWith('video')) {
+      submit(modal._fileData || '', fileType);
+      return;
+    }
+
+    const mediaEl = wrap.querySelector('img');
+    if (!mediaEl || !canvasW || !canvasH) {
+      submit(modal._fileData || '', fileType);
+      return;
+    }
+
+    const srcX = -tx / scale;
+    const srcY = -ty / scale;
+    const srcW =  canvasW / scale;
+    const srcH =  canvasH / scale;
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = canvasW;
+    offscreen.height = canvasH;
+    const ctx = offscreen.getContext('2d');
+    ctx.drawImage(mediaEl, srcX, srcY, srcW, srcH, 0, 0, canvasW, canvasH);
+    submit(offscreen.toDataURL('image/jpeg', 0.92), 'image/jpeg');
   });
 })();
 
