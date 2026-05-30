@@ -1197,6 +1197,7 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
   let progressStart = null;
   let currentConversationUrl = '';
   let currentUserId = null;
+  let currentUsername = '';
   const STORY_DURATION = 5000;
 
   function timeAgo(dateStr) {
@@ -1218,6 +1219,7 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     currentUserId = btn.dataset.storyUserId || null;
     const avatarSrc = btn.dataset.storyAvatar || '';
     const username = btn.dataset.storyUser || '';
+    currentUsername = username;
     const isOwnStory = btn.dataset.storyUserId == '{{ current_user.id }}';
     usernameEl.textContent = username;
 
@@ -1337,7 +1339,19 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     }
   }
 
-  // Reply to story — sends as DM
+  // Build story metadata prefix for DM — encodes story preview info
+  function storyMeta() {
+    const story = stories[currentIndex];
+    if (!story) return '';
+    return JSON.stringify({
+      __story_reply: true,
+      media_url:   story.media_url   || '',
+      media_type:  story.media_type  || 'image',
+      author:      storyUsername     || '',
+    }) + '\n';
+  }
+
+  // Reply to story — sends as DM with story preview metadata
   replyForm?.addEventListener('submit', async e => {
     e.preventDefault();
     const body = replyInput.value.trim();
@@ -1347,7 +1361,7 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: `Replied to your story: ${body}` })
+        body: JSON.stringify({ body: storyMeta() + body })
       });
       if (res.ok) {
         replyInput.value = '';
@@ -1360,14 +1374,13 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
   // Like button
   likeBtn?.addEventListener('click', () => {
     likeBtn.classList.toggle('liked');
-    // Optionally send a like reply
     const story = stories[currentIndex];
     if (story && currentUserId) {
       fetch(`/api/messages/user/${currentUserId}/send`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: '❤️ liked your story' })
+        body: JSON.stringify({ body: storyMeta() + '❤️' })
       }).catch(()=>{});
     }
   });
