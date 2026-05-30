@@ -628,9 +628,13 @@ def create_social_story():
 @login_required
 def social_post_interaction(post_id, kind):
     if kind not in {"like", "upvote"}:
+        if request.headers.get("Content-Type") == "application/x-www-form-urlencoded":
+            return jsonify({"error": "invalid kind"}), 400
         return redirect(url_for("home"))
     db.toggle_social_post_interaction(post_id, current_user.id, kind)
-    return _redirect_back("home")
+    if request.headers.get("Content-Type") == "application/x-www-form-urlencoded" and not request.form.get("next"):
+        return jsonify({"ok": True})
+    return jsonify({"ok": True})
 
 
 @app.route("/home/posts/<int:post_id>/comment", methods=["POST"])
