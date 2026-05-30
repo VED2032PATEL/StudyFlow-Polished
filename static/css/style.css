@@ -4986,6 +4986,15 @@ select.form-input,
   border-radius:inherit;
 }
 
+/* Default avatar image (no pfp set) */
+.avatar-photo-img.avatar-default {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:inherit;
+  display:block;
+}
+
 .decorated-avatar .avatar-decoration-img {
   position:absolute;
   top:50%;
