@@ -22,21 +22,21 @@
           {% if live %}
             <video src="{{ avatar_url }}" class="avatar-photo-img" autoplay loop muted playsinline poster="{{ profile_avatar_poster_url(avatar_url) }}" aria-label="{{ user.username }} {{ alt }}"></video>
           {% else %}
-            <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() if user and user.username else '?' }}</span>
+            <img src="{{ url_for('static', filename='default-avatar.png') }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img avatar-media-fallback"/>
             <video src="{{ avatar_url }}" class="avatar-photo-img avatar-animated-media" data-animated-src="{{ avatar_url }}" loop muted playsinline preload="metadata" poster="{{ profile_avatar_poster_url(avatar_url) }}" aria-label="{{ user.username }} {{ alt }}"></video>
           {% endif %}
         {% elif avatar_is_gif %}
           {% if live %}
             <img src="{{ avatar_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
           {% else %}
-            <span class="avatar-initial avatar-media-fallback">{{ user.username[0].upper() if user and user.username else '?' }}</span>
+            <img src="{{ url_for('static', filename='default-avatar.png') }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img avatar-media-fallback"/>
             <img data-animated-src="{{ avatar_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img avatar-animated-media" hidden/>
           {% endif %}
         {% else %}
           <img src="{{ avatar_url }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img"/>
         {% endif %}
       {% else %}
-        <span class="avatar-initial">{{ user.username[0].upper() if user and user.username else '?' }}</span>
+        <img src="{{ url_for('static', filename='default-avatar.png') }}" alt="{{ user.username }} {{ alt }}" class="avatar-photo-img avatar-default"/>
       {% endif %}
     </span>
     {% if decoration_asset %}
