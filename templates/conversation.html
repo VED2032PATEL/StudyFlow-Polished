@@ -67,7 +67,22 @@
             <strong>{{ msg.reply_to.preview }}</strong>
           </button>
           {% endif %}
+          {% if msg.get('story_media_url') is not none and msg.get('story_media_url') != '' %}
+            <div class="story-reply-card">
+              <div class="story-reply-label">Replied to {{ msg.story_author or 'their' }}{% if msg.story_author %}'s{% endif %} story</div>
+              <div class="story-reply-media">
+                {% if msg.story_media_type and msg.story_media_type.startswith('video') %}
+                  <video src="{{ msg.story_media_url }}" class="story-reply-media-el" muted playsinline preload="metadata"></video>
+                {% else %}
+                  <img src="{{ msg.story_media_url }}" class="story-reply-media-el" alt="story"/>
+                {% endif %}
+              </div>
+            </div>
+            {% set reply_text = msg.body.split('\n', 1)[1] if '\n' in msg.body else '' %}
+            {% if reply_text %}<div class="chat-body">{{ reply_text }}</div>{% endif %}
+          {% else %}
           <div class="chat-body">{{ msg.body }}</div>
+          {% endif %}
           {% if msg.attachment_data_url %}
           <a class="chat-attachment {% if msg.attachment_type.startswith('image/') %}image-attachment{% endif %}"
              href="{{ msg.attachment_data_url }}"
@@ -391,7 +406,34 @@ function renderIncomingAvatar() {
     </span>
   `;
 }
+// Parse story reply metadata from message body
+function parseStoryMeta(body) {
+  if (!body || !body.startsWith('{')) return null;
+  const nl = body.indexOf('\n');
+  if (nl === -1) return null;
+  try {
+    const meta = JSON.parse(body.slice(0, nl));
+    if (!meta.__story_reply) return null;
+    return { meta, text: body.slice(nl + 1) };
+  } catch(_) { return null; }
+}
 
+// Render Instagram-style story reply card
+function renderStoryReply(meta, text) {
+  const isVideo = (meta.media_type || '').startsWith('video');
+  const mediaHtml = meta.media_url
+    ? (isVideo
+        ? `<video src="${escapeHtml(meta.media_url)}" class="story-reply-media-el" muted playsinline preload="metadata"></video>`
+        : `<img src="${escapeHtml(meta.media_url)}" class="story-reply-media-el" alt="story"/>`)
+    : `<div class="story-reply-media-unavailable">Story unavailable</div>`;
+  return `
+    <div class="story-reply-card">
+      <div class="story-reply-label">Replied to ${escapeHtml(meta.author ? meta.author + "'s" : 'their')} story</div>
+      <div class="story-reply-media">${mediaHtml}</div>
+    </div>
+    ${text ? `<div class="chat-body">${escapeHtml(text)}</div>` : ''}
+  `;
+}
 function renderAttachment(msg) {
   if (!msg.attachment_data_url) return '';
   const name = msg.attachment_name || 'Attachment';
@@ -498,7 +540,7 @@ function renderMessages(messages) {
       </div>
       <div class="chat-bubble">
         ${renderReplyPreview(msg.reply_to)}
-        <div class="chat-body">${formatMessageBody(msg.body)}</div>
+        ${(() => { const s = parseStoryMeta(msg.body); return s ? renderStoryReply(s.meta, s.text) : `<div class="chat-body">${formatMessageBody(msg.body)}</div>`; })()}
         ${renderAttachment(msg)}
         ${renderReactions(msg.reactions || [])}
       </div>
