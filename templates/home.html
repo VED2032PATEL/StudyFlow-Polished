@@ -1180,11 +1180,16 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
   }
 
   // Plan selection
-  // Plan selection
   document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      document.querySelectorAll('#homeLockPlans .section-lock-plan').forEach(b => {
+        b.style.background = 'transparent';
+        b.querySelectorAll('span').forEach((s, i) => {
+          s.style.color = i === 0 ? 'var(--t1)' : 'var(--t2)';
+        });
+      });
+      btn.style.background = 'var(--p1)';
+      btn.querySelectorAll('span').forEach(s => { s.style.color = '#fff'; });
       selectedPlan = parseInt(btn.dataset.fc);
     });
   });
