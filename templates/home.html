@@ -573,14 +573,14 @@
 .story-modal { position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center; }
 .story-modal[hidden] { display:none; }
 .story-modal-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.9); }
-.story-modal-inner { position:relative; width:min(400px,96vw); height:min(710px,92vh); background:#111; border-radius:16px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.7); display:flex; flex-direction:column; }
+.story-modal-inner { position:relative; width:min(400px,96vw); height:min(710px,92vh); background:#111; border-radius:16px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.7); display:grid; grid-template-rows:auto auto 1fr auto auto; }
   /* Progress bars */
-.story-progress-bar-row { display:flex; gap:3px; padding:10px 12px 6px; position:relative; z-index:3; flex-shrink:0; }
+.story-progress-bar-row { display:flex; gap:3px; padding:10px 12px 4px; position:relative; z-index:3; }
 .story-prog-bar { flex:1; height:2.5px; background:rgba(255,255,255,.35); border-radius:2px; overflow:hidden; }
 .story-prog-fill { height:100%; background:#fff; width:0%; }
 
 /* Header */
-.story-modal-header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px 6px; position:relative; z-index:3; flex-shrink:0; }
+.story-modal-header { display:flex; align-items:center; justify-content:space-between; padding:4px 12px 10px; position:relative; z-index:3; }
 .story-modal-user { display:flex; align-items:center; gap:10px; }
 .story-modal-avatar-wrap { width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,.8); flex-shrink: 0; overflow: hidden; background: linear-gradient(135deg, var(--p1), var(--p2)); display: flex; align-items: center; justify-content: center; position: relative; }
 .story-modal-avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
@@ -594,16 +594,16 @@
 .story-dots-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: none; background: none; border-radius: 8px; cursor: pointer; font-size: .88rem; font-weight: 600; font-family: inherit; transition: background .15s; }
 .story-dots-item:hover { background: var(--surface-2); }
 .story-dots-item.danger { color: #f43f5e; }
-.story-modal-user-info { display:flex; flex-direction:column; gap:1px; }
+.story-modal-user-info { display:flex; align-items:center; gap:6px; }
 .story-modal-username { color:#fff; font-weight:700; font-size:.9rem; text-shadow:0 1px 4px rgba(0,0,0,.5); }
-.story-modal-time { color:rgba(255,255,255,.7); font-size:.72rem; }
+.story-modal-time { color:rgba(255,255,255,.65); font-size:.82rem; font-weight:400; }
 .story-modal-close-btn { background:none; border:none; color:#fff; cursor:pointer; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s; }
 .story-modal-close-btn:hover { background:rgba(255,255,255,.15); }
 
 /* Media */
-.story-modal-media-wrap { flex:1; min-height:0; position:relative; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.story-modal-media-wrap { flex:1; min-height:0; position:relative; background:#000; display:flex; align-items:stretch; justify-content:center; overflow:hidden; }
 .story-modal-media-wrap img,
-.story-modal-media-wrap video { width:100%; height:100%; object-fit:contain; display:block; }
+.story-modal-media-wrap video { width:100%; height:100%; object-fit:cover; display:block; }
 .story-tap-prev,
 .story-tap-next { position:absolute; top:0; bottom:0; width:40%; background:none; border:none; cursor:pointer; z-index:2; }
 .story-tap-prev { left:0; }
@@ -875,10 +875,10 @@ document.getElementById('storyPreviewPost')?.addEventListener('click', () => {
     const now = new Date();
     const then = new Date(dateStr.replace(' ', 'T') + 'Z');
     const diff = Math.floor((now - then) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
-    return `${Math.floor(diff/86400)}d ago`;
+    if (diff < 60) return `${diff}s`;
+    if (diff < 3600) return `${Math.floor(diff/60)}m`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+    return `${Math.floor(diff/86400)}d`;
   }
 
   function openStories(btn) {
