@@ -1325,6 +1325,7 @@ def get_conversation_summaries(user_id):
 
 
 def get_message_thread(user_id, other_user_id, limit=100):
+    import json as _json
     purge_expired_messages(user_id, other_user_id)
     conn = get_db()
     try:
@@ -1334,7 +1335,20 @@ def get_message_thread(user_id, other_user_id, limit=100):
                ORDER BY created_at DESC,id DESC LIMIT ?""",
             [user_id, other_user_id, other_user_id, user_id, limit],
         ))[::-1]
-        return _attach_reply_previews(conn, _attach_message_reactions(conn, messages, user_id))
+        messages = _attach_reply_previews(conn, _attach_message_reactions(conn, messages, user_id))
+        # Parse story reply metadata from body for Jinja template
+        for m in messages:
+            body = m.get('body') or ''
+            if body.startswith('{') and '\n' in body:
+                try:
+                    meta = _json.loads(body.split('\n', 1)[0])
+                    if meta.get('__story_reply'):
+                        m['story_media_url']  = meta.get('media_url', '')
+                        m['story_media_type'] = meta.get('media_type', 'image')
+                        m['story_author']     = meta.get('author', '')
+                except Exception:
+                    pass
+        return messages
     finally:
         conn.close()
 
