@@ -1345,9 +1345,9 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     if (!story) return '';
     return JSON.stringify({
       __story_reply: true,
-      media_url:   story.media_url   || '',
-      media_type:  story.media_type  || 'image',
-      author:      storyUsername     || '',
+      media_url:  story.media_url  || '',
+      media_type: story.media_type || 'image',
+      author:     currentUsername  || '',
     }) + '\n';
   }
 
