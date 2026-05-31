@@ -67,19 +67,23 @@
             <strong>{{ msg.reply_to.preview }}</strong>
           </button>
           {% endif %}
-          {% if msg.get('story_media_url') is not none and msg.get('story_media_url') != '' %}
+          {% if msg.body and msg.body.startswith('{') and '\n' in msg.body %}
+            {% set reply_text = msg.body.split('\n', 1)[1] %}
             <div class="story-reply-card">
               <div class="story-reply-label">Replied to {{ msg.story_author or 'their' }}{% if msg.story_author %}'s{% endif %} story</div>
-              <div class="story-reply-media">
-                {% if msg.story_media_type and msg.story_media_type.startswith('video') %}
-                  <video src="{{ msg.story_media_url }}" class="story-reply-media-el" muted playsinline preload="metadata"></video>
+              <div class="story-reply-media {% if not msg.story_media_url %}story-reply-media-no-preview{% endif %}">
+                {% if msg.story_media_url and not msg.story_media_url.startswith('data:') %}
+                  {% if msg.story_media_type and msg.story_media_type.startswith('video') %}
+                    <video src="{{ msg.story_media_url }}" class="story-reply-media-el" muted playsinline preload="metadata"></video>
+                  {% else %}
+                    <img src="{{ msg.story_media_url }}" class="story-reply-media-el" alt="story"/>
+                  {% endif %}
                 {% else %}
-                  <img src="{{ msg.story_media_url }}" class="story-reply-media-el" alt="story"/>
+                  <div class="story-reply-media-no-preview"><span style="font-size:1.8rem">📖</span><span>Story</span></div>
                 {% endif %}
               </div>
+              {% if reply_text.strip() %}<div class="story-reply-text">{{ reply_text.strip() }}</div>{% endif %}
             </div>
-            {% set reply_text = msg.body.split('\n', 1)[1] if '\n' in msg.body else '' %}
-            {% if reply_text %}<div class="chat-body">{{ reply_text }}</div>{% endif %}
           {% else %}
           <div class="chat-body">{{ msg.body }}</div>
           {% endif %}
@@ -412,7 +416,9 @@ function parseStoryMeta(body) {
   const nl = body.indexOf('\n');
   if (nl === -1) return null;
   try {
-    const meta = JSON.parse(body.slice(0, nl));
+    // Strip base64 before parsing - it's too large and breaks JSON.parse
+    const jsonStr = body.slice(0, nl).replace(/"media_url"\s*:\s*"data:[^"]*"/g, '"media_url":""');
+    const meta = JSON.parse(jsonStr);
     if (!meta.__story_reply) return null;
     return { meta, text: body.slice(nl + 1) };
   } catch(_) { return null; }
@@ -421,17 +427,20 @@ function parseStoryMeta(body) {
 // Render Instagram-style story reply card
 function renderStoryReply(meta, text) {
   const isVideo = (meta.media_type || '').startsWith('video');
-  const mediaHtml = meta.media_url
+  const safeUrl = (meta.media_url || '').startsWith('data:') ? '' : (meta.media_url || '');
+  const author = meta.author ? escapeHtml(meta.author) + "'s" : 'their';
+  const mediaHtml = safeUrl
     ? (isVideo
-        ? `<video src="${escapeHtml(meta.media_url)}" class="story-reply-media-el" muted playsinline preload="metadata"></video>`
-        : `<img src="${escapeHtml(meta.media_url)}" class="story-reply-media-el" alt="story"/>`)
-    : `<div class="story-reply-media-unavailable">Story unavailable</div>`;
+        ? `<video src="${escapeHtml(safeUrl)}" class="story-reply-media-el" muted playsinline preload="metadata"></video>`
+        : `<img src="${escapeHtml(safeUrl)}" class="story-reply-media-el" alt="story"/>`)
+    : `<div class="story-reply-media-no-preview"><span style="font-size:1.8rem">📖</span><span>Story</span></div>`;
+  const replyText = (text || '').trim();
   return `
     <div class="story-reply-card">
-      <div class="story-reply-label">Replied to ${escapeHtml(meta.author ? meta.author + "'s" : 'their')} story</div>
+      <div class="story-reply-label">Replied to ${author} story</div>
       <div class="story-reply-media">${mediaHtml}</div>
+      ${replyText ? `<div class="story-reply-text">${escapeHtml(replyText)}</div>` : ''}
     </div>
-    ${text ? `<div class="chat-body">${escapeHtml(text)}</div>` : ''}
   `;
 }
 function renderAttachment(msg) {
