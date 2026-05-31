@@ -8032,29 +8032,48 @@ select.form-input,
 .story-reply-card {
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 6px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.1);
-  max-width: 220px;
+  margin-bottom: 4px;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.12);
+  max-width: 200px;
+  cursor: default;
 }
 .chat-mine .story-reply-card {
-  background: rgba(255,255,255,.12);
-  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.14);
+  border-color: rgba(255,255,255,.22);
 }
 .story-reply-label {
   font-size: .72rem;
-  color: var(--t2);
+  color: rgba(255,255,255,.7);
   padding: 7px 10px 4px;
   font-weight: 500;
 }
-.chat-mine .story-reply-label { color: rgba(255,255,255,.7); }
+.chat-theirs .story-reply-label { color: var(--t2); }
 .story-reply-media {
   width: 100%;
   aspect-ratio: 9/16;
   overflow: hidden;
-  background: #000;
+  background: rgba(0,0,0,.3);
+  position: relative;
+}
+.story-reply-media-no-preview {
+  aspect-ratio: unset !important;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0,0,0,.25);
+  color: rgba(255,255,255,.55);
+  font-size: .78rem;
+  font-weight: 600;
+  flex-direction: column;
+}
+.chat-theirs .story-reply-media-no-preview {
+  background: var(--surface-2);
+  color: var(--t3);
 }
 .story-reply-media-el {
   width: 100%;
@@ -8062,18 +8081,14 @@ select.form-input,
   object-fit: cover;
   display: block;
 }
-.story-reply-media-unavailable {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: .75rem;
-  color: var(--t3);
-  background: var(--surface-2);
-  padding: 16px;
-  text-align: center;
+.story-reply-text {
+  font-size: .85rem;
+  padding: 6px 10px 8px;
+  color: #fff;
+  line-height: 1.4;
+  word-break: break-word;
 }
+.chat-theirs .story-reply-text { color: var(--t1); }
 
 .chat-time {
   margin-top:5px;
