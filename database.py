@@ -11,6 +11,8 @@ import os
 import datetime
 import json
 import secrets
+import re
+from urllib.parse import urlsplit, urlunsplit
 import libsql_client
 
 # ── Connection config ─────────────────────────────────────────────────────────
@@ -52,6 +54,32 @@ def _rows_to_dicts(result):
 def _table_columns(conn, table):
     res = conn.execute(f"PRAGMA table_info({table})")
     return {row[1] for row in res.rows}
+
+
+def _is_cloudinary_media_url(value):
+    value = (value or "").strip()
+    if not value:
+        return False
+    parsed = urlsplit(value)
+    return "res.cloudinary.com" in parsed.netloc.lower() and "/upload/" in parsed.path
+
+
+def _story_reply_poster_url(media_url, media_type=""):
+    media_url = (media_url or "").strip()
+    media_type = (media_type or "").strip().lower()
+    if not media_url:
+        return ""
+    if not (media_type.startswith("video") or media_url.lower().endswith(".gif") or "/video/upload/" in media_url):
+        return media_url
+    if not _is_cloudinary_media_url(media_url):
+        return ""
+    parsed = urlsplit(media_url)
+    before, after = parsed.path.split("/upload/", 1)
+    transform = "c_fill,g_auto,w_540,h_960,q_auto,so_0"
+    if not after.startswith(f"{transform}/"):
+        parsed = parsed._replace(path=f"{before}/upload/{transform}/{after}")
+    path = re.sub(r"\.(mp4|webm|mov|gif)$", ".jpg", parsed.path, flags=re.IGNORECASE)
+    return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
 
 
 # ── Schema ────────────────────────────────────────────────────────────────────
@@ -1346,6 +1374,10 @@ def get_message_thread(user_id, other_user_id, limit=100):
                         m['story_media_url']  = meta.get('media_url', '')
                         m['story_media_type'] = meta.get('media_type', 'image')
                         m['story_author']     = meta.get('author', '')
+                        m['story_media_poster_url'] = _story_reply_poster_url(
+                            m.get('story_media_url', ''),
+                            m.get('story_media_type', ''),
+                        )
                 except Exception:
                     pass
         return messages
