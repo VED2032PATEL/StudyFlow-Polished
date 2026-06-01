@@ -82,6 +82,35 @@ def _story_reply_poster_url(media_url, media_type=""):
     return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
 
 
+def _story_reply_payload(body):
+    body = body or ""
+    if not (body.startswith("{") and "\n" in body):
+        return None
+    try:
+        meta = json.loads(body.split("\n", 1)[0])
+    except Exception:
+        return None
+    if not meta.get("__story_reply"):
+        return None
+    return {
+        "meta": meta,
+        "text": body.split("\n", 1)[1],
+    }
+
+
+def _message_preview_text(msg):
+    payload = _story_reply_payload(msg.get("body") or "")
+    if payload:
+        text = (payload.get("text") or "").strip()
+        if text:
+            return text
+    body = (msg.get("body") or "").strip()
+    if body:
+        return body
+    attachment_name = (msg.get("attachment_name") or "").strip()
+    return f"Attachment: {attachment_name}" if attachment_name else "Attachment"
+
+
 # ── Schema ────────────────────────────────────────────────────────────────────
 
 _CREATE = [
@@ -939,7 +968,7 @@ def _attach_reply_previews(conn, messages):
         if not reply:
             msg["reply_to"] = None
             continue
-        text = (reply.get("body") or reply.get("attachment_name") or "Attachment").strip()
+        text = _message_preview_text(reply)
         msg["reply_to"] = {
             "id": reply["id"],
             "sender_id": reply["sender_id"],
@@ -1329,6 +1358,7 @@ def get_conversations(user_id):
             conversations.append({
                 "user": user_rows[0],
                 "last": last_rows[0] if last_rows else None,
+                "last_preview": _message_preview_text(last_rows[0]) if last_rows else "",
                 "unread": unread,
                 "is_typing": is_user_typing(peer_id, user_id),
                 "is_online": is_user_online(peer_id),
@@ -1347,6 +1377,7 @@ def get_conversation_summaries(user_id):
             "is_online": bool(convo.get("is_online")),
             "unread": int(convo.get("unread") or 0),
             "last": convo.get("last"),
+            "last_preview": convo.get("last_preview", ""),
         }
         for convo in conversations
     ]
