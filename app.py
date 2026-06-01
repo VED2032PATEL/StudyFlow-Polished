@@ -1383,6 +1383,7 @@ def api_message_summaries():
                 "is_online": item["is_online"],
                 "unread": item["unread"],
                 "last": item["last"],
+                "last_preview": item.get("last_preview", ""),
             }
             for item in db.get_conversation_summaries(current_user.id)
         ]
