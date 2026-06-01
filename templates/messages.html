@@ -97,7 +97,13 @@
               Typing...
             {% else %}
             {% if convo.last.sender_id == current_user.id %}You: {% endif %}
-            {{ convo.last_preview[:72] }}{% if convo.last_preview|length > 72 %}...{% endif %}
+            {% if convo.last.body %}
+              {{ convo.last.body[:72] }}{% if convo.last.body|length > 72 %}...{% endif %}
+            {% elif convo.last.attachment_name %}
+              Attachment: {{ convo.last.attachment_name }}
+            {% else %}
+              Attachment
+            {% endif %}
             {% endif %}
           </span>
           {% endif %}
@@ -192,22 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
   noteInput?.addEventListener('input', syncNoteCount);
   syncNoteCount();
 
-  function previewText(last) {
-    if (!last) return 'Attachment';
-    const body = (last.body || '').trim();
-    if (body.startsWith('{') && body.includes('\n')) {
-      try {
-        const meta = JSON.parse(body.split('\n', 1)[0]);
-        if (meta.__story_reply) {
-          const storyText = body.split('\n', 2)[1] || '';
-          return storyText.trim() || 'Attachment';
-        }
-      } catch (_) {}
-    }
-    if (body) return body;
-    return last.attachment_name ? `Attachment: ${last.attachment_name}` : 'Attachment';
-  }
-
   async function refreshConversationSummary() {
     try {
       const res = await fetch('{{ url_for("api_message_summaries") }}', { cache: 'no-store' });
@@ -222,10 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (preview && item.is_typing) {
           preview.textContent = 'Typing...';
           preview.classList.add('is-typing');
-        } else if (preview) {
+        } else if (preview && preview.classList.contains('is-typing')) {
           const last = item.last || {};
           const mine = last.sender_id ? last.sender_id !== item.user_id : false;
-          const body = item.last_preview || previewText(last);
+          const body = last.body || (last.attachment_name ? `Attachment: ${last.attachment_name}` : 'Attachment');
           preview.textContent = `${mine ? 'You: ' : ''}${body}`.slice(0, 76);
           preview.classList.remove('is-typing');
         }
