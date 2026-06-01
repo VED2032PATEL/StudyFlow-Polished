@@ -1,8 +1,8 @@
-﻿{% import "_ui.html" as ui with context %}
+{% import "_ui.html" as ui with context %}
 <div class="chat-shell anim">
   <div class="chat-thread-header">
     <div class="chat-user-head">
-      <a href="{{ url_for('messages') }}" class="back-link">â† Messages</a>
+      <a href="{{ url_for('messages') }}" class="back-link">← Messages</a>
       <div class="chat-user-line">
         <span class="avatar-presence-wrap">
           {{ ui.decorated_avatar(other, 'conversation-avatar') }}
@@ -44,74 +44,70 @@
         {{ ui.decorated_avatar(other, 'chat-row-avatar') }}
         {% endif %}
         <div class="message-hover-tools">
-          <button type="button" class="message-tool-btn" data-action="react-menu" data-id="{{ msg.id }}" aria-label="React">â˜º</button>
+          <button type="button" class="message-tool-btn" data-action="react-menu" data-id="{{ msg.id }}" aria-label="React">☺</button>
           <button type="button" class="message-tool-btn" data-action="reply" data-id="{{ msg.id }}" aria-label="Reply"><i data-lucide="reply" width="15" height="15"></i></button>
           <button type="button" class="message-tool-btn" data-action="more-menu" data-id="{{ msg.id }}" aria-label="More options">...</button>
           <div class="message-reaction-menu" data-menu="react" hidden>
-            {% for emoji in ['â¤ï¸','ðŸ˜‚','ðŸ˜®','ðŸ˜¢','ðŸ”¥','ðŸ‘'] %}
+            {% for emoji in ['❤️','😂','😮','😢','🔥','👍'] %}
               <button type="button" data-action="react" data-id="{{ msg.id }}" data-emoji="{{ emoji }}">{{ emoji }}</button>
             {% endfor %}
           </div>
           <div class="message-more-menu" data-menu="more" hidden>
-            <div class="message-menu-time">{{ msg.time_label }}{% if msg.edited_at %} Â· edited{% endif %}</div>
+            <div class="message-menu-time">{{ msg.time_label }}{% if msg.edited_at %} · edited{% endif %}</div>
             {% if msg.sender_id == current_user.id %}
             <button type="button" data-action="edit" data-id="{{ msg.id }}">Edit</button>
             <button type="button" data-action="delete" data-id="{{ msg.id }}" class="danger">Unsend</button>
             {% endif %}
           </div>
         </div>
-        <div class="chat-message-stack">
+        <div class="chat-bubble">
+          {% if msg.reply_to %}
+          <button type="button" class="chat-reply-preview" data-jump-message="{{ msg.reply_to.id }}">
+            <span>{{ 'You' if msg.reply_to.sender_id == current_user.id else msg.reply_to.username }}</span>
+            <strong>{{ msg.reply_to.preview }}</strong>
+          </button>
+          {% endif %}
           {% if msg.body and msg.body.startswith('{') and '\n' in msg.body %}
             {% set reply_text = msg.body.split('\n', 1)[1] %}
-            {% set story_preview_url = msg.story_media_poster_url or (msg.story_media_url if not (msg.story_media_type and msg.story_media_type.startswith('video')) else '') %}
             <div class="story-reply-card">
               <div class="story-reply-label">Replied to {{ msg.story_author or 'their' }}{% if msg.story_author %}'s{% endif %} story</div>
-              {% if story_preview_url %}
-                <div class="story-reply-media">
-                  <img src="{{ story_preview_url }}" class="story-reply-media-el" alt="Story preview"/>
-                </div>
-              {% else %}
-                <div class="story-reply-media story-reply-media-no-preview">
-                  <span>Story</span>
-                </div>
-              {% endif %}
+              <div class="story-reply-media {% if not msg.story_media_url %}story-reply-media-no-preview{% endif %}">
+                {% if msg.story_media_url and not msg.story_media_url.startswith('data:') %}
+                  {% if msg.story_media_type and msg.story_media_type.startswith('video') %}
+                    <video src="{{ msg.story_media_url }}" class="story-reply-media-el" muted playsinline preload="metadata"></video>
+                  {% else %}
+                    <img src="{{ msg.story_media_url }}" class="story-reply-media-el" alt="story"/>
+                  {% endif %}
+                {% else %}
+                  <div class="story-reply-media-no-preview"><span style="font-size:1.8rem">📖</span><span>Story</span></div>
+                {% endif %}
+              </div>
+              {% if reply_text.strip() %}<div class="story-reply-text">{{ reply_text.strip() }}</div>{% endif %}
             </div>
+          {% else %}
+          <div class="chat-body">{{ msg.body }}</div>
           {% endif %}
-          <div class="chat-bubble">
-            {% if msg.reply_to %}
-            <button type="button" class="chat-reply-preview" data-jump-message="{{ msg.reply_to.id }}">
-              <span>{{ 'You' if msg.reply_to.sender_id == current_user.id else msg.reply_to.username }}</span>
-              <strong>{{ msg.reply_to.preview }}</strong>
-            </button>
-            {% endif %}
-            {% if msg.body and msg.body.startswith('{') and '\n' in msg.body %}
-              {% set reply_text = msg.body.split('\n', 1)[1] %}
-              {% if reply_text.strip() %}<div class="chat-body">{{ reply_text.strip()|e }}</div>{% endif %}
+          {% if msg.attachment_data_url %}
+          <a class="chat-attachment {% if msg.attachment_type.startswith('image/') %}image-attachment{% endif %}"
+             href="{{ msg.attachment_data_url }}"
+             download="{{ msg.attachment_name }}"
+             target="_blank"
+             rel="noopener noreferrer">
+            {% if msg.attachment_type.startswith('image/') %}
+              <img src="{{ msg.attachment_data_url }}" alt="{{ msg.attachment_name }}"/>
             {% else %}
-            <div class="chat-body">{{ msg.body }}</div>
+              <i data-lucide="paperclip" width="15" height="15"></i>
+              <span>{{ msg.attachment_name or 'Attachment' }}</span>
             {% endif %}
-            {% if msg.attachment_data_url %}
-            <a class="chat-attachment {% if msg.attachment_type.startswith('image/') %}image-attachment{% endif %}"
-               href="{{ msg.attachment_data_url }}"
-               download="{{ msg.attachment_name }}"
-               target="_blank"
-               rel="noopener noreferrer">
-              {% if msg.attachment_type.startswith('image/') %}
-                <img src="{{ msg.attachment_data_url }}" alt="{{ msg.attachment_name }}"/>
-              {% else %}
-                <i data-lucide="paperclip" width="15" height="15"></i>
-                <span>{{ msg.attachment_name or 'Attachment' }}</span>
-              {% endif %}
-            </a>
-            {% endif %}
-            {% if msg.reactions %}
-            <div class="chat-reactions">
-              {% for reaction in msg.reactions %}
-                <span class="chat-reaction {% if reaction.reacted %}mine{% endif %}">{{ reaction.emoji }}{% if reaction.count > 1 %} {{ reaction.count }}{% endif %}</span>
-              {% endfor %}
-            </div>
-            {% endif %}
+          </a>
+          {% endif %}
+          {% if msg.reactions %}
+          <div class="chat-reactions">
+            {% for reaction in msg.reactions %}
+              <span class="chat-reaction {% if reaction.reacted %}mine{% endif %}">{{ reaction.emoji }}{% if reaction.count > 1 %} {{ reaction.count }}{% endif %}</span>
+            {% endfor %}
           </div>
+          {% endif %}
         </div>
       </div>
       {% if msg.sender_id == current_user.id and msg.read_at and loop.last %}
@@ -150,9 +146,9 @@
         <i data-lucide="paperclip" width="16" height="16"></i>
       </button>
       <button type="button" class="emoji-toggle" id="emojiToggle"
-              aria-label="Add emoji" aria-expanded="false">ðŸ˜Š</button>
+              aria-label="Add emoji" aria-expanded="false">😊</button>
       <div class="emoji-picker" id="emojiPicker" hidden>
-        {% for emoji in ['ðŸ˜Š','ðŸ˜‚','ðŸ˜','ðŸ˜Ž','ðŸ¥³','ðŸ‘','ðŸ‘','ðŸ™','ðŸ”¥','âœ¨','ðŸ’¯','âœ…','ðŸ“š','ðŸ“','â°','ðŸ’ª','ðŸ˜…','ðŸ¤”','ðŸ˜´','â¤ï¸'] %}
+        {% for emoji in ['😊','😂','😍','😎','🥳','👍','👏','🙏','🔥','✨','💯','✅','📚','📝','⏰','💪','😅','🤔','😴','❤️'] %}
           <button type="button" class="emoji-choice" data-emoji="{{ emoji }}" aria-label="Insert {{ emoji }}">{{ emoji }}</button>
         {% endfor %}
       </div>
@@ -276,7 +272,7 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callEmptyState = document.getElementById('callEmptyState');
 const mainContent = document.getElementById('mainContent');
-const reactionOptions = ['â¤ï¸','ðŸ˜‚','ðŸ˜®','ðŸ˜¢','ðŸ”¥','ðŸ‘'];
+const reactionOptions = ['❤️','😂','😮','😢','🔥','👍'];
 const otherAvatarUrl = {{ (other.avatar_data_url or '')|tojson }};
 const otherDecoration = {{ (other.profile_decoration or '')|tojson }};
 const profileDecorationAssets = {
@@ -428,33 +424,25 @@ function parseStoryMeta(body) {
   } catch(_) { return null; }
 }
 
-function storyReplyPreviewUrl(msg) {
-  const mediaUrl = (msg.story_media_url || '').trim();
-  const posterUrl = (msg.story_media_poster_url || '').trim();
-  const mediaType = (msg.story_media_type || '').toLowerCase();
-  if (!mediaUrl) return '';
-  if (posterUrl) return posterUrl;
-  if (mediaType.startsWith('video') || mediaUrl.toLowerCase().endsWith('.gif')) return '';
-  return mediaUrl;
-}
-
 // Render Instagram-style story reply card
-function renderStoryReply(msg, text) {
-  const author = msg.story_author ? escapeHtml(msg.story_author) + "'s" : 'their';
-  const previewUrl = storyReplyPreviewUrl(msg);
-  const previewHtml = previewUrl
-    ? `<div class="story-reply-media"><img src="${escapeHtml(previewUrl)}" class="story-reply-media-el" alt="Story preview"/></div>`
-    : `<div class="story-reply-media story-reply-media-no-preview"><span>Story</span></div>`;
+function renderStoryReply(meta, text) {
+  const isVideo = (meta.media_type || '').startsWith('video');
+  const safeUrl = (meta.media_url || '').startsWith('data:') ? '' : (meta.media_url || '');
+  const author = meta.author ? escapeHtml(meta.author) + "'s" : 'their';
+  const mediaHtml = safeUrl
+    ? (isVideo
+        ? `<video src="${escapeHtml(safeUrl)}" class="story-reply-media-el" muted playsinline preload="metadata"></video>`
+        : `<img src="${escapeHtml(safeUrl)}" class="story-reply-media-el" alt="story"/>`)
+    : `<div class="story-reply-media-no-preview"><span style="font-size:1.8rem">📖</span><span>Story</span></div>`;
   const replyText = (text || '').trim();
   return `
     <div class="story-reply-card">
       <div class="story-reply-label">Replied to ${author} story</div>
-      ${previewHtml}
+      <div class="story-reply-media">${mediaHtml}</div>
       ${replyText ? `<div class="story-reply-text">${escapeHtml(replyText)}</div>` : ''}
     </div>
   `;
 }
-
 function renderAttachment(msg) {
   if (!msg.attachment_data_url) return '';
   const name = msg.attachment_name || 'Attachment';
@@ -540,43 +528,34 @@ function renderMessages(messages) {
     chatMessages.innerHTML = '<div class="empty-state compact-empty"><p>No messages yet. Send the first one.</p></div>' + renderTypingIndicator();
     return;
   }
-  chatMessages.innerHTML = messages.map((msg, index) => {
-    const story = parseStoryMeta(msg.body);
-    const storyReply = story ? renderStoryReply(msg, story.text) : '';
-    const bodyValue = story ? story.text : msg.body;
-    const bodyHtml = (bodyValue || '').trim() ? `<div class="chat-body">${formatMessageBody(bodyValue)}</div>` : '';
-    return `
+  chatMessages.innerHTML = messages.map((msg, index) => `
     ${shouldShowTimeDivider(msg, messages[index - 1]) ? `<div class="chat-time-divider">${escapeHtml(formatMessageTimestamp(msg.created_at))}</div>` : ''}
     <div class="chat-bubble-row ${msg.is_mine ? 'chat-mine' : 'chat-theirs'}" data-message-id="${msg.id}">
       ${msg.is_mine ? '' : renderIncomingAvatar()}
       <div class="message-hover-tools">
-        <button type="button" class="message-tool-btn" data-action="react-menu" data-id="${msg.id}" aria-label="React">â˜º</button>
+        <button type="button" class="message-tool-btn" data-action="react-menu" data-id="${msg.id}" aria-label="React">☺</button>
         <button type="button" class="message-tool-btn" data-action="reply" data-id="${msg.id}" aria-label="Reply"><i data-lucide="reply" width="15" height="15"></i></button>
         <button type="button" class="message-tool-btn" data-action="more-menu" data-id="${msg.id}" aria-label="More options">...</button>
         <div class="message-reaction-menu" data-menu="react" hidden>
           ${reactionOptions.map(emoji => `<button type="button" data-action="react" data-id="${msg.id}" data-emoji="${emoji}">${emoji}</button>`).join('')}
         </div>
         <div class="message-more-menu" data-menu="more" hidden>
-          <div class="message-menu-time">${escapeHtml(formatMessageTimestamp(msg.created_at))}${msg.edited_at ? ' Â· edited' : ''}</div>
+          <div class="message-menu-time">${escapeHtml(formatMessageTimestamp(msg.created_at))}${msg.edited_at ? ' · edited' : ''}</div>
           ${msg.can_edit ? `
             <button type="button" data-action="edit" data-id="${msg.id}">Edit</button>
             <button type="button" data-action="delete" data-id="${msg.id}" class="danger">Unsend</button>
           ` : ''}
         </div>
       </div>
-      <div class="chat-message-stack">
-        ${storyReply}
-        <div class="chat-bubble">
-          ${renderReplyPreview(msg.reply_to)}
-          ${bodyHtml}
-          ${renderAttachment(msg)}
-          ${renderReactions(msg.reactions || [])}
-        </div>
+      <div class="chat-bubble">
+        ${renderReplyPreview(msg.reply_to)}
+        ${(() => { const s = parseStoryMeta(msg.body); return s ? renderStoryReply(s.meta, s.text) : `<div class="chat-body">${formatMessageBody(msg.body)}</div>`; })()}
+        ${renderAttachment(msg)}
+        ${renderReactions(msg.reactions || [])}
       </div>
     </div>
     ${renderSeenLabel(msg, messages, index)}
-  `;
-  }).join('') + renderTypingIndicator();
+  `).join('') + renderTypingIndicator();
   window.refreshProfileMediaHoverZones?.();
   window.lucide?.createIcons();
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -1871,7 +1850,7 @@ function renderAttachmentPreview(file) {
   chatAttachmentPreview.hidden = false;
   chatAttachmentPreview.innerHTML = `
     <span><i data-lucide="paperclip" width="14" height="14"></i>${escapeHtml(file.name)}</span>
-    <button type="button" id="clearChatAttachment" aria-label="Remove attachment">Ã—</button>
+    <button type="button" id="clearChatAttachment" aria-label="Remove attachment">×</button>
   `;
   window.lucide?.createIcons();
 }
@@ -1927,8 +1906,3 @@ chatMessages.scrollTop = chatMessages.scrollHeight;
 refreshMessages();
 setInterval(refreshMessages, 2500);
 </script>
-
-
-
-
-
