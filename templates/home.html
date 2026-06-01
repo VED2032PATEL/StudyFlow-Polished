@@ -1343,9 +1343,11 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
   function storyMeta() {
     const story = stories[currentIndex];
     if (!story) return '';
+    // Only use Cloudinary/external URLs — never embed base64 in message body
+    const mediaUrl = (story.media_url || '').startsWith('data:') ? '' : (story.media_url || '');
     return JSON.stringify({
       __story_reply: true,
-      story_id:   story.id,
+      media_url:  mediaUrl,
       media_type: story.media_type || 'image',
       author:     currentUsername  || '',
     }) + '\n';

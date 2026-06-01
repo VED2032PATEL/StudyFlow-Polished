@@ -98,40 +98,6 @@ def _story_reply_payload(body):
     }
 
 
-def _resolve_story_reply(message):
-    payload = _story_reply_payload(message.get("body") or "")
-    if not payload:
-        return message
-    meta = payload["meta"]
-    story = None
-    story_id = meta.get("story_id")
-    if story_id:
-        story = get_social_story_by_id(story_id)
-    if story:
-        message["story_id"] = story["id"]
-        message["story_caption"] = story.get("caption", "")
-        message["story_media_url"] = story.get("media_url", "")
-        message["story_media_type"] = story.get("media_type", "image")
-        message["story_author"] = story.get("username", "")
-        message["story_owner_id"] = story.get("user_id")
-        message["story_is_mine"] = story.get("user_id") == message.get("receiver_id")
-        message["story_media_poster_url"] = _story_reply_poster_url(
-            message.get("story_media_url", ""),
-            message.get("story_media_type", ""),
-        )
-    else:
-        message["story_media_url"] = meta.get("media_url", "")
-        message["story_media_type"] = meta.get("media_type", "image")
-        message["story_author"] = meta.get("author", "")
-        message["story_owner_id"] = message.get("receiver_id")
-        message["story_media_poster_url"] = _story_reply_poster_url(
-            message.get("story_media_url", ""),
-            message.get("story_media_type", ""),
-        )
-    message["story_reply_text"] = payload.get("text", "").strip()
-    return message
-
-
 def _message_preview_text(msg):
     payload = _story_reply_payload(msg.get("body") or "")
     if payload:
@@ -1429,8 +1395,22 @@ def get_message_thread(user_id, other_user_id, limit=100):
             [user_id, other_user_id, other_user_id, user_id, limit],
         ))[::-1]
         messages = _attach_reply_previews(conn, _attach_message_reactions(conn, messages, user_id))
+        # Parse story reply metadata from body for Jinja template
         for m in messages:
-            _resolve_story_reply(m)
+            body = m.get('body') or ''
+            if body.startswith('{') and '\n' in body:
+                try:
+                    meta = _json.loads(body.split('\n', 1)[0])
+                    if meta.get('__story_reply'):
+                        m['story_media_url']  = meta.get('media_url', '')
+                        m['story_media_type'] = meta.get('media_type', 'image')
+                        m['story_author']     = meta.get('author', '')
+                        m['story_media_poster_url'] = _story_reply_poster_url(
+                            m.get('story_media_url', ''),
+                            m.get('story_media_type', ''),
+                        )
+                except Exception:
+                    pass
         return messages
     finally:
         conn.close()
@@ -2533,22 +2513,6 @@ def create_social_story(user_id, caption, media_url, media_type=""):
             [user_id, (caption or "").strip()[:260], media_url, (media_type or "").strip()[:40]],
         )
         return res.last_insert_rowid
-    finally:
-        conn.close()
-
-
-def get_social_story_by_id(story_id):
-    conn = get_db()
-    try:
-        rows = _rows_to_dicts(conn.execute(
-            """SELECT s.id,s.user_id,s.caption,s.media_url,s.media_type,s.created_at,s.expires_at,
-                      u.username,u.avatar_data_url,u.is_verified,u.is_v_badged
-               FROM social_stories s
-               JOIN users u ON u.id=s.user_id
-               WHERE s.id=?""",
-            [story_id],
-        ))
-        return rows[0] if rows else None
     finally:
         conn.close()
 
