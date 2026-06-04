@@ -317,6 +317,51 @@
 {% else %}
 </div>
 
+<!-- ── Posts Grid ──────────────────────────────────────────────────── -->
+<div class="profile-posts-section anim d5">
+  <div class="profile-posts-header">
+    <h2 class="card-title">Posts</h2>
+    <div class="profile-posts-tabs">
+      <button class="profile-posts-tab active" onclick="switchPostTab(this,'feed')">
+        <span data-lucide="rss"></span> Feed
+        <span class="profile-posts-count">{{ profile_posts_feed|length }}</span>
+      </button>
+      <button class="profile-posts-tab" onclick="switchPostTab(this,'study')">
+        <span data-lucide="book-open"></span> Study Board
+        <span class="profile-posts-count">{{ profile_posts_study|length }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Feed posts column -->
+  <div class="profile-posts-grid" id="profilePostsFeed">
+    {% if profile_posts_feed %}
+      {% for post in profile_posts_feed %}
+        {{ _render_profile_post(post) }}
+      {% endfor %}
+    {% else %}
+      <div class="profile-posts-empty">
+        <span data-lucide="image-off"></span>
+        <p>No feed posts yet.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Study Board posts column -->
+  <div class="profile-posts-grid hidden" id="profilePostsStudy">
+    {% if profile_posts_study %}
+      {% for post in profile_posts_study %}
+        {{ _render_profile_post(post) }}
+      {% endfor %}
+    {% else %}
+      <div class="profile-posts-empty">
+        <span data-lucide="book-x"></span>
+        <p>No study board posts yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
 <div class="private-profile-panel anim d2">
   <div class="private-profile-lock">
     <span data-lucide="lock"></span>
