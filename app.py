@@ -724,7 +724,18 @@ def _profile_response(profile):
     if not profile:
         flash("User not found.", "error")
         return redirect(url_for("people"))
-    return render_template("profile.html", profile=profile)
+    target_id = profile["user"]["id"]
+    profile_posts_feed  = []
+    profile_posts_study = []
+    if profile.get("can_view_profile"):
+        profile_posts_feed  = db.get_user_posts(target_id, current_user.id, mode="feed",  limit=40)
+        profile_posts_study = db.get_user_posts(target_id, current_user.id, mode="study", limit=40)
+    return render_template(
+        "profile.html",
+        profile=profile,
+        profile_posts_feed=profile_posts_feed,
+        profile_posts_study=profile_posts_study,
+    )
 
 
 def _clean_uploaded_data_url(value, max_bytes, label):
