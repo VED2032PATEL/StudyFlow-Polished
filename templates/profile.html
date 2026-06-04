@@ -576,8 +576,6 @@ function switchPostTab(btn, tabName) {
   </div>
   {% endif %}
 </div>
-{% else %}
-</div>
 
 <!-- ── Posts Grid ──────────────────────────────────────────────────── -->
 <div class="profile-posts-section anim d5">
@@ -609,7 +607,7 @@ function switchPostTab(btn, tabName) {
     {% endif %}
   </div>
 
-  <!-- Study Board posts column -->
+<!-- Study Board posts column -->
   <div class="profile-posts-grid hidden" id="profilePostsStudy">
     {% if profile_posts_study %}
       {% for post in profile_posts_study %}
@@ -622,6 +620,9 @@ function switchPostTab(btn, tabName) {
       </div>
     {% endif %}
   </div>
+</div>
+
+{% else %}
 </div>
 
 <div class="private-profile-panel anim d2">
