@@ -2335,6 +2335,34 @@ def get_social_posts(viewer_id, mode="feed", limit=40):
     finally:
         conn.close()
 
+def get_user_posts(target_user_id, viewer_id, mode="feed", limit=40):
+    """Get posts by a specific user for display on their profile page."""
+    mode = mode if mode in {"study", "feed"} else "feed"
+    conn = get_db()
+    try:
+        rows = _rows_to_dicts(conn.execute(
+            f"""SELECT p.*,{_social_user_columns('u')},
+                       (SELECT COUNT(*) FROM social_post_interactions i WHERE i.post_id=p.id AND i.kind='upvote') AS upvotes,
+                       (SELECT COUNT(*) FROM social_post_interactions i WHERE i.post_id=p.id AND i.kind='like') AS likes,
+                       (SELECT COUNT(*) FROM social_post_comments c WHERE c.post_id=p.id) AS comment_count,
+                       (SELECT COUNT(*) FROM social_post_views v WHERE v.post_id=p.id) AS views,
+                       (SELECT COUNT(*) FROM social_post_shares s WHERE s.post_id=p.id) AS shares,
+                       EXISTS(SELECT 1 FROM social_post_interactions i WHERE i.post_id=p.id AND i.user_id=? AND i.kind='upvote') AS viewer_upvoted,
+                       EXISTS(SELECT 1 FROM social_post_interactions i WHERE i.post_id=p.id AND i.user_id=? AND i.kind='like') AS viewer_liked
+                FROM social_posts p
+                JOIN users u ON u.id=p.user_id
+                WHERE p.user_id=? AND p.mode=? AND u.moderation_status<>'banned'
+                ORDER BY p.created_at DESC, p.id DESC
+                LIMIT ?""",
+            [viewer_id, viewer_id, target_user_id, mode, limit],
+        ))
+        posts = [_post_from_row(row) for row in rows]
+        for post in posts:
+            post["viewer_upvoted"] = bool(post.get("viewer_upvoted"))
+            post["viewer_liked"]   = bool(post.get("viewer_liked"))
+        return _attach_post_comments(conn, posts)
+    finally:
+        conn.close()
 
 def mark_post_views(user_id, post_ids):
     ids = [int(pid) for pid in post_ids if pid]
