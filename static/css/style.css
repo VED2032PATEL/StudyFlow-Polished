@@ -234,12 +234,14 @@ body.creator-sections-open .user-nav-item {
   line-height:1;
 }
 
-.verified-badge .lucide {
-  width:1.1em;
-  height:1.1em;
-  color:#1d9bf0;
-  fill:rgba(29,155,240,0.15);
-  stroke:#fff;
+.verified-badge .lucide,
+.verified-badge-icon {
+  width: 1.1em;
+  height: 1.1em;
+  color: #1d9bf0;
+  fill: rgba(29, 155, 240, 0.2);
+  stroke: #ffffff;
+  stroke-width: 1.5;
 }
 
 .verified-badge.v-badge {
