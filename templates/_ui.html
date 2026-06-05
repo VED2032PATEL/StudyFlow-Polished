@@ -1,8 +1,8 @@
 {% macro verified_badge(user) -%}
   {% if user and user.is_verified %}
     <span class="verified-badge" title="Verified creator" aria-label="Verified creator">
-      <i data-lucide="check" width="10" height="10" stroke-width="4"></i>
-    </span>
+  <i data-lucide="badge-check" class="w-4 h-4 text-blue-500 fill-blue-500/20"></i>
+</span>
   {% elif user and user.is_v_badged %}
     <span class="verified-badge v-badge" title="V badge" aria-label="V badge">
       <span>V</span>
