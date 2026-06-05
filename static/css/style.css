@@ -9754,11 +9754,10 @@ select.form-input,
   min-height: 20px;
 }
 
-.verified-badge i[data-lucide="badge-check"] {
+.verified-badge svg {
   width: 1.1em !important;
   height: 1.1em !important;
-  color: #8b5cf6 !important;
-  fill: rgba(139, 92, 246, 0.15) !important;
   stroke: #8b5cf6 !important;
+  fill: rgba(139, 92, 246, 0.15) !important;
   stroke-width: 1.5 !important;
 }
