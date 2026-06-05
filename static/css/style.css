@@ -238,9 +238,8 @@ body.creator-sections-open .user-nav-item {
 .verified-badge-icon {
   width: 1.1em;
   height: 1.1em;
-  color: #1d9bf0;
-  fill: rgba(29, 155, 240, 0.2);
-  stroke: #ffffff;
+  color: #8b5cf6;
+  fill: rgba(139, 92, 246, 0.15);
   stroke-width: 1.5;
 }
 
