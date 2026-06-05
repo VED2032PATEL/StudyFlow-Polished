@@ -225,26 +225,21 @@ body.creator-sections-open .user-nav-item {
 .user-role{font-size:10.5px;color:rgba(167,139,250,.60)}
 
 .verified-badge {
-  width:.86em;
-  height:.86em;
-  min-width:.86em;
-  border-radius:50%;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   vertical-align:.18em;
   margin-left:.26em;
-  background:transparent;
-  color:#fff;
-  box-shadow:none;
+  background:none;
   line-height:1;
 }
 
 .verified-badge .lucide {
-  width:100%;
-  height:100%;
+  width:1.1em;
+  height:1.1em;
+  color:#1d9bf0;
+  fill:rgba(29,155,240,0.15);
   stroke:#fff;
-  fill:#1d9bf0;
 }
 
 .verified-badge.v-badge {
