@@ -228,46 +228,49 @@ body.creator-sections-open .user-nav-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  vertical-align: -0.12em;
-  margin-left: 0.32em;
-  width: 0.95em;
-  height: 0.95em;
-  line-height: 1;
-  filter: drop-shadow(0 2px 6px rgba(139, 92, 246, 0.35));
+  width: 0.9em;
+  height: 0.9em;
+  vertical-align: -0.18em;        /* nudge it slightly below text center */
+  margin-left: 0.35em;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
   transition: transform 0.2s ease;
 }
-.verified-badge:hover { transform: scale(1.08); }
-
 .verified-badge svg {
   width: 100%;
   height: 100%;
   display: block;
   overflow: visible;
+  background: transparent !important;
 }
-.verified-badge .vb-burst {
-  fill: url(#vbGradient) #8b5cf6;
+.vb-burst {
+  fill: #1d9bf0 !important;        /* solid Twitter-style blue star */
+  stroke: none !important;
 }
-.verified-badge .vb-check {
-  stroke: #fff;
+.vb-check {
+  stroke: #ffffff !important;
+  stroke-width: 2.2 !important;
+  fill: none !important;
 }
-
 .verified-badge.v-badge {
+  background: linear-gradient(135deg, #8b5cf6, #38bdf8);
+  color: #fff;
+  font-weight: 900;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  padding: 0 0.5em;
   width: auto;
   height: auto;
-  padding: 0.12em 0.46em;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #8b5cf6, #38bdf8);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 4px 12px rgba(56, 189, 248, 0.28);
-  font-weight: 900;
-  filter: none;
-  vertical-align: middle;
 }
-.verified-badge.v-badge span {
+.vb-badge span {
   font-size: 0.5em;
-  line-height: 1;
   color: #fff;
-  letter-spacing: 0.02em;
 }
+
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -9765,11 +9768,20 @@ select.form-input,
   min-height: 20px;
 }
 
-.verified-badge svg path.vb-burst {
-  fill: #8b5cf6;
+.vb-burst {
+  fill: #1d9bf0 !important;
+  stroke: none !important;
 }
-.verified-badge svg path.vb-check {
-  stroke: #fff;
-  fill: none;
+.vb-check {
+  stroke: #ffffff !important;
+  stroke-width: 2.2 !important;
+  fill: none !important;
 }
+.verified-badge,
+.verified-badge * {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 
