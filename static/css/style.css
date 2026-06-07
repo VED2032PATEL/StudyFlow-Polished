@@ -225,39 +225,50 @@ body.creator-sections-open .user-nav-item {
 .user-role{font-size:10.5px;color:rgba(167,139,250,.60)}
 
 .verified-badge {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  vertical-align:.18em;
-  margin-left:.26em;
-  background:none;
-  line-height:1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -0.12em;
+  margin-left: 0.32em;
+  width: 0.95em;
+  height: 0.95em;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(139, 92, 246, 0.35));
+  transition: transform 0.2s ease;
 }
+.verified-badge:hover { transform: scale(1.08); }
 
-.verified-badge .lucide,
-.verified-badge-icon {
-  width: 1.1em;
-  height: 1.1em;
-  color: #8b5cf6;
-  fill: rgba(139, 92, 246, 0.15);
-  stroke-width: 1.5;
+.verified-badge svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.verified-badge .vb-burst {
+  fill: url(#vbGradient) #8b5cf6;
+}
+.verified-badge .vb-check {
+  stroke: #fff;
 }
 
 .verified-badge.v-badge {
-  background:linear-gradient(135deg,#8b5cf6,#38bdf8);
-  box-shadow:0 0 0 1px rgba(255,255,255,.16), 0 4px 12px rgba(56,189,248,.22);
-  font-weight:950;
-  letter-spacing:0;
-  vertical-align:middle;
-  position:relative;
-  top:-2px;
+  width: auto;
+  height: auto;
+  padding: 0.12em 0.46em;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #8b5cf6, #38bdf8);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 4px 12px rgba(56, 189, 248, 0.28);
+  font-weight: 900;
+  filter: none;
+  vertical-align: middle;
+}
+.verified-badge.v-badge span {
+  font-size: 0.5em;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: 0.02em;
 }
 
-.verified-badge.v-badge span {
-  font-size:.46em;
-  line-height:1;
-  transform:translateY(.01em);
-}
 
 /* ═══════════════════════════════════════════════════════════
    MAIN CONTENT
@@ -9754,10 +9765,11 @@ select.form-input,
   min-height: 20px;
 }
 
-.verified-badge svg {
-  width: 1.1em !important;
-  height: 1.1em !important;
-  stroke: #8b5cf6 !important;
-  fill: rgba(139, 92, 246, 0.15) !important;
-  stroke-width: 1.5 !important;
+.verified-badge svg path.vb-burst {
+  fill: #8b5cf6;
 }
+.verified-badge svg path.vb-check {
+  stroke: #fff;
+  fill: none;
+}
+
