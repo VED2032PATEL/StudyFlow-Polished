@@ -264,12 +264,10 @@ body.creator-sections-open .user-nav-item {
 .verified-badge.v-badge .vb-burst {
   fill: var(--p1) !important;
 }
-.vb-letter {
-  fill: #fff !important;
-  font-size: 9px;
-  font-weight: 900;
-  font-family: 'Inter', system-ui, sans-serif;
-  dominant-baseline: middle;
+.vb-v-mark {
+  stroke: #fff !important;
+  stroke-width: 2.25 !important;
+  fill: none !important;
   pointer-events: none;
 }
 .vb-badge span {
