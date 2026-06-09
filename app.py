@@ -1,5 +1,6 @@
 from flask import (Flask, render_template, request, jsonify,
-                   redirect, url_for, flash, send_from_directory)
+                   redirect, url_for, flash, send_from_directory,
+                   session, abort)
 from flask_login import (LoginManager, UserMixin, login_user,
                          logout_user, login_required, current_user)
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -19,6 +20,7 @@ import hmac
 import time
 import uuid
 import re
+import secrets
 
 logging.basicConfig(level=logging.INFO)
 
@@ -96,6 +98,37 @@ app = Flask(__name__,
             static_folder=os.path.join(_BASE, "static"))
 app.secret_key = os.environ.get("SECRET_KEY", "studyflow_secret_changeme_in_prod")
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+
+CSRF_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+CSRF_FIELD_NAME = "csrf_token"
+CSRF_HEADER_NAMES = ("X-CSRFToken", "X-CSRF-Token")
+
+
+def generate_csrf_token():
+    token = session.get(CSRF_FIELD_NAME)
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session[CSRF_FIELD_NAME] = token
+    return token
+
+
+def _csrf_token_from_request():
+    for header in CSRF_HEADER_NAMES:
+        token = request.headers.get(header, "")
+        if token:
+            return token
+    return request.form.get(CSRF_FIELD_NAME, "")
+
+
+@app.before_request
+def validate_csrf_token():
+    if request.method not in CSRF_METHODS:
+        return None
+    expected = session.get(CSRF_FIELD_NAME, "")
+    submitted = _csrf_token_from_request()
+    if not expected or not submitted or not hmac.compare_digest(expected, submitted):
+        abort(400, description="Invalid CSRF token.")
+    return None
 
 
 @app.route("/service-worker.js")
@@ -360,6 +393,7 @@ def load_user(user_id):
 @app.context_processor
 def inject_notification_count():
     base_context = {
+        "csrf_token": generate_csrf_token,
         "profile_decorations": PROFILE_DECORATIONS,
         "profile_decoration_assets": PROFILE_DECORATION_ASSETS,
         "available_profile_decorations": [],
