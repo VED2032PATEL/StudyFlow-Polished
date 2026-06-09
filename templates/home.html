@@ -239,13 +239,15 @@
     <div class="social-comment-meta">
       <span>{{ comment.time_label }}</span>
       <button type="button" onclick="startCommentReply(this)">Reply</button>
-      {% if comment.reply_count %}
+    </div>
+    {% if comment.reply_count %}
+    <div class="comment-replies-toggle-row">
       <button type="button" class="view-replies-btn" onclick="toggleCommentReplies(this)">
         <span class="reply-rule"></span>
         <span class="reply-label">View replies ({{ comment.reply_count }})</span>
       </button>
-      {% endif %}
     </div>
+    {% endif %}
     {% if comment.replies %}
     <div class="comment-replies" hidden>
       {% for reply in comment.replies %}
@@ -580,7 +582,9 @@
 .comment-like-btn.liked svg { fill: #f43f5e; stroke: #f43f5e; }
 .comment-like-btn:hover svg { transform: scale(1.1); }
 .comment-like-btn span { font-size: .68rem; font-weight: 800; line-height: 1; color: currentColor; }
-.view-replies-btn { display: inline-flex !important; align-items: center; gap: 10px; margin-left: 4px; }
+.comment-replies-toggle-row { margin-top: 12px; }
+.view-replies-btn { display: inline-flex !important; align-items: center; gap: 10px; border: 0; background: none; color: var(--t2); font: inherit; font-size: .82rem; font-weight: 800; padding: 0; cursor: pointer; }
+.view-replies-btn:hover { color: var(--t1); }
 .reply-rule { width: 34px; height: 1px; background: var(--border); display: inline-block; }
 .comment-replies { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
 .comment-reply { margin-left: 0; }
