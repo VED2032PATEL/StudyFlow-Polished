@@ -68,6 +68,7 @@
             class="story-ring-btn {% if tray.all_seen %}seen{% endif %}"
             data-story-user="{{ tray.user.username }}"
             data-story-user-id="{{ tray.user.id }}"
+            data-story-badge="{% if tray.user.is_verified %}verified{% elif tray.user.is_v_badged %}v{% endif %}"
             data-story-avatar="{{ tray.user.avatar_data_url }}"
             data-story-avatar-type="{% if is_profile_video_media(tray.user.avatar_data_url) %}video{% elif is_profile_gif_media(tray.user.avatar_data_url) %}gif{% else %}image{% endif %}"
             data-story-conversation="{{ url_for('conversation_by_user_id', user_id=tray.user.id) }}"
@@ -211,7 +212,7 @@
           {# ── Caption below actions ── #}
           {% if post.caption %}
           <p class="social-post-caption">
-            <a href="{{ url_for('user_profile_by_id', user_id=post.user.id) }}" class="social-post-caption-user">{{ post.user.username }}</a>
+            <a href="{{ url_for('user_profile_by_id', user_id=post.user.id) }}" class="social-post-caption-user">{{ post.user.username }} {{ ui.verified_badge(post.user) }}</a>
             {{ post.caption }}
           </p>
           {% endif %}
@@ -231,7 +232,7 @@
 <div class="social-comment" id="comment-{{ comment.id }}">
   {{ ui.decorated_avatar(comment.user, 'comment-avatar') }}
   <div class="social-comment-body">
-    <strong>{{ comment.user.username }}</strong>
+    <strong>{{ comment.user.username }} {{ ui.verified_badge(comment.user) }}</strong>
     <span>{{ comment.body }}</span>
   </div>
   {% if current_user.id == comment.user.id or current_user.id == post.user_id %}
@@ -647,6 +648,7 @@
 .story-dots-item.danger { color:#f43f5e; }
 .story-modal-user-info { display:flex; align-items:center; gap:6px; }
 .story-modal-username { color:#fff; font-weight:700; font-size:.9rem; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+.story-modal-username .verified-badge { font-size:1em; margin-left:.18em; vertical-align:-.14em; filter:drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
 .story-modal-time { color:rgba(255,255,255,.65); font-size:.82rem; font-weight:400; }
 .story-modal-close-btn { background:none; border:none; color:#fff; cursor:pointer; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s; }
 .story-modal-close-btn:hover { background:rgba(255,255,255,.15); }
@@ -1213,6 +1215,36 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     return `${Math.floor(diff/86400)}d`;
   }
 
+  function escapeStoryText(value) {
+    return String(value || '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[ch]));
+  }
+
+  function storyBadgeHtml(kind) {
+    if (kind === 'verified') {
+      return `<span class="verified-badge" title="Verified creator" aria-label="Verified creator">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path class="vb-burst" d="M12 1.2l2.39 2.06 3.13-.45.94 3.02 3.02.94-.45 3.13L23.1 12l-2.07 2.39.45 3.13-3.02.94-.94 3.02-3.13-.45L12 23.1l-2.39-2.07-3.13.45-.94-3.02-3.02-.94.45-3.13L.9 12l2.07-2.39-.45-3.13 3.02-.94.94-3.02 3.13.45L12 1.2z"></path>
+          <path class="vb-check" d="M9.2 12.3l2 2 3.9-4.2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </span>`;
+    }
+    if (kind === 'v') {
+      return `<span class="verified-badge v-badge" title="V badge" aria-label="V badge">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path class="vb-burst" d="M12 1.2l2.39 2.06 3.13-.45.94 3.02 3.02.94-.45 3.13L23.1 12l-2.07 2.39.45 3.13-3.02.94-.94 3.02-3.13-.45L12 23.1l-2.39-2.07-3.13.45-.94-3.02-3.02-.94.45-3.13L.9 12l2.07-2.39-.45-3.13 3.02-.94.94-3.02 3.13.45L12 1.2z"></path>
+          <path class="vb-v-mark" d="M8.5 8.7l3.2 7.1 3.8-7.1" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </span>`;
+    }
+    return '';
+  }
+
   function openStories(btn) {
     try { stories = JSON.parse(btn.dataset.stories || '[]'); } catch(_) { stories = []; }
     if (!stories.length) return;
@@ -1221,9 +1253,10 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     currentUserId = btn.dataset.storyUserId || null;
     const avatarSrc = btn.dataset.storyAvatar || '';
     const username = btn.dataset.storyUser || '';
+    const badge = btn.dataset.storyBadge || '';
     currentUsername = username;
     const isOwnStory = btn.dataset.storyUserId == '{{ current_user.id }}';
-    usernameEl.textContent = username;
+    usernameEl.innerHTML = `${escapeStoryText(username)} ${storyBadgeHtml(badge)}`.trim();
 
     // Show avatar — fall back to default avatar image, never initials
     const avatarInitial = document.getElementById('storyModalAvatarInitial');

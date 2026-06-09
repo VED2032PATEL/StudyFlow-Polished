@@ -2224,7 +2224,8 @@ def has_stale_schedule(user_id):
 def _social_user_columns(prefix="u"):
     return (
         f"{prefix}.id AS user_id,{prefix}.username,{prefix}.email,{prefix}.avatar_data_url,"
-        f"{prefix}.profile_decoration,{prefix}.is_verified,{prefix}.is_private,{prefix}.chat_block_video_url"
+        f"{prefix}.profile_decoration,{prefix}.is_verified,{prefix}.is_v_badged,"
+        f"{prefix}.is_private,{prefix}.chat_block_video_url"
     )
 
 
@@ -2241,6 +2242,7 @@ def _post_from_row(row):
         "avatar_data_url": post.pop("avatar_data_url", ""),
         "profile_decoration": post.pop("profile_decoration", ""),
         "is_verified": post.pop("is_verified", 0),
+        "is_v_badged": post.pop("is_v_badged", 0),
         "is_private": post.pop("is_private", 0),
         "chat_block_video_url": post.pop("chat_block_video_url", ""),
     }
@@ -2269,6 +2271,7 @@ def _attach_post_comments(conn, posts, limit=3):
                     "avatar_data_url": c.get("avatar_data_url", ""),
                     "profile_decoration": c.get("profile_decoration", ""),
                     "is_verified": c.get("is_verified", 0),
+                    "is_v_badged": c.get("is_v_badged", 0),
                     "is_private": c.get("is_private", 0),
                 },
             }
@@ -2509,6 +2512,7 @@ def get_visible_stories(viewer_id, limit_users=14):
                     "avatar_data_url": row.get("avatar_data_url", ""),
                     "profile_decoration": row.get("profile_decoration", ""),
                     "is_verified": row.get("is_verified", 0),
+                    "is_v_badged": row.get("is_v_badged", 0),
                     "is_private": row.get("is_private", 0),
                 },
                 "stories": [],
