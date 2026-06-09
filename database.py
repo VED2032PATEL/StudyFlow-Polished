@@ -280,8 +280,15 @@ _CREATE = [
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        parent_comment_id INTEGER REFERENCES social_post_comments(id) ON DELETE CASCADE,
         body TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS social_comment_likes (
+        comment_id INTEGER NOT NULL REFERENCES social_post_comments(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (comment_id,user_id)
     )""",
     """CREATE TABLE IF NOT EXISTS social_post_views (
         post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
@@ -351,6 +358,7 @@ _MIGRATIONS = [
     ("messages",   "attachment_type",       "ALTER TABLE messages ADD COLUMN attachment_type TEXT NOT NULL DEFAULT ''"),
     ("messages",   "attachment_data_url",   "ALTER TABLE messages ADD COLUMN attachment_data_url TEXT NOT NULL DEFAULT ''"),
     ("messages",   "reply_to_message_id",   "ALTER TABLE messages ADD COLUMN reply_to_message_id INTEGER REFERENCES messages(id) ON DELETE SET NULL"),
+    ("social_post_comments", "parent_comment_id", "ALTER TABLE social_post_comments ADD COLUMN parent_comment_id INTEGER REFERENCES social_post_comments(id) ON DELETE CASCADE"),
     ("flowcoin_redemptions", "coupon_code",  "ALTER TABLE flowcoin_redemptions ADD COLUMN coupon_code TEXT NOT NULL DEFAULT ''"),
 ]
 
@@ -2249,34 +2257,87 @@ def _post_from_row(row):
     return post
 
 
-def _attach_post_comments(conn, posts, limit=3):
+def _short_time_ago(value):
+    if not value:
+        return ""
+    try:
+        created = datetime.datetime.fromisoformat(str(value).replace("Z", "").replace(" ", "T"))
+    except ValueError:
+        return ""
+    delta = datetime.datetime.utcnow() - created
+    seconds = max(0, int(delta.total_seconds()))
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes}m"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours}h"
+    days = hours // 24
+    if days < 7:
+        return f"{days}d"
+    return f"{days // 7}w"
+
+
+def _comment_from_row(row):
+    comment = {
+        "id": row["id"],
+        "post_id": row["post_id"],
+        "body": row["body"],
+        "created_at": row["created_at"],
+        "time_label": _short_time_ago(row.get("created_at")),
+        "like_count": int(row.get("like_count") or 0),
+        "viewer_liked": bool(row.get("viewer_liked")),
+        "reply_count": int(row.get("reply_count") or 0),
+        "replies": [],
+        "user": {
+            "id": row["user_id"],
+            "username": row["username"],
+            "email": row.get("email", ""),
+            "avatar_data_url": row.get("avatar_data_url", ""),
+            "profile_decoration": row.get("profile_decoration", ""),
+            "is_verified": row.get("is_verified", 0),
+            "is_v_badged": row.get("is_v_badged", 0),
+            "is_private": row.get("is_private", 0),
+        },
+    }
+    return comment
+
+
+def _attach_post_comments(conn, posts, viewer_id=None, limit=3):
     for post in posts:
         comments = _rows_to_dicts(conn.execute(
-            f"""SELECT c.id,c.body,c.created_at,{_social_user_columns('u')}
+            f"""SELECT c.id,c.post_id,c.body,c.created_at,{_social_user_columns('u')},
+                       (SELECT COUNT(*) FROM social_comment_likes l WHERE l.comment_id=c.id) AS like_count,
+                       EXISTS(SELECT 1 FROM social_comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) AS viewer_liked,
+                       (SELECT COUNT(*) FROM social_post_comments r WHERE r.parent_comment_id=c.id) AS reply_count
                 FROM social_post_comments c
                 JOIN users u ON u.id=c.user_id
-                WHERE c.post_id=?
+                WHERE c.post_id=? AND c.parent_comment_id IS NULL
                 ORDER BY c.created_at ASC LIMIT ?""",
-            [post["id"], limit],
+            [viewer_id or 0, post["id"], limit],
         ))
-        post["comments"] = [
-            {
-                "id": c["id"],
-                "body": c["body"],
-                "created_at": c["created_at"],
-                "user": {
-                    "id": c["user_id"],
-                    "username": c["username"],
-                    "email": c.get("email", ""),
-                    "avatar_data_url": c.get("avatar_data_url", ""),
-                    "profile_decoration": c.get("profile_decoration", ""),
-                    "is_verified": c.get("is_verified", 0),
-                    "is_v_badged": c.get("is_v_badged", 0),
-                    "is_private": c.get("is_private", 0),
-                },
-            }
-            for c in comments
-        ]
+        post["comments"] = [_comment_from_row(c) for c in comments]
+        comment_ids = [comment["id"] for comment in post["comments"]]
+        if comment_ids:
+            placeholders = ",".join("?" for _ in comment_ids)
+            replies = _rows_to_dicts(conn.execute(
+                f"""SELECT c.id,c.post_id,c.parent_comment_id,c.body,c.created_at,{_social_user_columns('u')},
+                           (SELECT COUNT(*) FROM social_comment_likes l WHERE l.comment_id=c.id) AS like_count,
+                           EXISTS(SELECT 1 FROM social_comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) AS viewer_liked,
+                           0 AS reply_count
+                    FROM social_post_comments c
+                    JOIN users u ON u.id=c.user_id
+                    WHERE c.parent_comment_id IN ({placeholders})
+                    ORDER BY c.created_at ASC""",
+                [viewer_id or 0] + comment_ids,
+            ))
+            by_parent = {comment["id"]: comment for comment in post["comments"]}
+            for reply_row in replies:
+                parent = by_parent.get(reply_row.get("parent_comment_id"))
+                if parent:
+                    parent["replies"].append(_comment_from_row(reply_row))
     return posts
 
 
@@ -2334,7 +2395,7 @@ def get_social_posts(viewer_id, mode="feed", limit=40):
         for post in posts:
             post["viewer_upvoted"] = bool(post.get("viewer_upvoted"))
             post["viewer_liked"] = bool(post.get("viewer_liked"))
-        return _attach_post_comments(conn, posts)
+        return _attach_post_comments(conn, posts, viewer_id)
     finally:
         conn.close()
 
@@ -2363,7 +2424,7 @@ def get_user_posts(target_user_id, viewer_id, mode="feed", limit=40):
         for post in posts:
             post["viewer_upvoted"] = bool(post.get("viewer_upvoted"))
             post["viewer_liked"]   = bool(post.get("viewer_liked"))
-        return _attach_post_comments(conn, posts)
+        return _attach_post_comments(conn, posts, viewer_id)
     finally:
         conn.close()
 
@@ -2406,17 +2467,57 @@ def toggle_social_post_interaction(post_id, user_id, kind):
         conn.close()
 
 
-def add_social_comment(post_id, user_id, body):
+def add_social_comment(post_id, user_id, body, parent_comment_id=None):
     body = (body or "").strip()
     if not body:
         return False
     conn = get_db()
     try:
+        parent_id = None
+        if parent_comment_id:
+            parent = conn.execute(
+                "SELECT id FROM social_post_comments WHERE id=? AND post_id=? AND parent_comment_id IS NULL",
+                [parent_comment_id, post_id],
+            ).rows
+            if not parent:
+                return False
+            parent_id = parent_comment_id
         conn.execute(
-            "INSERT INTO social_post_comments (post_id,user_id,body) VALUES (?,?,?)",
-            [post_id, user_id, body[:800]],
+            "INSERT INTO social_post_comments (post_id,user_id,parent_comment_id,body) VALUES (?,?,?,?)",
+            [post_id, user_id, parent_id, body[:800]],
         )
         return True
+    finally:
+        conn.close()
+
+
+def toggle_social_comment_like(comment_id, user_id):
+    conn = get_db()
+    try:
+        exists = conn.execute("SELECT 1 FROM social_post_comments WHERE id=?", [comment_id]).rows
+        if not exists:
+            return None
+        liked = conn.execute(
+            "SELECT 1 FROM social_comment_likes WHERE comment_id=? AND user_id=?",
+            [comment_id, user_id],
+        ).rows
+        if liked:
+            conn.execute(
+                "DELETE FROM social_comment_likes WHERE comment_id=? AND user_id=?",
+                [comment_id, user_id],
+            )
+            viewer_liked = False
+        else:
+            conn.execute(
+                "INSERT INTO social_comment_likes (comment_id,user_id) VALUES (?,?)",
+                [comment_id, user_id],
+            )
+            viewer_liked = True
+        count = conn.execute(
+            "SELECT COUNT(*) FROM social_comment_likes WHERE comment_id=?",
+            [comment_id],
+        ).rows[0][0]
+        return {"liked": viewer_liked, "count": int(count)}
     finally:
         conn.close()
 

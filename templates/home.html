@@ -212,7 +212,7 @@
           {# ── Caption below actions ── #}
           {% if post.caption %}
           <p class="social-post-caption">
-            <a href="{{ url_for('user_profile_by_id', user_id=post.user.id) }}" class="social-post-caption-user">{{ post.user.username }} {{ ui.verified_badge(post.user) }}</a>
+            <a href="{{ url_for('user_profile_by_id', user_id=post.user.id) }}" class="social-post-caption-user">{{ post.user.username }}</a>
             {{ post.caption }}
           </p>
           {% endif %}
@@ -229,13 +229,52 @@
             {% if post.comments %}
             <div class="social-comments-list">
               {% for comment in post.comments %}
-<div class="social-comment" id="comment-{{ comment.id }}">
+<div class="social-comment" id="comment-{{ comment.id }}" data-comment-id="{{ comment.id }}" data-username="{{ comment.user.username }}">
   {{ ui.decorated_avatar(comment.user, 'comment-avatar') }}
-  <div class="social-comment-body">
-    <strong>{{ comment.user.username }} {{ ui.verified_badge(comment.user) }}</strong>
-    <span>{{ comment.body }}</span>
+  <div class="social-comment-main">
+    <div class="social-comment-line">
+      <a href="{{ url_for('user_profile_by_id', user_id=comment.user.id) }}" class="social-comment-username">{{ comment.user.username }}</a>
+      <span class="social-comment-text">{{ comment.body }}</span>
+    </div>
+    <div class="social-comment-meta">
+      <span>{{ comment.time_label }}</span>
+      <button type="button" onclick="startCommentReply(this)">Reply</button>
+      {% if comment.reply_count %}
+      <button type="button" class="view-replies-btn" onclick="toggleCommentReplies(this)">
+        <span class="reply-rule"></span>
+        <span class="reply-label">View replies ({{ comment.reply_count }})</span>
+      </button>
+      {% endif %}
+    </div>
+    {% if comment.replies %}
+    <div class="comment-replies" hidden>
+      {% for reply in comment.replies %}
+      <div class="social-comment comment-reply" id="comment-{{ reply.id }}" data-comment-id="{{ reply.id }}" data-username="{{ reply.user.username }}">
+        {{ ui.decorated_avatar(reply.user, 'comment-avatar') }}
+        <div class="social-comment-main">
+          <div class="social-comment-line">
+            <a href="{{ url_for('user_profile_by_id', user_id=reply.user.id) }}" class="social-comment-username">{{ reply.user.username }}</a>
+            <span class="social-comment-text">{{ reply.body }}</span>
+          </div>
+          <div class="social-comment-meta">
+            <span>{{ reply.time_label }}</span>
+            <button type="button" onclick="startCommentReply(this)">Reply</button>
+          </div>
+        </div>
+        <button type="button" class="comment-like-btn {% if reply.viewer_liked %}liked{% endif %}" onclick="toggleCommentLike(this, {{ reply.id }})" aria-label="Like comment">
+          <i data-lucide="heart" width="17" height="17"></i>
+          <span {% if not reply.like_count %}hidden{% endif %}>{{ reply.like_count }}</span>
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
-  {% if current_user.id == comment.user.id or current_user.id == post.user_id %}
+  <button type="button" class="comment-like-btn {% if comment.viewer_liked %}liked{% endif %}" onclick="toggleCommentLike(this, {{ comment.id }})" aria-label="Like comment">
+    <i data-lucide="heart" width="17" height="17"></i>
+    <span {% if not comment.like_count %}hidden{% endif %}>{{ comment.like_count }}</span>
+  </button>
+  {% if current_user.id == comment.user.id or current_user.id == post.user.id %}
   <div class="comment-menu-wrap">
     <button type="button" class="comment-dots-btn" onclick="toggleCommentMenu(this)">
       <i data-lucide="more-horizontal" width="15" height="15"></i>
@@ -255,6 +294,7 @@
             {% endif %}
             <form method="POST" action="{{ url_for('social_post_comment', post_id=post.id) }}" class="social-comment-form">
               <input type="hidden" name="next" value="{{ url_for('home', mode=mode) }}"/>
+              <input type="hidden" name="parent_comment_id" value=""/>
               {{ ui.decorated_avatar(current_user, 'comment-avatar') }}
               <input type="text" name="body" placeholder="Write a comment..." maxlength="800" required/>
               <button type="submit" class="btn btn-primary btn-sm">Send</button>
@@ -520,18 +560,33 @@
 
 /* ── Comments ── */
 .social-comments-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
-.social-comments-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
-.social-comment { display: flex; gap: 10px; align-items: flex-start; }
+.social-comments-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 12px; }
+.social-comment { display: flex; gap: 11px; align-items: flex-start; position: relative; }
 .comment-avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--p1), var(--p2)); color: #fff; font-weight: 800; font-size: 12px; overflow: hidden; }
 .comment-avatar .avatar-core { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .comment-avatar img, .comment-avatar .avatar-photo-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
 .comment-avatar .avatar-initial { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; }
-.social-comment-body { background: var(--hover-bg, rgba(99,102,241,.06)); border-radius: 10px; padding: 8px 12px; font-size: .85rem; }
-.social-comment-body strong { display: block; font-size: .8rem; margin-bottom: 2px; color: var(--accent); }
+.social-comment-main { flex: 1; min-width: 0; padding-right: 8px; }
+.social-comment-line { font-size: .9rem; color: var(--t1); line-height: 1.45; }
+.social-comment-username { color: var(--t1); font-weight: 800; margin-right: 5px; }
+.social-comment-username:hover { text-decoration: none; color: var(--p1); }
+.social-comment-text { color: var(--t1); overflow-wrap: anywhere; }
+.social-comment-meta { display: flex; align-items: center; gap: 12px; margin-top: 4px; color: var(--t2); font-size: .82rem; font-weight: 700; }
+.social-comment-meta button { border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.social-comment-meta button:hover { color: var(--t1); }
+.comment-like-btn { width: 28px; min-width: 28px; border: 0; background: none; color: var(--t2); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 0; cursor: pointer; }
+.comment-like-btn svg { fill: none; stroke: currentColor; transition: fill .15s, stroke .15s, transform .15s; }
+.comment-like-btn.liked { color: #f43f5e; }
+.comment-like-btn.liked svg { fill: #f43f5e; stroke: #f43f5e; }
+.comment-like-btn:hover svg { transform: scale(1.1); }
+.comment-like-btn span { font-size: .68rem; font-weight: 800; line-height: 1; color: currentColor; }
+.view-replies-btn { display: inline-flex !important; align-items: center; gap: 10px; margin-left: 4px; }
+.reply-rule { width: 34px; height: 1px; background: var(--border); display: inline-block; }
+.comment-replies { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.comment-reply { margin-left: 0; }
 .social-comment-form { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
 .social-comment-form input { flex: 1; background: var(--input-bg, var(--card-bg)); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: .85rem; font-family: inherit; }
 .social-comment-form input:focus { outline: none; border-color: var(--accent); }
-.social-comment { position: relative; align-items: center; }
 .comment-menu-wrap { position: relative; margin-left: auto; flex-shrink: 0; }
 .comment-dots-btn {
   background: none; border: none; cursor: pointer;
@@ -926,6 +981,69 @@ function toggleCommentMenu(btn) {
     }, 0);
   }
 }
+
+async function toggleCommentLike(btn, commentId) {
+  try {
+    const res = await fetch(`/home/comments/${commentId}/like`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Like failed');
+    const data = await res.json();
+    btn.classList.toggle('liked', Boolean(data.liked));
+    const countEl = btn.querySelector('span');
+    if (countEl) {
+      countEl.textContent = data.count || '';
+      countEl.hidden = !data.count;
+    }
+  } catch (_) {
+    showShareToast('Could not update comment like.');
+  }
+}
+
+function startCommentReply(btn) {
+  const comment = btn.closest('.social-comment');
+  const section = btn.closest('.social-comments-section');
+  const form = section?.querySelector('.social-comment-form');
+  if (!comment || !form) return;
+  const parent = comment.classList.contains('comment-reply')
+    ? comment.closest('.social-comment[data-comment-id]:not(.comment-reply)')
+    : comment;
+  const parentId = parent?.dataset.commentId || '';
+  const username = comment.dataset.username || '';
+  form.querySelector('input[name="parent_comment_id"]').value = parentId;
+  const input = form.querySelector('input[name="body"]');
+  if (input) {
+    input.placeholder = username ? `Reply to ${username}...` : 'Write a reply...';
+    input.focus();
+  }
+}
+
+function toggleCommentReplies(btn) {
+  const comment = btn.closest('.social-comment');
+  const replies = comment?.querySelector('.comment-replies');
+  if (!replies) return;
+  replies.hidden = !replies.hidden;
+  const label = btn.querySelector('.reply-label');
+  if (label) {
+    label.textContent = replies.hidden
+      ? label.textContent.replace('Hide replies', 'View replies')
+      : label.textContent.replace('View replies', 'Hide replies');
+  }
+  window.lucide?.createIcons();
+}
+
+document.querySelectorAll('.social-comment-form').forEach(form => {
+  const body = form.querySelector('input[name="body"]');
+  const parentInput = form.querySelector('input[name="parent_comment_id"]');
+  body?.addEventListener('input', () => {
+    if (!body.value.trim() && parentInput) {
+      parentInput.value = '';
+      body.placeholder = 'Write a comment...';
+    }
+  });
+});
 
 async function deleteComment(btn, commentId, url) {
   // close the dropdown first

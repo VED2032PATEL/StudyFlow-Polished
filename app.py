@@ -674,9 +674,22 @@ def social_post_interaction(post_id, kind):
 @app.route("/home/posts/<int:post_id>/comment", methods=["POST"])
 @login_required
 def social_post_comment(post_id):
-    if not db.add_social_comment(post_id, current_user.id, request.form.get("body", "")):
+    try:
+        parent_comment_id = int(request.form.get("parent_comment_id") or 0) or None
+    except ValueError:
+        parent_comment_id = None
+    if not db.add_social_comment(post_id, current_user.id, request.form.get("body", ""), parent_comment_id):
         flash("Comment could not be added.", "error")
     return _redirect_back("home")
+
+
+@app.route("/home/comments/<int:comment_id>/like", methods=["POST"])
+@login_required
+def social_comment_like(comment_id):
+    result = db.toggle_social_comment_like(comment_id, current_user.id)
+    if not result:
+        return jsonify({"ok": False}), 404
+    return jsonify({"ok": True, **result})
 
 @app.route("/home/comments/<int:comment_id>/delete", methods=["POST"])
 @login_required
