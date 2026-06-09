@@ -259,17 +259,20 @@ body.creator-sections-open .user-nav-item {
   fill: none !important;
 }
 .verified-badge.v-badge {
-  background: linear-gradient(135deg, #8b5cf6, #38bdf8);
-  color: #fff;
+  color: var(--p1) !important;
+}
+.verified-badge.v-badge .vb-burst {
+  fill: var(--p1) !important;
+}
+.vb-letter {
+  fill: #fff !important;
+  font-size: 9px;
   font-weight: 900;
-  border-radius: 999px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-  padding: 0 0.5em;
-  width: auto;
-  height: auto;
+  font-family: 'Inter', system-ui, sans-serif;
+  dominant-baseline: middle;
+  pointer-events: none;
 }
 .vb-badge span {
-  font-size: 0.5em;
   color: #fff;
 }
 
@@ -9789,6 +9792,12 @@ select.form-input,
   border-radius: 0 !important;
   color: #1d9bf0 !important;
   outline: none !important;
+}
+.verified-badge.v-badge {
+  color: var(--p1) !important;
+}
+.verified-badge.v-badge .vb-burst {
+  fill: var(--p1) !important;
 }
 .verified-badge svg {
   background: transparent !important;

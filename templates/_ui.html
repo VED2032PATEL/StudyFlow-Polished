@@ -7,7 +7,12 @@
       </svg>
     </span>
   {% elif user and user.is_v_badged %}
-    <span class="verified-badge v-badge" title="V badge" aria-label="V badge"><span>V</span></span>
+    <span class="verified-badge v-badge" title="V badge" aria-label="V badge">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path class="vb-burst" d="M12 1.2l2.39 2.06 3.13-.45.94 3.02 3.02.94-.45 3.13L23.1 12l-2.07 2.39.45 3.13-3.02.94-.94 3.02-3.13-.45L12 23.1l-2.39-2.07-3.13.45-.94-3.02-3.02-.94.45-3.13L.9 12l2.07-2.39-.45-3.13 3.02-.94.94-3.02 3.13.45L12 1.2z"/>
+        <text class="vb-letter" x="12" y="15.5" text-anchor="middle">V</text>
+      </svg>
+    </span>
   {% endif %}
 {%- endmacro %}
 
