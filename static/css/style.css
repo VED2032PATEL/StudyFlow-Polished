@@ -228,10 +228,10 @@ body.creator-sections-open .user-nav-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 0.86em;
-  height: 0.86em;
+  width: 1em;
+  height: 1em;
   vertical-align: -0.18em;        /* nudge it slightly below text center */
-  margin-left: 0.35em;
+  margin-left: 0.2em;
   color: #1d9bf0 !important;
   background: transparent !important;
   border: none !important;
