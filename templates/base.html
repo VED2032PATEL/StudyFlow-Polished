@@ -44,6 +44,20 @@
         return String(init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
       }
 
+      function ensureFormCsrf(form) {
+        if (!token || !(form instanceof HTMLFormElement)) return;
+        const method = String(form.method || 'GET').toUpperCase();
+        if (!unsafeMethods.has(method)) return;
+        let input = form.querySelector('input[name="csrf_token"]');
+        if (!input) {
+          input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrf_token';
+          form.appendChild(input);
+        }
+        input.value = token;
+      }
+
       if (token && window.fetch) {
         const nativeFetch = window.fetch.bind(window);
         window.fetch = (input, init = {}) => {
@@ -58,16 +72,22 @@
       }
 
       document.addEventListener('submit', event => {
-        const form = event.target;
-        if (!token || !(form instanceof HTMLFormElement)) return;
-        const method = String(form.method || 'GET').toUpperCase();
-        if (!unsafeMethods.has(method) || form.querySelector('input[name="csrf_token"]')) return;
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'csrf_token';
-        input.value = token;
-        form.appendChild(input);
+        ensureFormCsrf(event.target);
       }, true);
+
+      document.addEventListener('formdata', event => {
+        if (token && event.formData && !event.formData.has('csrf_token')) {
+          event.formData.append('csrf_token', token);
+        }
+      });
+
+      if (token && window.HTMLFormElement?.prototype?.submit) {
+        const nativeSubmit = HTMLFormElement.prototype.submit;
+        HTMLFormElement.prototype.submit = function() {
+          ensureFormCsrf(this);
+          return nativeSubmit.call(this);
+        };
+      }
     })();
   </script>
 </head>

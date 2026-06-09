@@ -82,6 +82,7 @@
 
   {# Hidden story upload form #}
   <form method="POST" action="{{ url_for('create_social_story') }}" class="social-upload-form" id="storyUploadForm" data-upload-mode="story" style="display:none">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <input type="hidden" name="media_url" class="social-media-url"/>
     <input type="hidden" name="media_type" class="social-media-type"/>
     <input type="hidden" name="caption" class="story-caption-val"/>
@@ -94,6 +95,7 @@
 
       {# ── Composer ── #}
       <form method="POST" action="{{ url_for('create_social_post') }}" class="social-composer card anim d1 social-upload-form" data-upload-mode="social_post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="mode" value="{{ mode }}"/>
         <input type="hidden" name="media_url" class="social-media-url"/>
         <input type="hidden" name="media_type" class="social-media-type"/>
