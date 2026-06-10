@@ -81,8 +81,8 @@
                   <div class="story-reply-unavailable">Story unavailable</div>
                 {% endif %}
               </div>
-              {% if msg.story_reply_text %}<div class="story-reply-text">{{ msg.story_reply_text }}</div>{% endif %}
             </div>
+            {% if msg.story_reply_text %}<div class="story-reply-chat-text">{{ msg.story_reply_text }}</div>{% endif %}
           {% else %}
           <div class="chat-body">{{ msg.body }}</div>
           {% endif %}
@@ -438,8 +438,8 @@ function renderStoryReply(meta, text) {
     <div class="story-reply-card">
       <div class="story-reply-label">Replied to ${author} story</div>
       <div class="story-reply-media ${safeUrl ? '' : 'is-unavailable'}">${mediaHtml}</div>
-      ${replyText ? `<div class="story-reply-text">${escapeHtml(replyText)}</div>` : ''}
     </div>
+    ${replyText ? `<div class="story-reply-chat-text">${escapeHtml(replyText)}</div>` : ''}
   `;
 }
 
