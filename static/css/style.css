@@ -7990,18 +7990,6 @@ select.form-input,
   border-color:var(--p1);
 }
 
-.chat-bubble.story-message-bubble {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.chat-mine .chat-bubble.story-message-bubble {
-  background: transparent;
-  border-color: transparent;
-}
-
 .chat-body {
   white-space:pre-wrap;
   overflow-wrap:anywhere;
@@ -8055,35 +8043,32 @@ select.form-input,
 }
 
 /* ── Story reply card (Instagram-style) ── */
-.story-reply-card {
+.chat-story-stack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   align-items: flex-end;
-  margin-bottom: 7px;
-  background: transparent;
-  border: 0;
   max-width: 150px;
-  cursor: default;
+  order: 2;
 }
-.chat-mine .story-reply-card {
-  background: transparent;
-}
-.chat-theirs .story-reply-card {
+.chat-theirs .chat-story-stack {
   align-items: flex-start;
 }
 .story-reply-label {
   font-size: .74rem;
-  color: rgba(255,255,255,.76);
+  color: var(--t2);
   font-weight: 650;
   line-height: 1.25;
+  padding: 0 2px;
 }
-.chat-theirs .story-reply-label { color: var(--t2); }
+.chat-mine .story-reply-label {
+  color: rgba(255,255,255,.72);
+}
 .story-reply-media {
   width: 126px;
   aspect-ratio: 9/16;
   overflow: hidden;
-  background: rgba(0,0,0,.26);
+  background: rgba(0,0,0,.28);
   position: relative;
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,.18);
@@ -8115,22 +8100,12 @@ select.form-input,
   object-fit: cover;
   display: block;
 }
-.story-reply-chat-text {
+.story-reply-text-bubble {
   width: max-content;
   max-width: min(420px, 100%);
-  font-size: .9rem;
-  padding: 9px 13px;
-  color: #fff;
-  line-height: 1.4;
-  word-break: break-word;
-  border-radius: 15px;
-  background: var(--p1);
   margin-left: auto;
 }
-.chat-theirs .story-reply-chat-text {
-  color: var(--t1);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+.chat-theirs .story-reply-text-bubble {
   margin-left: 0;
   margin-right: auto;
 }

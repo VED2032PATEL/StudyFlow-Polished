@@ -60,32 +60,33 @@
             {% endif %}
           </div>
         </div>
-        <div class="chat-bubble {% if msg.story_reply_preview %}story-message-bubble{% endif %}">
+        {% if msg.story_reply_preview %}
+        <div class="chat-story-stack">
+          <div class="story-reply-label">Replied to {{ msg.story_author or 'their' }}{% if msg.story_author %}'s{% endif %} story</div>
+          <div class="story-reply-media {% if not msg.story_media_url %}is-unavailable{% endif %}">
+            {% if msg.story_media_url %}
+              {% if msg.story_media_type and msg.story_media_type.startswith('video') %}
+                <video src="{{ msg.story_media_url }}" class="story-reply-media-el" muted playsinline preload="metadata"></video>
+              {% else %}
+                <img src="{{ msg.story_media_url }}" class="story-reply-media-el" alt="story"/>
+              {% endif %}
+            {% else %}
+              <div class="story-reply-unavailable">Story unavailable</div>
+            {% endif %}
+          </div>
+          {% if msg.story_reply_text %}
+          <div class="chat-bubble story-reply-text-bubble"><div class="chat-body">{{ msg.story_reply_text }}</div></div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="chat-bubble">
           {% if msg.reply_to %}
           <button type="button" class="chat-reply-preview" data-jump-message="{{ msg.reply_to.id }}">
             <span>{{ 'You' if msg.reply_to.sender_id == current_user.id else msg.reply_to.username }}</span>
             <strong>{{ msg.reply_to.preview }}</strong>
           </button>
           {% endif %}
-          {% if msg.story_reply_preview %}
-            <div class="story-reply-card">
-              <div class="story-reply-label">Replied to {{ msg.story_author or 'their' }}{% if msg.story_author %}'s{% endif %} story</div>
-              <div class="story-reply-media {% if not msg.story_media_url %}is-unavailable{% endif %}">
-                {% if msg.story_media_url %}
-                  {% if msg.story_media_type and msg.story_media_type.startswith('video') %}
-                    <video src="{{ msg.story_media_url }}" class="story-reply-media-el" muted playsinline preload="metadata"></video>
-                  {% else %}
-                    <img src="{{ msg.story_media_url }}" class="story-reply-media-el" alt="story"/>
-                  {% endif %}
-                {% else %}
-                  <div class="story-reply-unavailable">Story unavailable</div>
-                {% endif %}
-              </div>
-            </div>
-            {% if msg.story_reply_text %}<div class="story-reply-chat-text">{{ msg.story_reply_text }}</div>{% endif %}
-          {% else %}
           <div class="chat-body">{{ msg.body }}</div>
-          {% endif %}
           {% if msg.attachment_data_url %}
           <a class="chat-attachment {% if msg.attachment_type.startswith('image/') %}image-attachment{% endif %}"
              href="{{ msg.attachment_data_url }}"
@@ -108,6 +109,7 @@
           </div>
           {% endif %}
         </div>
+        {% endif %}
       </div>
       {% if msg.sender_id == current_user.id and msg.read_at and loop.last %}
       <div class="chat-seen-label">Seen</div>
@@ -435,11 +437,11 @@ function renderStoryReply(meta, text) {
     : `<div class="story-reply-unavailable">Story unavailable</div>`;
   const replyText = (text || '').trim();
   return `
-    <div class="story-reply-card">
+    <div class="chat-story-stack">
       <div class="story-reply-label">Replied to ${author} story</div>
       <div class="story-reply-media ${safeUrl ? '' : 'is-unavailable'}">${mediaHtml}</div>
+      ${replyText ? `<div class="chat-bubble story-reply-text-bubble"><div class="chat-body">${escapeHtml(replyText)}</div></div>` : ''}
     </div>
-    ${replyText ? `<div class="story-reply-chat-text">${escapeHtml(replyText)}</div>` : ''}
   `;
 }
 
@@ -567,12 +569,12 @@ function renderMessages(messages) {
           ` : ''}
         </div>
       </div>
-      <div class="chat-bubble ${msg.story_reply_preview ? 'story-message-bubble' : ''}">
-        ${renderReplyPreview(msg.reply_to)}
+      ${msg.story_reply_preview ? '' : '<div class="chat-bubble">'}
+        ${msg.story_reply_preview ? '' : renderReplyPreview(msg.reply_to)}
         ${msg.story_reply_preview ? renderStoryReplyMessage(msg) : (() => { const s = parseStoryMeta(msg.body); return s ? renderStoryReply(s.meta, s.text) : `<div class="chat-body">${formatMessageBody(msg.body)}</div>`; })()}
-        ${renderAttachment(msg)}
-        ${renderReactions(msg.reactions || [])}
-      </div>
+        ${msg.story_reply_preview ? '' : renderAttachment(msg)}
+        ${msg.story_reply_preview ? '' : renderReactions(msg.reactions || [])}
+      ${msg.story_reply_preview ? '' : '</div>'}
     </div>
     ${renderSeenLabel(msg, messages, index)}
   `).join('') + renderTypingIndicator();
