@@ -8046,9 +8046,9 @@ select.form-input,
 .chat-story-stack {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
   align-items: flex-end;
-  max-width: 150px;
+  max-width: 190px;
   order: 2;
 }
 .chat-theirs .chat-story-stack {
@@ -8060,19 +8060,27 @@ select.form-input,
   font-weight: 650;
   line-height: 1.25;
   padding: 0 2px;
+  white-space: nowrap;
 }
 .chat-mine .story-reply-label {
   color: rgba(255,255,255,.72);
 }
 .story-reply-media {
-  width: 126px;
+  width: 104px;
   aspect-ratio: 9/16;
   overflow: hidden;
   background: rgba(0,0,0,.28);
   position: relative;
-  border-radius: 16px;
+  border-radius: 20px;
   border: 1px solid rgba(255,255,255,.18);
   box-shadow: 0 10px 24px rgba(0,0,0,.18);
+  display: block;
+  text-decoration: none;
+  transition: transform .14s ease, filter .14s ease;
+}
+.story-reply-media[href]:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
 .story-reply-media.is-unavailable {
   aspect-ratio: 9/13;
@@ -8101,13 +8109,17 @@ select.form-input,
   display: block;
 }
 .story-reply-text-bubble {
-  width: max-content;
-  max-width: min(420px, 100%);
+  display: inline-flex;
+  width: fit-content;
+  min-width: 0;
+  max-width: min(420px, calc(100vw - 180px));
   margin-left: auto;
+  align-self: flex-end;
 }
 .chat-theirs .story-reply-text-bubble {
   margin-left: 0;
   margin-right: auto;
+  align-self: flex-start;
 }
 
 .chat-time {

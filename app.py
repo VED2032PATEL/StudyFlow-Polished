@@ -1368,6 +1368,7 @@ def _message_thread_response(other):
                 "read_at": msg.get("read_at", ""),
                 "reply_to": msg.get("reply_to"),
                 "reactions": msg.get("reactions", []),
+                "story_id": msg.get("story_id", 0),
                 "story_media_url": msg.get("story_media_url", ""),
                 "story_media_type": msg.get("story_media_type", ""),
                 "story_author": msg.get("story_author", ""),

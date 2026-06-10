@@ -1367,10 +1367,10 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     return '';
   }
 
-  function openStories(btn) {
+  function openStories(btn, startIndex = 0) {
     try { stories = JSON.parse(btn.dataset.stories || '[]'); } catch(_) { stories = []; }
     if (!stories.length) return;
-    currentIndex = 0;
+    currentIndex = Math.max(0, Math.min(Number(startIndex) || 0, stories.length - 1));
     currentConversationUrl = btn.dataset.storyConversation || '#';
     currentUserId = btn.dataset.storyUserId || null;
     const avatarSrc = btn.dataset.storyAvatar || '';
@@ -1407,7 +1407,7 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
     const dotsBtn = document.getElementById('storyModalDots');
     dotsBtn.hidden = !isOwnStory;
     buildProgress();
-    showStory(0);
+    showStory(currentIndex);
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     window.lucide?.createIcons();
@@ -1615,6 +1615,19 @@ document.getElementById('storyCreateCard')?.addEventListener('click', () => {
   document.querySelectorAll('.story-ring-btn').forEach(btn => {
     btn.addEventListener('click', () => openStories(btn));
   });
+
+  const linkedStoryId = new URLSearchParams(window.location.search).get('story_id');
+  if (linkedStoryId) {
+    for (const btn of document.querySelectorAll('.story-ring-btn')) {
+      let trayStories = [];
+      try { trayStories = JSON.parse(btn.dataset.stories || '[]'); } catch(_) {}
+      const storyIndex = trayStories.findIndex(story => String(story.id) === String(linkedStoryId));
+      if (storyIndex >= 0) {
+        setTimeout(() => openStories(btn, storyIndex), 80);
+        break;
+      }
+    }
+  }
 
   // Keyboard
   document.addEventListener('keydown', e => {

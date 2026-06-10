@@ -989,6 +989,7 @@ def _enrich_story_reply_messages(conn, messages):
             continue
         story_id = _safe_int(meta.get("story_id"))
         live_story = story_lookup.get(story_id)
+        msg["story_id"] = story_id if live_story else 0
         msg["story_media_url"] = (live_story or {}).get("media_url") or meta.get("media_url", "")
         msg["story_media_type"] = (live_story or {}).get("media_type") or meta.get("media_type", "image")
         msg["story_author"] = meta.get("author", "")
