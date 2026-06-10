@@ -1368,6 +1368,11 @@ def _message_thread_response(other):
                 "read_at": msg.get("read_at", ""),
                 "reply_to": msg.get("reply_to"),
                 "reactions": msg.get("reactions", []),
+                "story_media_url": msg.get("story_media_url", ""),
+                "story_media_type": msg.get("story_media_type", ""),
+                "story_author": msg.get("story_author", ""),
+                "story_reply_text": msg.get("story_reply_text", ""),
+                "story_reply_preview": msg.get("story_reply_preview"),
                 "is_mine": msg["sender_id"] == current_user.id,
                 "can_edit": msg["sender_id"] == current_user.id,
             }

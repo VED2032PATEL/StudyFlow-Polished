@@ -60,29 +60,28 @@
             {% endif %}
           </div>
         </div>
-        <div class="chat-bubble">
+        <div class="chat-bubble {% if msg.story_reply_preview %}story-message-bubble{% endif %}">
           {% if msg.reply_to %}
           <button type="button" class="chat-reply-preview" data-jump-message="{{ msg.reply_to.id }}">
             <span>{{ 'You' if msg.reply_to.sender_id == current_user.id else msg.reply_to.username }}</span>
             <strong>{{ msg.reply_to.preview }}</strong>
           </button>
           {% endif %}
-          {% if msg.body and msg.body.startswith('{') and '\n' in msg.body %}
-            {% set reply_text = msg.body.split('\n', 1)[1] %}
+          {% if msg.story_reply_preview %}
             <div class="story-reply-card">
               <div class="story-reply-label">Replied to {{ msg.story_author or 'their' }}{% if msg.story_author %}'s{% endif %} story</div>
-              <div class="story-reply-media {% if not msg.story_media_url %}story-reply-media-no-preview{% endif %}">
-                {% if msg.story_media_url and not msg.story_media_url.startswith('data:') %}
+              <div class="story-reply-media {% if not msg.story_media_url %}is-unavailable{% endif %}">
+                {% if msg.story_media_url %}
                   {% if msg.story_media_type and msg.story_media_type.startswith('video') %}
                     <video src="{{ msg.story_media_url }}" class="story-reply-media-el" muted playsinline preload="metadata"></video>
                   {% else %}
                     <img src="{{ msg.story_media_url }}" class="story-reply-media-el" alt="story"/>
                   {% endif %}
                 {% else %}
-                  <div class="story-reply-media-no-preview"><span style="font-size:1.8rem">📖</span><span>Story</span></div>
+                  <div class="story-reply-unavailable">Story unavailable</div>
                 {% endif %}
               </div>
-              {% if reply_text.strip() %}<div class="story-reply-text">{{ reply_text.strip() }}</div>{% endif %}
+              {% if msg.story_reply_text %}<div class="story-reply-text">{{ msg.story_reply_text }}</div>{% endif %}
             </div>
           {% else %}
           <div class="chat-body">{{ msg.body }}</div>
@@ -427,22 +426,36 @@ function parseStoryMeta(body) {
 // Render Instagram-style story reply card
 function renderStoryReply(meta, text) {
   const isVideo = (meta.media_type || '').startsWith('video');
-  const safeUrl = (meta.media_url || '').startsWith('data:') ? '' : (meta.media_url || '');
+  const safeUrl = meta.media_url || '';
   const author = meta.author ? escapeHtml(meta.author) + "'s" : 'their';
   const mediaHtml = safeUrl
     ? (isVideo
         ? `<video src="${escapeHtml(safeUrl)}" class="story-reply-media-el" muted playsinline preload="metadata"></video>`
         : `<img src="${escapeHtml(safeUrl)}" class="story-reply-media-el" alt="story"/>`)
-    : `<div class="story-reply-media-no-preview"><span style="font-size:1.8rem">📖</span><span>Story</span></div>`;
+    : `<div class="story-reply-unavailable">Story unavailable</div>`;
   const replyText = (text || '').trim();
   return `
     <div class="story-reply-card">
       <div class="story-reply-label">Replied to ${author} story</div>
-      <div class="story-reply-media">${mediaHtml}</div>
+      <div class="story-reply-media ${safeUrl ? '' : 'is-unavailable'}">${mediaHtml}</div>
       ${replyText ? `<div class="story-reply-text">${escapeHtml(replyText)}</div>` : ''}
     </div>
   `;
 }
+
+function renderStoryReplyMessage(msg) {
+  const parsed = parseStoryMeta(msg.body);
+  if (!parsed && !msg.story_reply_preview) return '';
+  const meta = parsed?.meta || {};
+  const text = msg.story_reply_text ?? parsed?.text ?? '';
+  return renderStoryReply({
+    ...meta,
+    author: msg.story_author || meta.author || '',
+    media_url: msg.story_media_url || meta.media_url || '',
+    media_type: msg.story_media_type || meta.media_type || 'image',
+  }, text);
+}
+
 function renderAttachment(msg) {
   if (!msg.attachment_data_url) return '';
   const name = msg.attachment_name || 'Attachment';
@@ -464,6 +477,13 @@ function renderAttachment(msg) {
 
 function messagePreviewText(message) {
   if (!message) return '';
+  if (message.story_reply_preview) return message.story_reply_preview;
+  const story = parseStoryMeta(message.body);
+  if (story) {
+    const author = story.meta.author ? `${story.meta.author}'s` : 'a';
+    const text = (story.text || '').trim();
+    return text ? `replied to ${author} story: ${text}` : `replied to ${author} story`;
+  }
   return (message.body || message.attachment_name || 'Attachment').trim();
 }
 
@@ -547,9 +567,9 @@ function renderMessages(messages) {
           ` : ''}
         </div>
       </div>
-      <div class="chat-bubble">
+      <div class="chat-bubble ${msg.story_reply_preview ? 'story-message-bubble' : ''}">
         ${renderReplyPreview(msg.reply_to)}
-        ${(() => { const s = parseStoryMeta(msg.body); return s ? renderStoryReply(s.meta, s.text) : `<div class="chat-body">${formatMessageBody(msg.body)}</div>`; })()}
+        ${msg.story_reply_preview ? renderStoryReplyMessage(msg) : (() => { const s = parseStoryMeta(msg.body); return s ? renderStoryReply(s.meta, s.text) : `<div class="chat-body">${formatMessageBody(msg.body)}</div>`; })()}
         ${renderAttachment(msg)}
         ${renderReactions(msg.reactions || [])}
       </div>

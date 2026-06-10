@@ -919,13 +919,81 @@ def _attach_reply_previews(conn, messages):
         if not reply:
             msg["reply_to"] = None
             continue
-        text = (reply.get("body") or reply.get("attachment_name") or "Attachment").strip()
+        text = (_story_reply_preview(reply.get("body")) or reply.get("body") or reply.get("attachment_name") or "Attachment").strip()
         msg["reply_to"] = {
             "id": reply["id"],
             "sender_id": reply["sender_id"],
             "username": reply.get("username", "User"),
             "preview": text[:110],
         }
+    return messages
+
+
+def _parse_story_reply_body(body):
+    body = body or ""
+    if not body.startswith("{") or "\n" not in body:
+        return None
+    try:
+        meta = json.loads(body.split("\n", 1)[0])
+    except Exception:
+        return None
+    if not meta.get("__story_reply"):
+        return None
+    return meta
+
+
+def _story_reply_text(body):
+    if not _parse_story_reply_body(body):
+        return None
+    return (body or "").split("\n", 1)[1].strip()
+
+
+def _story_reply_preview(body, fallback="Story"):
+    meta = _parse_story_reply_body(body)
+    if not meta:
+        return None
+    author = (meta.get("author") or "").strip()
+    text = _story_reply_text(body)
+    label = f"replied to {author}'s story" if author else "replied to a story"
+    return f"{label}: {text}" if text else label
+
+
+def _safe_int(value, default=0):
+    try:
+        return int(value or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def _enrich_story_reply_messages(conn, messages):
+    story_ids = sorted({
+        _safe_int(meta.get("story_id"))
+        for msg in messages
+        for meta in [_parse_story_reply_body(msg.get("body"))]
+        if meta and _safe_int(meta.get("story_id"))
+    })
+    story_lookup = {}
+    if story_ids:
+        placeholders = ",".join("?" for _ in story_ids)
+        rows = _rows_to_dicts(conn.execute(
+            f"""SELECT id,media_url,media_type
+                FROM social_stories
+                WHERE id IN ({placeholders}) AND expires_at > datetime('now')""",
+            story_ids,
+        ))
+        story_lookup = {row["id"]: row for row in rows}
+    for msg in messages:
+        meta = _parse_story_reply_body(msg.get("body"))
+        if not meta:
+            msg["story_reply_preview"] = None
+            continue
+        story_id = _safe_int(meta.get("story_id"))
+        live_story = story_lookup.get(story_id)
+        msg["story_media_url"] = (live_story or {}).get("media_url") or meta.get("media_url", "")
+        msg["story_media_type"] = (live_story or {}).get("media_type") or meta.get("media_type", "image")
+        msg["story_author"] = meta.get("author", "")
+        msg["story_reply_text"] = _story_reply_text(msg.get("body")) or ""
+        msg["story_reply_preview"] = _story_reply_preview(msg.get("body"))
     return messages
 
 
@@ -1302,6 +1370,7 @@ def get_conversations(user_id):
             ))
             if not last_rows:
                 continue
+            _enrich_story_reply_messages(conn, last_rows)
             unread = conn.execute(
                 "SELECT COUNT(*) FROM messages WHERE sender_id=? AND receiver_id=? AND read_at=''",
                 [peer_id, user_id],
@@ -1333,7 +1402,6 @@ def get_conversation_summaries(user_id):
 
 
 def get_message_thread(user_id, other_user_id, limit=100):
-    import json as _json
     purge_expired_messages(user_id, other_user_id)
     conn = get_db()
     try:
@@ -1344,18 +1412,7 @@ def get_message_thread(user_id, other_user_id, limit=100):
             [user_id, other_user_id, other_user_id, user_id, limit],
         ))[::-1]
         messages = _attach_reply_previews(conn, _attach_message_reactions(conn, messages, user_id))
-        # Parse story reply metadata from body for Jinja template
-        for m in messages:
-            body = m.get('body') or ''
-            if body.startswith('{') and '\n' in body:
-                try:
-                    meta = _json.loads(body.split('\n', 1)[0])
-                    if meta.get('__story_reply'):
-                        m['story_media_url']  = meta.get('media_url', '')
-                        m['story_media_type'] = meta.get('media_type', 'image')
-                        m['story_author']     = meta.get('author', '')
-                except Exception:
-                    pass
+        messages = _enrich_story_reply_messages(conn, messages)
         return messages
     finally:
         conn.close()
