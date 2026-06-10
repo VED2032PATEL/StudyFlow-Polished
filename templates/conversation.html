@@ -62,7 +62,7 @@
         </div>
         {% if msg.story_reply_preview %}
         <div class="chat-story-stack">
-          <div class="story-reply-label">Replied to {{ msg.story_author or 'their' }}{% if msg.story_author %}'s{% endif %} story</div>
+          <div class="story-reply-label">Replied to {{ msg.story_reply_subject or ((msg.story_author ~ "'s story") if msg.story_author else "their story") }}</div>
           {% if msg.story_id %}
           <a class="story-reply-media {% if not msg.story_media_url %}is-unavailable{% endif %}" href="{{ url_for('home', mode='feed', story_id=msg.story_id) }}" title="Open story">
           {% else %}
@@ -434,7 +434,7 @@ function renderStoryReply(meta, text) {
   const isVideo = (meta.media_type || '').startsWith('video');
   const safeUrl = meta.media_url || '';
   const storyId = meta.story_id || '';
-  const author = meta.author ? escapeHtml(meta.author) + "'s" : 'their';
+  const subject = meta.subject || (meta.author ? `${meta.author}'s story` : 'their story');
   const mediaHtml = safeUrl
     ? (isVideo
         ? `<video src="${escapeHtml(safeUrl)}" class="story-reply-media-el" muted playsinline preload="metadata"></video>`
@@ -447,7 +447,7 @@ function renderStoryReply(meta, text) {
     : `<div class="${mediaClass}">${mediaHtml}</div>`;
   return `
     <div class="chat-story-stack">
-      <div class="story-reply-label">Replied to ${author} story</div>
+      <div class="story-reply-label">Replied to ${escapeHtml(subject)}</div>
       ${mediaBlock}
       ${replyText ? `<div class="chat-bubble story-reply-text-bubble"><div class="chat-body">${escapeHtml(replyText)}</div></div>` : ''}
     </div>
@@ -462,6 +462,7 @@ function renderStoryReplyMessage(msg) {
   return renderStoryReply({
     ...meta,
     author: msg.story_author || meta.author || '',
+    subject: msg.story_reply_subject || meta.subject || '',
     story_id: msg.story_id || meta.story_id || '',
     media_url: msg.story_media_url || meta.media_url || '',
     media_type: msg.story_media_type || meta.media_type || 'image',

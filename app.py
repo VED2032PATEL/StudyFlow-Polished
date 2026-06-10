@@ -1372,6 +1372,7 @@ def _message_thread_response(other):
                 "story_media_url": msg.get("story_media_url", ""),
                 "story_media_type": msg.get("story_media_type", ""),
                 "story_author": msg.get("story_author", ""),
+                "story_reply_subject": msg.get("story_reply_subject", ""),
                 "story_reply_text": msg.get("story_reply_text", ""),
                 "story_reply_preview": msg.get("story_reply_preview"),
                 "is_mine": msg["sender_id"] == current_user.id,

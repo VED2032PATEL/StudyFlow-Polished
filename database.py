@@ -948,13 +948,14 @@ def _story_reply_text(body):
     return (body or "").split("\n", 1)[1].strip()
 
 
-def _story_reply_preview(body, fallback="Story"):
+def _story_reply_preview(body, subject=None):
     meta = _parse_story_reply_body(body)
     if not meta:
         return None
     author = (meta.get("author") or "").strip()
     text = _story_reply_text(body)
-    label = f"replied to {author}'s story" if author else "replied to a story"
+    label_subject = subject or (f"{author}'s story" if author else "a story")
+    label = f"replied to {label_subject}"
     return f"{label}: {text}" if text else label
 
 
@@ -965,7 +966,7 @@ def _safe_int(value, default=0):
         return default
 
 
-def _enrich_story_reply_messages(conn, messages):
+def _enrich_story_reply_messages(conn, messages, viewer_id=None):
     story_ids = sorted({
         _safe_int(meta.get("story_id"))
         for msg in messages
@@ -976,7 +977,7 @@ def _enrich_story_reply_messages(conn, messages):
     if story_ids:
         placeholders = ",".join("?" for _ in story_ids)
         rows = _rows_to_dicts(conn.execute(
-            f"""SELECT id,media_url,media_type
+            f"""SELECT id,user_id,media_url,media_type
                 FROM social_stories
                 WHERE id IN ({placeholders}) AND expires_at > datetime('now')""",
             story_ids,
@@ -989,12 +990,17 @@ def _enrich_story_reply_messages(conn, messages):
             continue
         story_id = _safe_int(meta.get("story_id"))
         live_story = story_lookup.get(story_id)
+        story_owner_id = _safe_int((live_story or {}).get("user_id"))
+        author = meta.get("author", "")
+        received_by_viewer = viewer_id and _safe_int(msg.get("receiver_id")) == viewer_id
+        subject = "your story" if viewer_id and (story_owner_id == viewer_id or (not story_owner_id and received_by_viewer)) else (f"{author}'s story" if author else "their story")
         msg["story_id"] = story_id if live_story else 0
         msg["story_media_url"] = (live_story or {}).get("media_url") or meta.get("media_url", "")
         msg["story_media_type"] = (live_story or {}).get("media_type") or meta.get("media_type", "image")
-        msg["story_author"] = meta.get("author", "")
+        msg["story_author"] = author
+        msg["story_reply_subject"] = subject
         msg["story_reply_text"] = _story_reply_text(msg.get("body")) or ""
-        msg["story_reply_preview"] = _story_reply_preview(msg.get("body"))
+        msg["story_reply_preview"] = _story_reply_preview(msg.get("body"), subject)
     return messages
 
 
@@ -1371,7 +1377,7 @@ def get_conversations(user_id):
             ))
             if not last_rows:
                 continue
-            _enrich_story_reply_messages(conn, last_rows)
+            _enrich_story_reply_messages(conn, last_rows, user_id)
             unread = conn.execute(
                 "SELECT COUNT(*) FROM messages WHERE sender_id=? AND receiver_id=? AND read_at=''",
                 [peer_id, user_id],
@@ -1413,7 +1419,7 @@ def get_message_thread(user_id, other_user_id, limit=100):
             [user_id, other_user_id, other_user_id, user_id, limit],
         ))[::-1]
         messages = _attach_reply_previews(conn, _attach_message_reactions(conn, messages, user_id))
-        messages = _enrich_story_reply_messages(conn, messages)
+        messages = _enrich_story_reply_messages(conn, messages, user_id)
         return messages
     finally:
         conn.close()
